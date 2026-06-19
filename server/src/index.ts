@@ -12,6 +12,7 @@ import { createPool, dbHealth } from "./db/pool.js";
 import { initDb } from "./db/schema.js";
 import { PgSubscriptionsRepo } from "./db/repositories/subscriptions.js";
 import { PgPushLogRepo } from "./db/repositories/push-log.js";
+import { PgAlertRulesRepo } from "./db/repositories/alert-rules.js";
 import { setupWebPush } from "./push/webpush.js";
 import { PrayerScheduler } from "./push/scheduler.js";
 import { createPushRouter } from "./push/routes.js";
@@ -42,10 +43,12 @@ async function main(): Promise<void> {
 
       const subsRepo = new PgSubscriptionsRepo(pool);
       const logRepo = new PgPushLogRepo(pool);
+      const alertRulesRepo = new PgAlertRulesRepo(pool);
 
       featureRouters.push(
         createPushRouter({
           subsRepo,
+          alertRulesRepo,
           vapidPublicKey: config.vapid?.publicKey ?? null,
           pushEnabled: config.pushEnabled,
         }),
@@ -53,7 +56,7 @@ async function main(): Promise<void> {
 
       if (config.pushEnabled && config.vapid) {
         setupWebPush(config.vapid);
-        scheduler = new PrayerScheduler({ subsRepo, logRepo });
+        scheduler = new PrayerScheduler({ subsRepo, alertRulesRepo, logRepo });
         scheduler.start();
         log.info("Web-push scheduler started");
       } else {

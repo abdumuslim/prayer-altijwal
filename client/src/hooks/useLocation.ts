@@ -5,7 +5,7 @@
 //   4. last resort → device-tz default capital
 // Never blocks the UI; always overridable.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { reverseGeocode } from "@/lib/api";
 import {
   GeolocationFailure,
@@ -33,41 +33,27 @@ export interface UseLocation {
   errorKind: "denied" | "unavailable" | "timeout" | "fetch" | null;
 }
 
-/** A weak last-resort default so a denied/unsupported first run still renders. */
-function fallbackForDeviceTz(): StoredLocation {
-  const tz = deviceTimeZone();
-  // Minimal capital map keyed by common IANA zones; everything else → Mecca.
-  const CAPITALS: Record<string, StoredLocation> = {
-    "Asia/Baghdad": { city: "Baghdad", country: "IQ", tz: "Asia/Baghdad", lat: 33.3152, lon: 44.3661, elevation: 34 },
-    "Asia/Riyadh": { city: "Riyadh", country: "SA", tz: "Asia/Riyadh", lat: 24.7136, lon: 46.6753, elevation: 612 },
-    "Asia/Dubai": { city: "Dubai", country: "AE", tz: "Asia/Dubai", lat: 25.2048, lon: 55.2708, elevation: 5 },
-    "Africa/Cairo": { city: "Cairo", country: "EG", tz: "Africa/Cairo", lat: 30.0444, lon: 31.2357, elevation: 23 },
-    "Europe/Istanbul": { city: "Istanbul", country: "TR", tz: "Europe/Istanbul", lat: 41.0082, lon: 28.9784, elevation: 40 },
-    "America/New_York": { city: "New York", country: "US", tz: "America/New_York", lat: 40.7128, lon: -74.006, elevation: 10 },
-    "Europe/London": { city: "London", country: "GB", tz: "Europe/London", lat: 51.5074, lon: -0.1278, elevation: 11 },
-  };
-  return (
-    CAPITALS[tz] ?? {
-      city: "Mecca",
-      country: "SA",
-      tz: "Asia/Riyadh",
-      lat: 21.4225,
-      lon: 39.8262,
-      elevation: 277,
-    }
-  );
-}
+/** The default location: Baghdad. Shown until the user picks a city or grants
+ *  GPS (opt-in via the search panel). Audience is Iraq-centric. */
+const BAGHDAD_DEFAULT: StoredLocation = {
+  city: "Baghdad",
+  cityAr: "بغداد",
+  country: "IQ",
+  tz: "Asia/Baghdad",
+  lat: 33.3152,
+  lon: 44.3661,
+  elevation: 34,
+};
 
 export function useLocation(): UseLocation {
   const persisted = loadState().location;
-  const [location, setLocationState] = useState<StoredLocation | null>(persisted);
-  const [detectedMethod, setDetectedMethod] = useState<string | null>(null);
-  const [status, setStatus] = useState<LocationStatus>(
-    persisted ? "ready" : "idle",
+  const [location, setLocationState] = useState<StoredLocation | null>(
+    persisted ?? BAGHDAD_DEFAULT,
   );
+  const [detectedMethod, setDetectedMethod] = useState<string | null>(null);
+  const [status, setStatus] = useState<LocationStatus>("ready");
   const [errorKind, setErrorKind] =
     useState<UseLocation["errorKind"]>(null);
-  const triedFirstRun = useRef(false);
 
   const setLocation = useCallback(
     (loc: StoredLocation, method: string | null = null) => {
@@ -89,6 +75,7 @@ export function useLocation(): UseLocation {
         const rev = await reverseGeocode(coords.lat, coords.lon);
         const loc: StoredLocation = {
           city: rev.city,
+          cityAr: rev.cityAr,
           country: rev.country,
           tz: rev.tz,
           lat: coords.lat,
@@ -124,36 +111,50 @@ export function useLocation(): UseLocation {
           : "unavailable";
       setStatus(denied ? "denied" : "error");
       setErrorKind(kind);
-      // Last-resort seed (FRONTEND.md step 4): when geolocation is unsupported
-      // or unavailable (NOT explicitly denied), drop the user onto a sensible
-      // device-tz capital so the UI always renders. Denial instead prompts the
-      // city search, which is the more respectful affordance.
+      // On unsupported geolocation, keep the Baghdad default rather than leaving
+      // the UI empty. (Denied/timeout simply keep whatever location is shown.)
       if (!denied && err instanceof GeolocationFailure && err.kind === "unsupported") {
-        const fallback = fallbackForDeviceTz();
-        setLocationState(fallback);
+        setLocationState(BAGHDAD_DEFAULT);
         setDetectedMethod(null);
-        patchState({ location: fallback });
+        patchState({ location: BAGHDAD_DEFAULT });
       }
     }
   }, []);
 
-  // First run with nothing persisted: try GPS once automatically; if it fails
-  // we fall back to a device-tz capital so the UI always has something to show.
+  // One-time upgrade for locations persisted before Arabic names existed (no
+  // `cityAr` field): backfill it (and refresh names) from a reverse lookup by the
+  // stored coordinates, so the saved city shows in Arabic without re-doing GPS.
   useEffect(() => {
-    if (persisted || triedFirstRun.current) return;
-    triedFirstRun.current = true;
-    void (async () => {
-      await requestGps();
-    })();
-    // requestGps/persisted are stable for this one-shot effect
+    if (!persisted || persisted.cityAr !== undefined) return;
+    let cancelled = false;
+    void reverseGeocode(persisted.lat, persisted.lon)
+      .then((rev) => {
+        if (cancelled) return;
+        const upgraded: StoredLocation = {
+          ...persisted,
+          city: rev.city ?? persisted.city,
+          cityAr: rev.cityAr ?? null,
+          country: rev.country ?? persisted.country,
+        };
+        setLocationState(upgraded);
+        patchState({ location: upgraded });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // run once on mount for a stale persisted location
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // No auto-GPS prompt: the app opens on the Baghdad default; GPS is opt-in via
+  // the "Use my location" button in the search panel.
 
   return {
     location,
     detectedMethod,
     status,
-    resolving: !location && (status === "loading" || status === "idle"),
+    resolving: status === "loading",
     requestGps,
     setLocation,
     errorKind,

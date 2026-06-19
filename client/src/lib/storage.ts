@@ -9,6 +9,8 @@ const CURRENT_VERSION = 1 as const;
 
 export interface StoredLocation {
   city: string | null;
+  /** Arabic-script city name when known (shown in Arabic mode). */
+  cityAr?: string | null;
   country: string | null;
   tz: string;
   lat: number;

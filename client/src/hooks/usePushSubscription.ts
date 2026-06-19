@@ -1,8 +1,8 @@
-// Web-push subscription state: permission, subscribe/unsubscribe, prefs sync,
-// iOS-standalone detection. Persists reminder prefs to the storage envelope.
+// Web-push subscription lifecycle: permission, subscribe/unsubscribe, status,
+// and the active endpoint (used to key the device's reminder rules). The actual
+// reminders live server-side as alert rules — see usePrayerAlerts.
 
-import { useCallback, useEffect, useState } from "react";
-import { updatePushPrefs } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getExistingSubscription,
   iosNeedsInstall,
@@ -10,12 +10,6 @@ import {
   subscribe as doSubscribe,
   unsubscribe as doUnsubscribe,
 } from "@/lib/push";
-import {
-  DEFAULT_REMINDER_PREFS,
-  loadState,
-  patchState,
-  type ReminderPrefs,
-} from "@/lib/storage";
 import type { AsrMadhab, Lang } from "@/types/api";
 import type { StoredLocation } from "@/lib/storage";
 
@@ -30,10 +24,9 @@ export type PushStatus =
 
 export interface UsePushSubscription {
   status: PushStatus;
-  prefs: ReminderPrefs;
   error: string | null;
-  setPrayers: (prayers: string[]) => void;
-  setLeadMinutes: (mins: number[]) => void;
+  /** The active push endpoint (keys the device's reminder rules); null if off. */
+  endpoint: string | null;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
 }
@@ -51,9 +44,7 @@ export function usePushSubscription(ctx: Context): UsePushSubscription {
     if (Notification.permission === "denied") return "denied";
     return "default";
   });
-  const [prefs, setPrefs] = useState<ReminderPrefs>(
-    () => loadState().reminderPrefs ?? DEFAULT_REMINDER_PREFS,
-  );
+  const [endpoint, setEndpoint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Reflect any pre-existing subscription on mount.
@@ -62,56 +53,15 @@ export function usePushSubscription(ctx: Context): UsePushSubscription {
     if (!pushSupported()) return;
     void getExistingSubscription().then((sub) => {
       if (cancelled) return;
-      if (sub && Notification.permission === "granted") setStatus("subscribed");
+      if (sub && Notification.permission === "granted") {
+        setEndpoint(sub.endpoint);
+        setStatus("subscribed");
+      }
     });
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const persistPrefs = useCallback((next: ReminderPrefs) => {
-    setPrefs(next);
-    patchState({ reminderPrefs: next });
-  }, []);
-
-  const pushPrefsToServer = useCallback(
-    async (next: ReminderPrefs) => {
-      if (status !== "subscribed") return;
-      const sub = await getExistingSubscription();
-      if (!sub) return;
-      try {
-        await updatePushPrefs({
-          endpoint: sub.endpoint,
-          prayers: next.prayers,
-          leadMinutes: next.leadMinutes,
-          method: ctx.method,
-          asr: ctx.asr,
-          lang: ctx.lang,
-        });
-      } catch {
-        // best-effort; prefs are still stored locally
-      }
-    },
-    [status, ctx.method, ctx.asr, ctx.lang],
-  );
-
-  const setPrayers = useCallback(
-    (prayers: string[]) => {
-      const next = { ...prefs, prayers };
-      persistPrefs(next);
-      void pushPrefsToServer(next);
-    },
-    [prefs, persistPrefs, pushPrefsToServer],
-  );
-
-  const setLeadMinutes = useCallback(
-    (leadMinutes: number[]) => {
-      const next = { ...prefs, leadMinutes };
-      persistPrefs(next);
-      void pushPrefsToServer(next);
-    },
-    [prefs, persistPrefs, pushPrefsToServer],
-  );
 
   const enable = useCallback(async () => {
     setError(null);
@@ -125,19 +75,16 @@ export function usePushSubscription(ctx: Context): UsePushSubscription {
     }
     setStatus("working");
     try {
-      await doSubscribe({
+      const sub = await doSubscribe({
         lat: ctx.location.lat,
         lon: ctx.location.lon,
         tz: ctx.location.tz,
         country: ctx.location.country,
         method: ctx.method,
         asr: ctx.asr,
-        prayers: prefs.prayers,
-        leadMinutes: prefs.leadMinutes,
         lang: ctx.lang,
       });
-      const next = { ...prefs, enabled: true };
-      persistPrefs(next);
+      setEndpoint(sub.endpoint);
       setStatus("subscribed");
     } catch (err) {
       if (Notification.permission === "denied") {
@@ -147,7 +94,7 @@ export function usePushSubscription(ctx: Context): UsePushSubscription {
         setError(err instanceof Error ? err.message : "Subscription failed");
       }
     }
-  }, [ctx.location, ctx.method, ctx.asr, ctx.lang, prefs, persistPrefs]);
+  }, [ctx.location, ctx.method, ctx.asr, ctx.lang]);
 
   const disable = useCallback(async () => {
     setError(null);
@@ -155,18 +102,34 @@ export function usePushSubscription(ctx: Context): UsePushSubscription {
     try {
       await doUnsubscribe();
     } finally {
-      persistPrefs({ ...prefs, enabled: false });
+      setEndpoint(null);
       setStatus(pushSupported() ? "default" : "unsupported");
     }
-  }, [prefs, persistPrefs]);
+  }, []);
 
-  return {
-    status,
-    prefs,
-    error,
-    setPrayers,
-    setLeadMinutes,
-    enable,
-    disable,
-  };
+  // Keep the stored subscription fresh: when the user changes location/method/
+  // language while subscribed, re-upsert so reminders use the latest context.
+  const sig = `${ctx.location?.lat},${ctx.location?.lon},${ctx.location?.tz},${ctx.method},${ctx.asr},${ctx.lang}`;
+  const lastSig = useRef<string | null>(null);
+  useEffect(() => {
+    if (status !== "subscribed" || !ctx.location) return;
+    if (lastSig.current === null) {
+      lastSig.current = sig; // first observation after (re)subscribe — no resync
+      return;
+    }
+    if (lastSig.current === sig) return;
+    lastSig.current = sig;
+    void doSubscribe({
+      lat: ctx.location.lat,
+      lon: ctx.location.lon,
+      tz: ctx.location.tz,
+      country: ctx.location.country,
+      method: ctx.method,
+      asr: ctx.asr,
+      lang: ctx.lang,
+    }).catch(() => undefined); // best-effort refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig, status]);
+
+  return { status, error, endpoint, enable, disable };
 }

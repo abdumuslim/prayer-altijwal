@@ -113,10 +113,10 @@ prayer/
 └── client/
     └── src/
         ├── i18n/              # strings.ar.ts, strings.en.ts, I18nProvider.tsx
-        ├── lib/               # api.ts, storage.ts, geolocation.ts, push.ts
-        ├── hooks/             # usePrayerTimes, useLocation, useSettings, usePushSubscription
-        └── components/        # PrayerList/Card, NextPrayerCountdown, HijriDate, NextEvent,
-                               #   LocationBar, CitySearch, SettingsPanel, NotificationsOptIn, LanguageToggle
+        ├── lib/               # api.ts, storage.ts, geolocation.ts, push.ts, locale.ts, format.ts
+        ├── hooks/             # usePrayerTimes, useLocation, useSettings, usePushSubscription, usePrayerAlerts
+        └── components/        # TopBar, PrayerList/Card, NextPrayerCountdown, NextEvent, CitySearch,
+                               #   GovernorateList, SettingsPanel, NotificationsOptIn/AlertForm, LanguageToggle
 ```
 
 Rationale: home's `routes.ts`/`collector.ts` grew into 700–2000-line monoliths; here payload, format,

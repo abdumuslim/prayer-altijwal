@@ -29,6 +29,8 @@ export interface City {
   ele: number | null;
   /** Comma-joined Latin-script alternate names (optional). */
   alt?: string;
+  /** Arabic-script name, e.g. "بغداد" (optional; absent → fall back to n/a). */
+  nar?: string;
 }
 
 /** Number of integer-latitude bands searched on each side for reverse lookup. */
@@ -129,7 +131,10 @@ export class CitiesIndex {
 
     const matches: Array<{ city: City; rank: number }> = [];
     for (const c of this.cities) {
-      const hay = normalize(c.alt ? `${c.n}\n${c.a}\n${c.alt}` : `${c.n}\n${c.a}`);
+      const parts = [c.n, c.a];
+      if (c.alt) parts.push(c.alt);
+      if (c.nar) parts.push(c.nar); // lets Arabic-script queries match
+      const hay = normalize(parts.join("\n"));
       const idx = hay.indexOf(needle);
       if (idx === -1) continue;
       // rank 0 = match at a token start (prefix), rank 1 = mid-string substring.
@@ -143,5 +148,22 @@ export class CitiesIndex {
     });
 
     return matches.slice(0, limit).map((m) => m.city);
+  }
+
+  /**
+   * One representative city — the most populous — per first-level admin division
+   * of a country. For Iraq this yields the governorate capitals (Baghdad, Basra,
+   * Mosul, …), used by the location quick-pick that replaced the method override.
+   * Sorted by population (largest first).
+   */
+  governorates(cc: string): City[] {
+    const upper = cc.toUpperCase();
+    const best = new Map<string, City>();
+    for (const c of this.cities) {
+      if (c.cc.toUpperCase() !== upper || !c.adm1) continue;
+      const cur = best.get(c.adm1);
+      if (!cur || c.pop > cur.pop) best.set(c.adm1, c);
+    }
+    return [...best.values()].sort((a, b) => b.pop - a.pop);
   }
 }

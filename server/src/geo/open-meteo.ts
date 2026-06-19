@@ -12,6 +12,8 @@ const COUNT = 8;
  */
 export interface GeoResult {
   name: string;
+  /** Arabic-script name when known (offline dataset); null otherwise. */
+  nameAr: string | null;
   country: string;
   admin1: string;
   tz: string;
@@ -44,6 +46,9 @@ function num(v: unknown): number {
 function mapResult(r: OpenMeteoResult): GeoResult {
   return {
     name: str(r.name),
+    // Open-Meteo returns one name localized to the requested language; we don't
+    // get both scripts, so the offline `nar` field is the only true Arabic name.
+    nameAr: null,
     country: str(r.country_code),
     admin1: str(r.admin1),
     tz: str(r.timezone),

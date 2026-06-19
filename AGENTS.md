@@ -10,12 +10,14 @@ guess details that live in a topic doc — read the doc.
 
 ## What this is
 
-Public, **GPS-based Islamic prayer-times** webapp at **https://prayer.altijwal.com**. The browser
-detects the user's location; the server computes prayer times for it and returns a live-countdown
-payload. Sibling of the `home` dashboard (`D:\dev\home`): deployed on the **same VPS** (Docker +
-Traefik), **reusing home's location-agnostic `prayer-engine` verbatim**. Audience is Iraq-centric;
-UI is bilingual **Arabic/English** (Arabic default, RTL). Backend: Node 22 / Express 5 / TypeScript.
-Frontend: React 19 / Vite 7 / Tailwind 4. Storage: a dedicated `prayer` PostgreSQL database (push).
+Public, **location-based Islamic prayer-times** webapp at **https://prayer.altijwal.com**. Opens on a
+**Baghdad default** (Iraq-centric audience; no auto-GPS prompt); the user switches location via GPS
+(opt-in, in the search panel), city search, or the governorate quick-pick. The server computes prayer
+times for the resolved location and returns a live-countdown payload. Sibling of the `home` dashboard
+(`D:\dev\home`): deployed on the **same VPS** (Docker + Traefik), **reusing home's location-agnostic
+`prayer-engine` verbatim**. UI is bilingual **Arabic/English** (Arabic the hard default, RTL; numerals
+always Latin). Backend: Node 22 / Express 5 / TypeScript. Frontend: React 19 / Vite 7 / Tailwind 4.
+Storage: a dedicated `prayer` PostgreSQL database (push subscriptions + reminder rules).
 
 ```
 Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) → PostgreSQL (db=prayer)
@@ -24,10 +26,11 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 ## The 4 decisions (one line each — full rationale in `docs/DECISIONS.md`)
 
 1. **Backend API** architecture — server reuses the engine, client fetches JSON + ticks the countdown.
-2. **Method auto-detected by location** (country → official method) **+ manual picker**; BaghdadYMA
-   offsets are **Baghdad-only** (elsewhere in Iraq, MWL angles).
+2. **Method auto-detected by location** (country → official method); the calibrated Iraqi
+   (`BaghdadYMA`) profile applies to **all of Iraq**. Method/madhab are **not surfaced** in the UI.
 3. **MVP** = core times + countdown + Hijri/events **+ web-push reminders + city search**
-   (Qibla & monthly table deferred).
+   (Qibla & monthly table deferred). Reminders are **multiple independent alert rules** (per-prayer ×
+   timing), ported from home (`docs/NOTIFICATIONS.md`).
 4. **Bilingual AR/EN**, Arabic default, RTL-aware.
 
 ## Routing table — read the doc BEFORE working on the topic
@@ -36,7 +39,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 |---|---|
 | The choices behind everything (architecture, method policy, scope, i18n) | `docs/DECISIONS.md` |
 | System design, request flow, **timezone model**, scheduler model, planned file layout | `docs/ARCHITECTURE.md` |
-| The reused engine: `calculatePrayerTimes`, 13 methods, **BaghdadYMA Baghdad-only nuance**, high-lat | `docs/PRAYER_ENGINE.md` |
+| The reused engine: `calculatePrayerTimes`, 13 methods, **nationwide Iraqi (BaghdadYMA) calibration**, high-lat | `docs/PRAYER_ENGINE.md` |
 | HTTP API contract: `/api/prayer-times`, geo + push endpoints, response shapes | `docs/PRAYER_TIMES_API.md` |
 | Location resolution: GeoNames cities dataset, reverse/forward, country→method detection | `docs/GEOCODING.md` |
 | Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
@@ -51,9 +54,13 @@ live in Claude's Tier-2 memory (see `CLAUDE.md`), not in this repo.
 
 ```bash
 cd client && npm run dev        # frontend dev (proxies /api/* to the server)
-cd server && npx tsc --noEmit   # server type-check
-cd client && npx vite build     # client build
+cd server && npx tsc --noEmit   # server type-check (works)
+cd client && npm run build      # client typecheck + build — USE THIS. Bare `tsc --noEmit` in
+                                # client/ is a NO-OP (solution-style config); only `tsc -b`
+                                # (run by `npm run build`) catches type errors → else the Docker
+                                # build fails on deploy. See [[build_client_typecheck_gotcha]].
 cd server && npm test           # server tests (vitest)
+cd server && npm run build:cities   # regenerate the bundled GeoNames dataset (n/a/alt/nar/etc.)
 ```
 
 Deployment: tarball → scp → `docker compose up -d --build` on the VPS — exact steps in
@@ -70,8 +77,9 @@ Deployment: tarball → scp → `docker compose up -d --build` on the VPS — ex
    into the client bundle.
 4. **All engine times are UTC; the `tz` is the *target location's* IANA tz, never the device tz.**
    This is the central correctness rule (`docs/ARCHITECTURE.md` §3).
-5. **BaghdadYMA offsets (`+5/+3/+2`) are Baghdad-only.** Elsewhere in Iraq use its angles without
-   offsets (`docs/DECISIONS.md` ADR-002).
+5. **The calibrated Iraqi `BaghdadYMA` profile (offsets `+5/+3/+2`) applies to all of Iraq** (cc=IQ),
+   not just Baghdad — it reproduces the official ديوان الوقف السني per-governorate table to ≤2 min
+   (`docs/DECISIONS.md` ADR-002, reversed; regression in `iraq-governorates.test.ts`).
 6. **Traefik router names must be `prayer.*`** (never `home.*`) — a duplicate name on the shared
    Traefik silently breaks routing (`docs/DEPLOYMENT.md`).
 7. **VPS clock is UTC** — never use server-local wall-clock for prayer logic; always pass an explicit

@@ -2,8 +2,10 @@ import { childLogger } from "../logger.js";
 import { dateKey, isValidDate } from "../prayer/format.js";
 import { computePrayerTimes } from "../prayer/compute.js";
 import type { SubscriptionsRepo, Subscription } from "../db/repositories/subscriptions.js";
+import type { AlertRule, AlertRulesRepo } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
 import { sendPush, type SendResult } from "./webpush.js";
+import { buildPushPayload } from "./notification-text.js";
 import type { MethodName, AsrMadhab } from "../prayer-engine/index.js";
 
 const log = childLogger("push/scheduler");
@@ -28,6 +30,7 @@ interface CachedTimes {
 
 export interface SchedulerDeps {
   subsRepo: SubscriptionsRepo;
+  alertRulesRepo: AlertRulesRepo;
   logRepo: PushLogRepo;
   /** Injectable clock (tests pass a fixed/advancing fake). Default: real time. */
   now?: () => Date;
@@ -66,13 +69,15 @@ function defaultComputeTimes(sub: Subscription, now: Date): PrayerTimeMap {
 /**
  * Restart-safe, per-tz prayer reminder scheduler. Every tick it walks all
  * subscriptions, computes (and caches) their local-day prayer table, and for
- * each selected prayer × lead checks whether `now` is inside the arming window;
- * if so it claims a fire via the persistent ledger and sends. See
- * docs/NOTIFICATIONS.md §4 for the full design and the three multi-location
- * fixes over home's single-table scheduler.
+ * each of the device's ALERT RULES × prayer checks whether `now` is inside the
+ * arming window; if so it claims a fire via the persistent ledger and sends a
+ * localized payload. A device can own many independent rules (different prayers,
+ * different timings). See docs/NOTIFICATIONS.md §4 for the full design and the
+ * three multi-location fixes over home's single-table scheduler.
  */
 export class PrayerScheduler {
   private readonly subsRepo: SubscriptionsRepo;
+  private readonly alertRulesRepo: AlertRulesRepo;
   private readonly logRepo: PushLogRepo;
   private readonly now: () => Date;
   private readonly computeTimes: (sub: Subscription) => PrayerTimeMap;
@@ -88,6 +93,7 @@ export class PrayerScheduler {
 
   constructor(deps: SchedulerDeps) {
     this.subsRepo = deps.subsRepo;
+    this.alertRulesRepo = deps.alertRulesRepo;
     this.logRepo = deps.logRepo;
     this.now = deps.now ?? (() => new Date());
     this.send = deps.send ?? sendPush;
@@ -134,16 +140,27 @@ export class PrayerScheduler {
   async tick(): Promise<void> {
     const now = this.now();
     let subs: Subscription[];
+    let rules: AlertRule[];
     try {
-      subs = await this.subsRepo.listAll();
+      [subs, rules] = await Promise.all([this.subsRepo.listAll(), this.alertRulesRepo.listAll()]);
     } catch (error: unknown) {
-      log.error("Tick: failed to list subscriptions", error instanceof Error ? error : { error });
+      log.error("Tick: failed to load subscriptions/rules", error instanceof Error ? error : { error });
       return;
     }
 
+    // Group rules by device so each subscription's table is computed once.
+    const rulesByEndpoint = new Map<string, AlertRule[]>();
+    for (const rule of rules) {
+      const arr = rulesByEndpoint.get(rule.endpoint);
+      if (arr) arr.push(rule);
+      else rulesByEndpoint.set(rule.endpoint, [rule]);
+    }
+
     for (const sub of subs) {
+      const subRules = rulesByEndpoint.get(sub.endpoint);
+      if (!subRules || subRules.length === 0) continue; // no reminders configured
       try {
-        await this.processSubscription(sub, now);
+        await this.processSubscription(sub, subRules, now);
       } catch (error: unknown) {
         log.error("Tick: subscription failed", { endpoint: sub.endpoint });
         log.error("Tick error detail", error instanceof Error ? error : { error });
@@ -153,22 +170,23 @@ export class PrayerScheduler {
     await this.maybePrune(now);
   }
 
-  private async processSubscription(sub: Subscription, now: Date): Promise<void> {
+  private async processSubscription(sub: Subscription, rules: AlertRule[], now: Date): Promise<void> {
     const localDateKey = dateKey(now, sub.tz);
     const table = this.tableFor(sub, localDateKey);
-    const leads = sub.leadMinutes.length > 0 ? sub.leadMinutes : [0];
 
-    for (const prayer of sub.prayers) {
-      if (!SCHEDULABLE_SET.has(prayer)) continue;
-      const t = table[prayer];
-      if (!t || !isValidDate(t)) continue; // skip invalid / NaN times
+    for (const rule of rules) {
+      const lead = rule.timing === "at_time" ? 0 : Math.max(0, rule.minutes ?? 0);
+      for (const prayer of rule.prayers) {
+        if (!SCHEDULABLE_SET.has(prayer)) continue;
+        const t = table[prayer];
+        if (!t || !isValidDate(t)) continue; // skip invalid / NaN times
 
-      const minutesLeft = (t.getTime() - now.getTime()) / MIN_MS;
-      for (const lead of leads) {
+        const minutesLeft = (t.getTime() - now.getTime()) / MIN_MS;
         // Arming window: fire once we're within `lead` minutes, but not before
         // (lead - armingWindow). Window > tick so no fire slips between ticks.
         if (minutesLeft <= lead && minutesLeft > lead - this.armingWindowMin) {
-          const fireKey = `${localDateKey}-${prayer}-${lead}`;
+          // Per-rule fireKey so two rules covering the same prayer stay distinct.
+          const fireKey = `${localDateKey}-r${rule.id}-${prayer}`;
           const won = await this.logRepo.tryClaim(sub.endpoint, fireKey);
           if (!won) continue; // already fired (this day) — restart/overlap safe
           await this.fire(sub, prayer, lead);
@@ -178,7 +196,7 @@ export class PrayerScheduler {
   }
 
   private async fire(sub: Subscription, prayer: string, lead: number): Promise<void> {
-    const payload = { prayer, lead, lang: sub.lang };
+    const payload = buildPushPayload(prayer, lead, sub.lang);
     const result = await this.send(sub.subscription, payload);
     if (result.gone) {
       // 404/410 → subscription is dead; delete it (cascades to its ledger rows).

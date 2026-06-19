@@ -2,10 +2,13 @@
 // The client never imports server code — only these JSON contracts.
 
 import type {
+  AlertInput,
+  AlertsResponse,
   CitySearchResponse,
+  GovernoratesResponse,
   Lang,
+  PrayerAlert,
   PrayerTimesResponse,
-  PushPrefsBody,
   PushSubscribeBody,
   ReverseGeoResponse,
   VapidKeyResponse,
@@ -112,6 +115,17 @@ export function searchCities(
   );
 }
 
+export function fetchGovernorates(
+  country: string,
+  signal?: AbortSignal,
+): Promise<GovernoratesResponse> {
+  return request<GovernoratesResponse>(
+    `/api/geo/governorates${qs({ country })}`,
+    undefined,
+    signal,
+  );
+}
+
 export function fetchVapidKey(signal?: AbortSignal): Promise<VapidKeyResponse> {
   return request<VapidKeyResponse>("/api/push/vapid-key", undefined, signal);
 }
@@ -130,9 +144,38 @@ export function unsubscribePush(endpoint: string): Promise<unknown> {
   });
 }
 
-export function updatePushPrefs(body: PushPrefsBody): Promise<unknown> {
-  return request<unknown>("/api/push/prefs", {
+// ── Reminder rules (multiple independent alerts per device) ──────────────────
+
+export function listAlerts(
+  endpoint: string,
+  signal?: AbortSignal,
+): Promise<AlertsResponse> {
+  return request<AlertsResponse>(
+    `/api/push/alerts${qs({ endpoint })}`,
+    undefined,
+    signal,
+  );
+}
+
+export function createAlert(body: AlertInput): Promise<{ alert: PrayerAlert }> {
+  return request<{ alert: PrayerAlert }>("/api/push/alerts", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+export function updateAlert(
+  id: number,
+  body: AlertInput,
+): Promise<{ alert: PrayerAlert }> {
+  return request<{ alert: PrayerAlert }>(`/api/push/alerts/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteAlert(id: number, endpoint: string): Promise<unknown> {
+  return request<unknown>(`/api/push/alerts/${id}${qs({ endpoint })}`, {
+    method: "DELETE",
   });
 }

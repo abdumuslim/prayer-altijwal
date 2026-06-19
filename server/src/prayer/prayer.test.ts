@@ -9,17 +9,17 @@ const MOSUL = { lat: 36.335, lon: 43.118 };
 const MECCA = { lat: 21.4225, lon: 39.8262 };
 const LONDON = { lat: 51.5074, lon: -0.1278 };
 
-describe("detectMethod — country → method + Baghdad-only nuance", () => {
-  it("Baghdad → full BaghdadYMA (calibrated)", () => {
+describe("detectMethod — country → method (Iraqi profile nationwide, ADR-002)", () => {
+  it("Baghdad → calibrated Iraqi profile", () => {
     const m = detectMethod("IQ", BAGHDAD.lat, BAGHDAD.lon);
     expect(m.key).toBe("BaghdadYMA");
     expect(m.baghdadCalibrated).toBe(true);
   });
 
-  it("Mosul (IQ, outside Baghdad radius) → MWL angles, NOT calibrated", () => {
+  it("Mosul (anywhere in Iraq) → the SAME calibrated Iraqi profile", () => {
     const m = detectMethod("IQ", MOSUL.lat, MOSUL.lon);
-    expect(m.key).toBe("MWL");
-    expect(m.baghdadCalibrated).toBe(false);
+    expect(m.key).toBe("BaghdadYMA");
+    expect(m.baghdadCalibrated).toBe(true);
   });
 
   it("country table: SA→UmmAlQura, US→ISNA, EG→Egyptian, TR→Diyanet", () => {

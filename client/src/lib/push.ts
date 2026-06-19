@@ -69,8 +69,6 @@ export interface SubscribeContext {
   country: string | null;
   method: string;
   asr: AsrMadhab;
-  prayers: string[];
-  leadMinutes: number[];
   lang: Lang;
 }
 
@@ -107,8 +105,6 @@ export async function subscribe(ctx: SubscribeContext): Promise<PushSubscription
     country: ctx.country,
     method: ctx.method,
     asr: ctx.asr,
-    prayers: ctx.prayers,
-    leadMinutes: ctx.leadMinutes,
     lang: ctx.lang,
   });
 

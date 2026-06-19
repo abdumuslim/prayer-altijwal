@@ -1,15 +1,18 @@
 import { Router, type Request, type Response } from "express";
 import { detectMethod } from "../prayer/method-detect.js";
-import { GeoReverseQuery, GeoSearchQuery } from "../validation/geo.js";
+import { GeoGovernoratesQuery, GeoReverseQuery, GeoSearchQuery } from "../validation/geo.js";
 import { CitiesIndex, type City } from "./cities-index.js";
 import { openMeteoSearch, type GeoResult } from "./open-meteo.js";
 
 const SEARCH_LIMIT = 8;
+/** Cap the governorate quick-pick; covers every country's admin-1 divisions. */
+const GOVERNORATE_LIMIT = 40;
 
 /** Map an offline City record into the public forward-geocoding result shape. */
 function cityToResult(c: City): GeoResult {
   return {
     name: c.n,
+    nameAr: c.nar ?? null,
     country: c.cc,
     admin1: c.adm1,
     tz: c.tz,
@@ -44,6 +47,7 @@ export function createGeoRouter(index: CitiesIndex): Router {
 
     res.json({
       city: city.n,
+      cityAr: city.nar ?? null,
       country: city.cc,
       admin1: city.adm1,
       tz: city.tz,
@@ -65,6 +69,21 @@ export function createGeoRouter(index: CitiesIndex): Router {
       offline.length > 0 ? offline : (await openMeteoSearch(q, lang)).slice(0, SEARCH_LIMIT);
 
     res.json({ results });
+  });
+
+  // A country's governorates (admin-1 capitals) — the location quick-pick that
+  // replaced the manual method override. Offline-only (no external call).
+  r.get("/api/geo/governorates", (req: Request, res: Response) => {
+    const parsed = GeoGovernoratesQuery.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
+      return;
+    }
+    const governorates = index
+      .governorates(parsed.data.country)
+      .slice(0, GOVERNORATE_LIMIT)
+      .map(cityToResult);
+    res.json({ governorates });
   });
 
   return r;

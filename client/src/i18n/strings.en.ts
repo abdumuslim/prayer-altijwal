@@ -15,6 +15,7 @@ export const en = {
 
   // Next-prayer hero
   "next.label": "Next Prayer",
+  "next.header": "Time until the next prayer",
   "next.in": "in {time}",
   "next.tomorrow": "Tomorrow",
   "next.now": "It's time",
@@ -38,21 +39,6 @@ export const en = {
   "event.inDay": "in 1 day",
   "event.tomorrow": "Tomorrow",
 
-  // Methods (the 13 calculation methods)
-  "method.MWL": "Muslim World League",
-  "method.ISNA": "Islamic Society of North America",
-  "method.Egyptian": "Egyptian General Authority",
-  "method.UmmAlQura": "Umm al-Qura, Makkah",
-  "method.Karachi": "University of Karachi",
-  "method.Dubai": "Dubai",
-  "method.Qatar": "Qatar",
-  "method.Kuwait": "Kuwait",
-  "method.Singapore": "Singapore (MUIS)",
-  "method.Diyanet": "Turkey (Diyanet)",
-  "method.Tehran": "Tehran, Geophysics",
-  "method.Jafari": "Shia (Jafari)",
-  "method.BaghdadYMA": "Baghdad — Young Muslims Assoc.",
-
   // Location bar
   "location.nearest": "Nearest: {city}",
   "location.detecting": "Detecting your location…",
@@ -61,42 +47,40 @@ export const en = {
   "location.useGps": "Use My Location",
   "location.set": "Set Your Location",
 
-  // Method chip
-  "chip.auto": "Auto",
-  "chip.method": "Method",
-
   // City search
   "search.title": "Search City",
   "search.placeholder": "Type a city name…",
   "search.noResults": "No cities found",
   "search.searching": "Searching…",
   "search.hint": "Search for any city worldwide",
+  "search.governoratesIn": "Cities in {country}",
 
   // Settings
   "settings.title": "Settings",
-  "settings.calcMethod": "Calculation Method",
-  "settings.autoDetected": "Auto (detected: {method})",
-  "settings.manual": "Manual Override",
-  "settings.resetAuto": "Reset to Auto",
-  "settings.asr": "Asr Calculation",
-  "settings.asr.standard": "Standard",
-  "settings.asr.hanafi": "Hanafi",
-  "settings.asr.standardHint": "Shafi'i, Maliki, Hanbali",
-  "settings.asr.hanafiHint": "Later afternoon",
+  "settings.governoratesIn": "Cities in {country}",
   "settings.language": "Language",
   "settings.done": "Done",
-  "settings.baghdadNote": "Baghdad-calibrated offsets active",
 
   // Notifications
   "notify.title": "Prayer Reminders",
-  "notify.subtitle": "Get notified before each prayer",
+  "notify.subtitle": "Set reminders for each prayer",
   "notify.enable": "Enable Reminders",
   "notify.enabled": "Reminders On",
   "notify.disable": "Turn Off",
   "notify.prayers": "Which Prayers",
-  "notify.leadTime": "Remind Me",
-  "notify.atTime": "At time",
+  "notify.timing": "When",
+  "notify.leadTime": "Minutes Before",
+  "notify.atTime": "At adhan",
+  "notify.beforeTiming": "Before",
   "notify.minBefore": "{min} min before",
+  "notify.allPrayers": "All prayers",
+  "notify.selectAll": "Select all",
+  "notify.clearAll": "Clear",
+  "notify.add": "Add Reminder",
+  "notify.save": "Save",
+  "notify.edit": "Edit",
+  "notify.delete": "Delete",
+  "notify.listSep": ", ",
   "notify.iosHint": "Add to Home Screen to enable reminders",
   "notify.iosHintDetail": "On iPhone: tap Share, then Add to Home Screen.",
   "notify.unsupported": "Reminders aren't supported on this browser.",
@@ -116,7 +100,6 @@ export const en = {
   // Misc
   "common.cancel": "Cancel",
   "common.close": "Close",
-  "common.credit": "City data © GeoNames",
   "lang.toggle": "العربية",
 } as const;
 

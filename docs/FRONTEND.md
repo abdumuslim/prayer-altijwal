@@ -10,14 +10,18 @@ Related: `ARCHITECTURE.md` (request/tz model), `DECISIONS.md` ADR-004 (localizat
 
 ## 1. Location flow (`useLocation` + `lib/geolocation.ts`)
 
-Fallback chain — never blocks the UI:
-1. Persisted location in `localStorage` → render instantly.
-2. Else "Use my location" → `navigator.geolocation.getCurrentPosition` → `GET /api/geo/reverse`
-   → `{ city, country, tz, elevation, method }` → persist.
-3. Else (permission denied/unavailable) → `CitySearch` (forward `/api/geo/search`).
-4. Last resort → IP/browser-tz default (a sensible capital); always overridable.
+Resolution — never blocks the UI:
+1. Persisted location in `localStorage` → render instantly. (Locations saved before Arabic names
+   existed are upgraded once via a reverse lookup to backfill `cityAr`.)
+2. Else **default to Baghdad** (`33.3152, 44.3661`, `Asia/Baghdad`) — the app opens on Baghdad with
+   **no auto-GPS prompt** (Iraq-centric audience; changed 2026-06-19).
+3. GPS is **opt-in**: the search panel's "Use my location" button →
+   `navigator.geolocation.getCurrentPosition` → `GET /api/geo/reverse`
+   → `{ city, cityAr, country, tz, elevation, method }` → persist.
+4. Or pick via `CitySearch` (forward `/api/geo/search`) / the `GovernorateList` quick-pick.
 
-The resolved `{ lat, lon, tz, method, asr }` feed `GET /api/prayer-times`.
+The resolved `{ lat, lon, tz }` feed `GET /api/prayer-times`; `method`/`asr` are auto-resolved
+server-side from the country and not chosen in the UI.
 
 ---
 
@@ -26,9 +30,20 @@ The resolved `{ lat, lon, tz, method, asr }` feed `GET /api/prayer-times`.
 Generalizes home's hook. Fetch the payload (absolute `timestamp`s) once per civil day / on change;
 tick a local `setInterval(1000)` recomputing each `countdown` from `timestamp − Date.now()` and
 re-deriving `isNext`/`isPassed` client-side, so the timer is smooth and never diverges from the
-server. **Re-fetch** on: location/method/asr change, local-midnight rollover, tab refocus after
-staleness. Proximity levels (for styling) mirror home: imminent ≤2 min, critical ≤4, urgent ≤7,
-warning ≤15, else safe.
+server. **Re-fetch** on: location/method change, local-midnight rollover, tab refocus after staleness.
+
+**Proximity palette (as-built — `lib/format.ts` + `components/ui/proximity.ts`):** thresholds are
+`safe` (>15 min) → `warning` (≤15) → `urgent` (≤10) → `critical` (≤5) → `imminent` (≤1), colours
+**green → yellow → orange → red → pulsing red**, resetting to green when the next prayer's countdown
+begins. The **hero card's** glow tracks the level at every step (green has its own `glow-pulse`
+keyframe; imminent pulses red). The **prayer rows** stay calm while far off — the next-row glow is
+suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks in as the prayer
+approaches. Colour vars live in `index.css`.
+
+**Countdown text:** both the hero "remaining circle" and the prayer rows use the same
+`formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains:
+`2 س:5 د` past an hour, `59 د:19 ث` under it, `30 ث` in the last minute (Arabic units shown; `h/m/s`
+in English). Latin digits.
 
 ---
 
@@ -39,9 +54,20 @@ warning ≤15, else safe.
 - **Arabic default.** On language change set `document.documentElement.lang` and `dir`
   (`rtl` for ar, `ltr` for en).
 - Tailwind **logical properties** (`ms-`/`me-`/`ps-`/`pe-`, `start`/`end`) for RTL-safe layout —
-  avoid hard `left`/`right`.
-- **Numerals:** pick Arabic-Indic *or* Latin digits for time strings and use it consistently
-  (avoid jarring mixed numerals); configurable via the formatter locale / `numberingSystem`.
+  avoid hard `left`/`right`. (Watch decorative absolute positioning: the hero glow had to use
+  **physical `left-1/2`** — logical `start-1/2` + `-translate-x-1/2` drifts off-centre in RTL.)
+- **Numerals are ALWAYS Latin** (product decision "keep numbers in English"), even in Arabic.
+  `lib/format.ts` `localizeDigits` is a deliberate **no-op pass-through**; the server uses the
+  `-nu-latn` locale extension (`fmtTime` → `ar-u-nu-latn`, `hijriDate` → `…-nu-latn`) so Arabic text
+  carries Latin digits. `TopBar`'s clock + Gregorian line also use `ar-u-nu-latn`.
+- **Prayer names are translated client-side** via the existing `prayer.*` keys (`t(`prayer.${name}`)`
+  in `NextPrayerCountdown` + `PrayerCard`) — the server `LABELS` are English-only and were showing raw
+  in Arabic mode.
+- **Place names:** `lib/locale.ts` — `localizeCountry` (via `Intl.DisplayNames`) and
+  `cityDisplayName`/`storedCityName` (the dataset's Arabic `nameAr`/`cityAr` in Arabic mode, Latin
+  fallback). See `GEOCODING.md`.
+- **Fonts:** Arabic is **Cairo** (`--font-arabic` in `index.css`, Google Fonts in `index.html`) —
+  switched from Tajawal.
 - Persist `language`; initialize from stored value or `navigator.language`, defaulting to `ar`.
 
 ---
@@ -52,28 +78,43 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 
 | Key | Shape |
 |---|---|
-| `location` | `{ city, country, tz, lat, lon, elevation }` |
-| `method` / `asr` | method key + asr madhab, with an `auto` flag = "follow country detection" |
+| `location` | `{ city, cityAr?, country, tz, lat, lon, elevation }` |
 | `language` | `"ar"` \| `"en"` |
-| `reminderPrefs` | `{ enabled, leadMinutes: number[], prayers: string[] }` |
+
+Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
+selections are **server-side** (alert rules) — no `reminderPrefs` key.
 
 ---
 
 ## 5. Components & hooks
 
-**Hooks:** `usePrayerTimes`, `useLocation`, `useSettings`, `usePushSubscription`.
+**Hooks:** `usePrayerTimes`, `useLocation`, `useSettings`, `usePushSubscription` (lifecycle + exposes
+the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATIONS.md`).
 
 **Components:**
-- `PrayerList` / `PrayerCard` — the six times; highlight `isNext`; proximity accent colour.
-- `NextPrayerCountdown` — large live timer to the next prayer.
-- `HijriDate`, `NextEvent` — Hijri date + next Islamic event.
-- `LocationBar` — current city + active method; opens settings.
-- `CitySearch` — debounced forward search (`/api/geo/search`).
-- `SettingsPanel` — method picker showing **"Auto (detected: X)"** + manual override (reset-to-auto),
-  Asr madhab toggle, language toggle.
-- `NotificationsOptIn` — permission + per-prayer toggles + lead-time chips; iOS "Add to Home Screen"
-  hint when non-standalone (`NOTIFICATIONS.md`).
+- `TopBar` — single consolidated header row: **[settings][live local time]** at the start, the
+  **location centred** (Arabic name in Arabic mode; opens search), and **both dates** (Hijri +
+  Gregorian) at the end. Replaced the old `LocationBar` + `NowCard` (deleted) to save vertical space.
+- `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 natural-height rows).
+  Boxes are stacked (icon / name / time); the next prayer adds the live countdown + a proximity
+  accent; passed prayers dim.
+- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring: a single header line
+  (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
+  time. RTL-safe centred glow.
+- `NextEvent` — next Islamic event (alone in the bottom card; only rendered when an event exists).
+- `CitySearch` — debounced forward search (`/api/geo/search`); a **"Use my location" (GPS)** button +
+  the **governorate list** as its default when the query is empty.
+- `GovernorateList` — shared list of the country's governorate capitals (`/api/geo/governorates`);
+  selecting one sets the location. **This replaced the manual method/Asr controls.**
+- `SettingsPanel` — language toggle, the governorate quick-pick, and the reminders section. **No method
+  picker and no Asr madhab toggle** (removed — `DECISIONS.md` ADR-002/003).
+- `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
+  (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
+  non-standalone (`NOTIFICATIONS.md`).
 - `LanguageToggle`.
+
+No footer credit (the GeoNames-attribution footer + `common.credit` key were removed — attribution
+lives in `GEOCODING.md`).
 
 ---
 

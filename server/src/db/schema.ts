@@ -33,10 +33,26 @@ CREATE TABLE IF NOT EXISTS push_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_push_log_fired_at ON push_log (fired_at);
+
+-- Multiple independent reminders per device (ported from the home project):
+-- each rule fires its chosen prayers at a chosen timing (at the time, or N
+-- minutes before). Replaces the single lead_minutes/prayers arrays on
+-- push_subscriptions (those columns are kept but unused for back-compat).
+CREATE TABLE IF NOT EXISTS prayer_alert_rules (
+  id          SERIAL PRIMARY KEY,
+  endpoint    TEXT NOT NULL REFERENCES push_subscriptions(endpoint) ON DELETE CASCADE,
+  timing      TEXT NOT NULL CHECK (timing IN ('at_time','before')),
+  minutes     INTEGER,
+  prayers     TEXT[] NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_prayer_alert_rules_endpoint ON prayer_alert_rules (endpoint);
 `;
 
 /** Apply the idempotent schema. Run once at startup, after createPool. */
 export async function initDb(pool: pg.Pool): Promise<void> {
   await pool.query(DDL);
-  log.info("Schema initialized (push_subscriptions, push_log)");
+  log.info("Schema initialized (push_subscriptions, push_log, prayer_alert_rules)");
 }

@@ -1,5 +1,5 @@
-// One prayer row. Compact, pill-edged; the next prayer gets a proximity accent
-// + inline colored countdown text (no progress bar). Passed prayers dim.
+// One compact prayer box for the 2-column grid. Stacked + centered: icon, name,
+// clock time, and (for the next prayer) the live remaining countdown.
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { proximityStyle } from "@/components/ui/proximity";
@@ -7,6 +7,7 @@ import { PRAYER_ICONS } from "@/components/ui/icons";
 import { formatCountdown, localizeTimeString, proximityFromMs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
+import type { StringKey } from "@/i18n/strings.en";
 
 interface PrayerCardProps {
   prayer: DerivedPrayer;
@@ -23,65 +24,40 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
   return (
     <div
       className={cn(
-        "group relative flex items-center gap-3.5 rounded-2xl border px-4 py-3 transition-all duration-300",
+        "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-center transition-colors",
         isNext
-          ? cn("bg-white/[0.06] border-transparent", style.border, style.glow)
-          : "border-border-soft/60 bg-white/[0.02] hover:bg-white/[0.04]",
+          ? cn("border-transparent bg-white/[0.06]", style.border, proximity !== "safe" && style.glow)
+          : "border-border-soft/60 bg-white/[0.02]",
         prayer.isPassed && !isNext && "opacity-45",
       )}
     >
-      {/* leading accent bar (logical: inline-start) */}
-      {isNext && (
-        <span
-          className={cn(
-            "absolute inset-y-2 start-0 w-1 rounded-full",
-            style.dot,
-          )}
-          aria-hidden="true"
-        />
-      )}
-
       <span
         className={cn(
-          "grid size-10 shrink-0 place-items-center rounded-xl transition-colors",
+          "grid size-9 shrink-0 place-items-center rounded-lg",
           isNext ? cn("bg-white/10", style.text) : "bg-white/5 text-ink-dim",
         )}
       >
-        <Icon className="size-5" />
+        <Icon className="size-4.5" />
       </span>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          className={cn(
-            "truncate text-[0.95rem] font-semibold",
-            isNext ? "text-ink" : "text-ink/90",
-          )}
-        >
-          {prayer.label}
-        </span>
-        {isNext ? (
-          <span className={cn("tnum text-xs font-medium", style.text)}>
-            {prayer.msUntil <= 0
-              ? t("next.now")
-              : t("next.in", {
-                  time: formatCountdown(prayer.timestamp ?? now, now, lang),
-                })}
-          </span>
-        ) : (
-          <span className="text-xs text-ink-faint">
-            {prayer.isPassed ? t("next.passed") : ""}
-          </span>
-        )}
-      </div>
 
       <span
         className={cn(
-          "tnum shrink-0 text-sm font-semibold tracking-tight",
-          isNext ? style.text : "text-ink/80",
+          "text-sm font-semibold leading-none",
+          isNext ? "text-ink" : "text-ink/90",
         )}
       >
+        {t(`prayer.${prayer.name}` as StringKey)}
+      </span>
+
+      <span className="tnum text-xs text-ink-dim">
         {localizeTimeString(prayer.time, lang)}
       </span>
+
+      {isNext && (
+        <span className={cn("tnum text-[0.72rem] font-semibold leading-none", style.text)}>
+          {formatCountdown(prayer.timestamp ?? now, now, lang)}
+        </span>
+      )}
     </div>
   );
 }

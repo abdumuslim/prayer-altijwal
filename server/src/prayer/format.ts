@@ -8,12 +8,13 @@ export function isValidDate(d: Date): boolean {
 
 /**
  * Format an instant as a clock time in the TARGET location's tz (never the
- * device tz). Arabic uses Arabic-Indic numerals + localized AM/PM; English uses
- * Latin numerals — kept consistent within a language.
+ * device tz). Numerals are always Latin (product decision: "keep numbers in
+ * English"); Arabic still gets its localized AM/PM markers (ص/م) via the
+ * `ar-u-nu-latn` locale (Latin numbering system + Arabic text).
  */
 export function fmtTime(date: Date, tz: string, lang: Lang): string {
   if (!isValidDate(date)) return "—";
-  return new Intl.DateTimeFormat(lang === "ar" ? "ar" : "en-US", {
+  return new Intl.DateTimeFormat(lang === "ar" ? "ar-u-nu-latn" : "en-US", {
     timeZone: tz,
     hour: "numeric",
     minute: "2-digit",

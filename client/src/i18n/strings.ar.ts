@@ -18,6 +18,7 @@ export const ar: Record<StringKey, string> = {
 
   // Next-prayer hero
   "next.label": "الصلاة القادمة",
+  "next.header": "الوقت المتبقي للاذان القادم",
   "next.in": "بعد {time}",
   "next.tomorrow": "غدًا",
   "next.now": "حان وقت الصلاة",
@@ -41,21 +42,6 @@ export const ar: Record<StringKey, string> = {
   "event.inDay": "بعد يوم واحد",
   "event.tomorrow": "غدًا",
 
-  // Methods
-  "method.MWL": "رابطة العالم الإسلامي",
-  "method.ISNA": "الجمعية الإسلامية لأمريكا الشمالية",
-  "method.Egyptian": "الهيئة المصرية العامة للمساحة",
-  "method.UmmAlQura": "أم القرى، مكة المكرمة",
-  "method.Karachi": "جامعة كراتشي",
-  "method.Dubai": "دبي",
-  "method.Qatar": "قطر",
-  "method.Kuwait": "الكويت",
-  "method.Singapore": "سنغافورة (مجلس MUIS)",
-  "method.Diyanet": "تركيا (ديانت)",
-  "method.Tehran": "طهران، معهد الجيوفيزياء",
-  "method.Jafari": "الشيعة (الجعفري)",
-  "method.BaghdadYMA": "بغداد — جمعية الشبان المسلمين",
-
   // Location bar
   "location.nearest": "الأقرب: {city}",
   "location.detecting": "جارٍ تحديد موقعك…",
@@ -64,42 +50,40 @@ export const ar: Record<StringKey, string> = {
   "location.useGps": "استخدم موقعي",
   "location.set": "حدّد موقعك",
 
-  // Method chip
-  "chip.auto": "تلقائي",
-  "chip.method": "الطريقة",
-
   // City search
   "search.title": "ابحث عن مدينة",
   "search.placeholder": "اكتب اسم المدينة…",
   "search.noResults": "لا توجد مدن مطابقة",
   "search.searching": "جارٍ البحث…",
   "search.hint": "ابحث عن أي مدينة في العالم",
+  "search.governoratesIn": "مدن {country}",
 
   // Settings
   "settings.title": "الإعدادات",
-  "settings.calcMethod": "طريقة الحساب",
-  "settings.autoDetected": "تلقائي (المكتشَف: {method})",
-  "settings.manual": "تحديد يدوي",
-  "settings.resetAuto": "العودة للتلقائي",
-  "settings.asr": "حساب العصر",
-  "settings.asr.standard": "الجمهور",
-  "settings.asr.hanafi": "الحنفي",
-  "settings.asr.standardHint": "الشافعي والمالكي والحنبلي",
-  "settings.asr.hanafiHint": "وقت متأخر للعصر",
+  "settings.governoratesIn": "مدن {country}",
   "settings.language": "اللغة",
   "settings.done": "تم",
-  "settings.baghdadNote": "تم تفعيل تعديلات بغداد المعايرة",
 
   // Notifications
   "notify.title": "تذكيرات الصلاة",
-  "notify.subtitle": "نبّهني قبل كل صلاة",
+  "notify.subtitle": "اضبط تذكيرات لكل صلاة",
   "notify.enable": "تفعيل التذكيرات",
   "notify.enabled": "التذكيرات مُفعّلة",
   "notify.disable": "إيقاف",
   "notify.prayers": "أي الصلوات",
-  "notify.leadTime": "ذكّرني",
-  "notify.atTime": "عند الوقت",
+  "notify.timing": "التوقيت",
+  "notify.leadTime": "الدقائق قبل الأذان",
+  "notify.atTime": "عند الأذان",
+  "notify.beforeTiming": "قبل",
   "notify.minBefore": "قبل {min} دقيقة",
+  "notify.allPrayers": "كل الصلوات",
+  "notify.selectAll": "تحديد الكل",
+  "notify.clearAll": "مسح",
+  "notify.add": "إضافة تذكير",
+  "notify.save": "حفظ",
+  "notify.edit": "تعديل",
+  "notify.delete": "حذف",
+  "notify.listSep": "، ",
   "notify.iosHint": "أضف إلى الشاشة الرئيسية لتفعيل التذكيرات",
   "notify.iosHintDetail": "على آيفون: اضغط مشاركة ثم أضف إلى الشاشة الرئيسية.",
   "notify.unsupported": "التذكيرات غير مدعومة في هذا المتصفح.",
@@ -119,6 +103,5 @@ export const ar: Record<StringKey, string> = {
   // Misc
   "common.cancel": "إلغاء",
   "common.close": "إغلاق",
-  "common.credit": "بيانات المدن © GeoNames",
   "lang.toggle": "English",
 };

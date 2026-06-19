@@ -15,3 +15,10 @@ export const GeoSearchQuery = z.object({
 });
 
 export type GeoSearchQueryInput = z.infer<typeof GeoSearchQuery>;
+
+/** Query schema for GET /api/geo/governorates (a country's admin-1 capitals). */
+export const GeoGovernoratesQuery = z.object({
+  country: z.string().trim().length(2),
+});
+
+export type GeoGovernoratesQueryInput = z.infer<typeof GeoGovernoratesQuery>;

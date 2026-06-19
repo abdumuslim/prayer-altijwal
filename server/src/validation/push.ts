@@ -13,7 +13,8 @@ export const PushSubscriptionSchema = z.object({
 const PrayerName = z.enum(["fajr", "dhuhr", "asr", "maghrib", "isha"]);
 const Lang = z.enum(["ar", "en"]);
 
-/** POST /api/push/subscribe body. */
+/** POST /api/push/subscribe body. Reminders live in alert rules now, so prayers/
+ *  leadMinutes are optional (legacy columns; kept for back-compat). */
 export const SubscribeBody = z.object({
   subscription: PushSubscriptionSchema,
   lat: z.number().min(-90).max(90),
@@ -22,12 +23,32 @@ export const SubscribeBody = z.object({
   country: z.string().min(1).max(2).optional(),
   method: z.string().min(1).max(40).optional(),
   asr: z.enum(["Standard", "Hanafi"]).optional(),
-  prayers: z.array(PrayerName).min(1),
-  leadMinutes: z.array(z.number().int().min(0).max(180)).min(1),
+  prayers: z.array(PrayerName).min(1).optional(),
+  leadMinutes: z.array(z.number().int().min(0).max(180)).min(1).optional(),
   lang: Lang,
 });
 
 export type SubscribeInput = z.infer<typeof SubscribeBody>;
+
+/** Body for POST /api/push/alerts and PUT /api/push/alerts/:id. */
+export const AlertRuleBody = z
+  .object({
+    endpoint: z.string().url(),
+    timing: z.enum(["at_time", "before"]),
+    minutes: z.number().int().min(1).max(180).nullable().optional(),
+    prayers: z.array(PrayerName).min(1),
+  })
+  .refine((b) => b.timing === "at_time" || (b.minutes != null && b.minutes >= 1), {
+    message: "minutes (1–180) is required when timing is 'before'",
+    path: ["minutes"],
+  });
+
+export type AlertRuleInput = z.infer<typeof AlertRuleBody>;
+
+/** Query for DELETE /api/push/alerts/:id (ownership scoped to the endpoint). */
+export const AlertDeleteQuery = z.object({
+  endpoint: z.string().url(),
+});
 
 /** POST /api/push/unsubscribe body. */
 export const UnsubscribeBody = z.object({

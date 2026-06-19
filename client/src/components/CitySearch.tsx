@@ -2,12 +2,15 @@
 // the onSelect callback (which feeds useLocation.setLocation).
 
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Search, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, Navigation } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useDebounce } from "@/hooks/useDebounce";
 import { searchCities } from "@/lib/api";
 import { localizeNumber } from "@/lib/format";
+import { cityDisplayName, localizeCountry } from "@/lib/locale";
 import { SlideOver } from "@/components/ui/SlideOver";
+import { GovernorateList } from "@/components/GovernorateList";
+import { cn } from "@/lib/utils";
 import type { CityResult } from "@/types/api";
 import type { StoredLocation } from "@/lib/storage";
 
@@ -15,9 +18,14 @@ interface CitySearchProps {
   open: boolean;
   onClose: () => void;
   onSelect: (loc: StoredLocation) => void;
+  /** Detected country (ISO-2) — drives the governorate quick-pick. */
+  country: string | null;
+  /** Trigger GPS-based location detection. */
+  onUseGps: () => void;
+  resolving: boolean;
 }
 
-export function CitySearch({ open, onClose, onSelect }: CitySearchProps) {
+export function CitySearch({ open, onClose, onSelect, country, onUseGps, resolving }: CitySearchProps) {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CityResult[]>([]);
@@ -70,12 +78,18 @@ export function CitySearch({ open, onClose, onSelect }: CitySearchProps) {
   const pick = (c: CityResult) => {
     onSelect({
       city: c.name,
+      cityAr: c.nameAr,
       country: c.country,
       tz: c.tz,
       lat: c.lat,
       lon: c.lon,
       elevation: c.elevation,
     });
+    onClose();
+  };
+
+  const selectLocation = (loc: StoredLocation) => {
+    onSelect(loc);
     onClose();
   };
 
@@ -101,7 +115,29 @@ export function CitySearch({ open, onClose, onSelect }: CitySearchProps) {
           {loading && <Loader2 className="size-4 shrink-0 animate-spin text-teal" />}
         </div>
 
-        {!touched && (
+        {/* GPS — use my current location */}
+        <button
+          type="button"
+          onClick={() => {
+            onUseGps();
+            onClose();
+          }}
+          className="flex items-center justify-center gap-2 rounded-xl border border-teal/30 bg-teal/[0.07] px-4 py-2.5 text-sm font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
+        >
+          <Navigation className={cn("size-4", resolving && "animate-spin-slow")} />
+          {t("location.useGps")}
+        </button>
+
+        {!touched && country && (
+          <div className="flex flex-col gap-2">
+            <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+              {t("search.governoratesIn", { country: localizeCountry(country, lang) })}
+            </p>
+            <GovernorateList country={country} onSelect={selectLocation} />
+          </div>
+        )}
+
+        {!touched && !country && (
           <p className="px-1 py-6 text-center text-sm text-ink-faint">
             {t("search.hint")}
           </p>
@@ -126,10 +162,10 @@ export function CitySearch({ open, onClose, onSelect }: CitySearchProps) {
                 </span>
                 <span className="flex min-w-0 flex-col leading-tight">
                   <span className="truncate text-sm font-semibold text-ink">
-                    {c.name}
+                    {cityDisplayName(c.name, c.nameAr, lang)}
                   </span>
                   <span className="truncate text-xs text-ink-dim">
-                    {[c.admin1, c.country].filter(Boolean).join(" · ")}
+                    {localizeCountry(c.country, lang) || c.country}
                   </span>
                 </span>
                 {c.population != null && c.population > 0 && (

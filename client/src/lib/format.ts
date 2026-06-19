@@ -4,32 +4,37 @@
 
 import type { Lang } from "@/types/api";
 
-const ARABIC_INDIC = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
-
-/** Convert Latin digits in a string to the numeral system for `lang`. */
-export function localizeDigits(input: string, lang: Lang): string {
-  if (lang !== "ar") return input;
-  return input.replace(/[0-9]/g, (d) => ARABIC_INDIC[Number(d)]);
+/**
+ * Numerals are ALWAYS rendered in Latin digits — even in Arabic — per the
+ * product decision "keep numbers in English". Kept as a pass-through (rather
+ * than deleting every call site) so the rest of the formatting code is stable.
+ */
+export function localizeDigits(input: string, _lang: Lang): string {
+  return input;
 }
 
-/** Localize a whole number. */
-export function localizeNumber(n: number, lang: Lang): string {
-  return localizeDigits(String(n), lang);
+/** A whole number as a Latin-digit string. */
+export function localizeNumber(n: number, _lang: Lang): string {
+  return String(n);
 }
 
 export type Proximity =
-  | "imminent" // <= 2 min
-  | "critical" // <= 4 min
-  | "urgent" // <= 7 min
-  | "warning" // <= 15 min
-  | "safe";
+  | "imminent" // <= 1 min  → pulsing red
+  | "critical" // <= 5 min  → red
+  | "urgent" //   <= 10 min → orange
+  | "warning" //  <= 15 min → yellow
+  | "safe"; //    > 15 min  → green
 
-/** Proximity bucket from minutes remaining (mirrors home + FRONTEND.md §2). */
+/**
+ * Proximity bucket from minutes remaining. Drives the countdown vibe colour:
+ * green (>15) → yellow (≤15) → orange (≤10) → red (≤5) → pulsing red (≤1), then
+ * resets to green when the next prayer's countdown begins. See FRONTEND.md §2.
+ */
 export function proximityFromMs(ms: number): Proximity {
   const minutes = ms / 60_000;
-  if (minutes <= 2) return "imminent";
-  if (minutes <= 4) return "critical";
-  if (minutes <= 7) return "urgent";
+  if (minutes <= 1) return "imminent";
+  if (minutes <= 5) return "critical";
+  if (minutes <= 10) return "urgent";
   if (minutes <= 15) return "warning";
   return "safe";
 }
@@ -53,10 +58,11 @@ export function countdownParts(targetTs: number, now: number): CountdownParts {
 }
 
 /**
- * Compact localized countdown string recomputed each tick:
- *   > 1h   →  "2h 5m"  / "٢س ٥د"
- *   < 1h   →  "45m 12s" / "٤٥د ١٢ث"
- *   < 1m   →  "30s" / "٣٠ث"
+ * Compact localized countdown string recomputed each tick. Spaced unit labels
+ * joined by a colon; seconds dropped once an hour remains:
+ *   > 1h   →  "2 h : 5 m"   / "2 س : 5 د"
+ *   < 1h   →  "59 m : 19 s" / "59 د : 19 ث"
+ *   < 1m   →  "30 s" / "30 ث"
  */
 export function formatCountdown(
   targetTs: number,
@@ -71,31 +77,13 @@ export function formatCountdown(
 
   let out: string;
   if (hours > 0) {
-    out = `${hours}${u.h} ${minutes}${u.m}`;
+    out = `${hours} ${u.h} : ${minutes} ${u.m}`;
   } else if (minutes > 0) {
-    out = `${minutes}${u.m} ${seconds}${u.s}`;
+    out = `${minutes} ${u.m} : ${seconds} ${u.s}`;
   } else {
-    out = `${seconds}${u.s}`;
+    out = `${seconds} ${u.s}`;
   }
   return localizeDigits(out, lang);
-}
-
-/**
- * Big hero timer with leading zeros: "01:24:53" or "24:53".
- * Always tabular; numerals localized.
- */
-export function formatHeroClock(
-  targetTs: number,
-  now: number,
-  lang: Lang,
-): string {
-  const { hours, minutes, seconds } = countdownParts(targetTs, now);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const base =
-    hours > 0
-      ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
-      : `${pad(minutes)}:${pad(seconds)}`;
-  return localizeDigits(base, lang);
 }
 
 /**

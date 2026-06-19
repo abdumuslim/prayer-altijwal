@@ -100,6 +100,8 @@ export interface PrayerTimesResponse {
 
 export interface ReverseGeoResponse {
   city: string | null;
+  /** Arabic-script city name when known. */
+  cityAr: string | null;
   country: string | null;
   admin1: string | null;
   tz: string;
@@ -109,6 +111,8 @@ export interface ReverseGeoResponse {
 
 export interface CityResult {
   name: string;
+  /** Arabic-script name when known; null otherwise. */
+  nameAr: string | null;
   country: string | null;
   admin1: string | null;
   tz: string;
@@ -120,6 +124,13 @@ export interface CityResult {
 
 export interface CitySearchResponse {
   results: CityResult[];
+}
+
+/** One governorate (admin-1 capital) of a country. Shape matches CityResult. */
+export type GovernorateResult = CityResult;
+
+export interface GovernoratesResponse {
+  governorates: GovernorateResult[];
 }
 
 export interface VapidKeyResponse {
@@ -134,18 +145,31 @@ export interface PushSubscribeBody {
   country: string | null;
   method: string;
   asr: AsrMadhab;
-  prayers: string[];
-  leadMinutes: number[];
   lang: Lang;
 }
 
-export interface PushPrefsBody {
+/** When a reminder fires: at the prayer time, or N minutes before. */
+export type AlertTiming = "at_time" | "before";
+
+/** A single reminder rule belonging to a device (push endpoint). */
+export interface PrayerAlert {
+  id: number;
   endpoint: string;
-  prayers?: string[];
-  leadMinutes?: number[];
-  method?: string;
-  asr?: AsrMadhab;
-  lang?: Lang;
+  timing: AlertTiming;
+  minutes: number | null;
+  prayers: PrayerName[];
+}
+
+/** Body for creating/updating a reminder rule. */
+export interface AlertInput {
+  endpoint: string;
+  timing: AlertTiming;
+  minutes: number | null;
+  prayers: PrayerName[];
+}
+
+export interface AlertsResponse {
+  alerts: PrayerAlert[];
 }
 
 export interface ApiError {

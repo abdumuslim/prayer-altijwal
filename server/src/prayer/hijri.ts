@@ -27,9 +27,12 @@ export function hijriParts(date: Date, tz: string): HijriParts {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
-/** Localized Hijri date string (e.g. "Dhuʻl-Hijjah 4, 1447 AH" / Arabic). */
+/** Localized Hijri date string (e.g. "Dhuʻl-Hijjah 4, 1447 AH" / Arabic).
+ *  Arabic uses `-nu-latn` so the month name is Arabic but the numerals stay
+ *  Latin (product decision: "keep numbers in English"). */
 export function hijriDate(date: Date, tz: string, lang: Lang): string {
-  const locale = lang === "ar" ? "ar-SA-u-ca-islamic-umalqura" : "en-US-u-ca-islamic-umalqura";
+  const locale =
+    lang === "ar" ? "ar-SA-u-ca-islamic-umalqura-nu-latn" : "en-US-u-ca-islamic-umalqura";
   return new Intl.DateTimeFormat(locale, {
     timeZone: tz,
     day: "numeric",

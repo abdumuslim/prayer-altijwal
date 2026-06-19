@@ -14,12 +14,11 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Initial language: stored value → navigator.language → default "ar".
+// Initial language: the user's stored choice if any, otherwise ALWAYS Arabic
+// (the product default — independent of the browser's language).
 function initialLang(): Lang {
   const stored = loadState().language;
-  if (stored === "ar" || stored === "en") return stored;
-  const nav = navigator.language?.toLowerCase() ?? "";
-  return nav.startsWith("en") ? "en" : "ar";
+  return stored === "ar" || stored === "en" ? stored : "ar";
 }
 
 createRoot(document.getElementById("root")!).render(

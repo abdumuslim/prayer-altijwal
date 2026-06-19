@@ -109,12 +109,12 @@ describe("createGeoRouter — HTTP routes", () => {
     expect(typeof body.city).toBe("string");
   });
 
-  it("GET /api/geo/reverse near Mosul → IQ, method MWL (NOT BaghdadYMA)", async () => {
+  it("GET /api/geo/reverse near Mosul → IQ, calibrated Iraqi profile country-wide", async () => {
     const res = await fetch(`${base}/api/geo/reverse?lat=${MOSUL.lat}&lon=${MOSUL.lon}`);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.country).toBe("IQ");
-    expect(body.method).toBe("MWL");
+    expect(body.method).toBe("BaghdadYMA");
   });
 
   it("GET /api/geo/reverse with bad input → 400 + issues", async () => {
@@ -143,6 +143,23 @@ describe("createGeoRouter — HTTP routes", () => {
 
   it("GET /api/geo/search with empty q → 400", async () => {
     const res = await fetch(`${base}/api/geo/search?q=`);
+    expect(res.status).toBe(400);
+  });
+
+  it("GET /api/geo/governorates?country=IQ → governorate capitals with Arabic names", async () => {
+    const res = await fetch(`${base}/api/geo/governorates?country=IQ`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.governorates)).toBe(true);
+    expect(body.governorates.length).toBeGreaterThan(5);
+    const baghdad = body.governorates.find((g: { name: string }) => /Baghdad/i.test(g.name));
+    expect(baghdad).toBeTruthy();
+    expect(baghdad.nameAr).toBe("بغداد");
+    expect(baghdad.tz).toBe("Asia/Baghdad");
+  });
+
+  it("GET /api/geo/governorates with bad country → 400", async () => {
+    const res = await fetch(`${base}/api/geo/governorates?country=IRAQ`);
     expect(res.status).toBe(400);
   });
 });

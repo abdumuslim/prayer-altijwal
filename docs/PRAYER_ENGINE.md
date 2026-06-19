@@ -67,34 +67,48 @@ after Maghrib.
 | `Diyanet` | Turkey | 18° | 17° | |
 | `Tehran` | Geophysics, Tehran | 17.7° | 14° | Maghrib angle 4.5° |
 | `Jafari` | Shia Ithna-Ashari | 16° | 14° | Maghrib angle 4° |
-| `BaghdadYMA` ⚠️ | Iraqi Sunni Endowment | 18° | 17° | **calibrated — see §4** |
+| `BaghdadYMA` ⚠️ | Iraqi Sunni Endowment | 18° | 17° | **calibrated, applied country-wide — see §4** |
 
 Asr madhab: `Standard` (shadow factor 1; Shafi/Maliki/Hanbali) or `Hanafi` (factor 2; ~30+ min later).
+The engine still supports both, but the app always uses `Standard` (the Hanafi/madhab UI was removed —
+`DECISIONS.md` ADR-002/003).
 
 ---
 
-## 4. BaghdadYMA calibration — and the multi-location policy ⚠️
+## 4. BaghdadYMA calibration — the nationwide Iraqi policy ⚠️
 
-`BaghdadYMA` is **MWL angles (18/17) + Standard Asr** with extra calibration tuned to Baghdad's
-printed 2026 calendar (jāmiʿat al-shubbān al-muslimīn / Iraqi Sunni Endowment):
+`BaghdadYMA` is **MWL angles (18/17) + Standard Asr** with extra calibration tuned to the Iraqi Sunni
+Endowment's printed 2026 calendar (ديوان الوقف السني / jāmiʿat al-shubbān al-muslimīn):
 
 ```
 elevationMeters: 34
 adjustments:     { dhuhr: +5, asr: +3, maghrib: +2 }   // minutes
 rounding:        { fajr: "down" }                      // Fajr floors to the minute
-// Result: ≤1 min vs the printed calendar, mean ≈0.12 over 38 dates; locked by prayer-engine.test.ts
+// Result: ≤1 min vs the printed Baghdad calendar, mean ≈0.12 over 38 dates; locked by prayer-engine.test.ts
 ```
 
-Those offsets + the 34 m elevation **encode Baghdad's local convention**, not a universal Iraqi rule.
+**Policy for this app (`method-detect.ts`): apply this calibrated profile to the WHOLE of Iraq**
+(cc=IQ), not just Baghdad. The offsets turned out to be a *national* convention: the official
+**ديوان الوقف السني per-governorate poster (4 Muharram 1448 / 19 June 2026)** is computed with one
+unified Iraqi method, and our profile reproduces it country-wide. `detectMethod("IQ", …)`
+short-circuits to `BaghdadYMA` with `baghdadCalibrated: true` for any Iraqi location (no radius check);
+`compute.ts` uses the baked-in 34 m everywhere in Iraq. (This **reverses** the old Baghdad-only rule in
+`DECISIONS.md` ADR-002.)
 
-**Policy for this app (`method-detect.ts`):**
-- Resolved location **is Baghdad** (within a small radius) → use the full `BaghdadYMA` profile.
-- Elsewhere in Iraq → use its **angles without the offsets**: MWL 18/17, Standard Asr, with the
-  *city's own* elevation from the geocoding dataset. (Effectively an "MWL-Iraq" variant.)
-- Surface which is active in the UI so the displayed times are explainable.
+**Poster regression — `server/src/prayer/iraq-governorates.test.ts`:** evaluates the profile at 15
+governorate capitals' own coordinates and asserts it matches the poster within physically-motivated
+per-prayer tolerances:
 
-Rationale recorded in `DECISIONS.md` ADR-002. This is the modeling-philosophy the user values: a
-calibrated general model, applied only where its calibration is valid — not a global fudge.
+| Prayer | Tolerance | Why |
+|---|---|---|
+| dhuhr, asr | ≤2 min | elevation-independent |
+| fajr, isha | ≤2 min | depression angles, weakly elevation-sensitive |
+| sunrise, maghrib | ≤3 min | horizon dip ∝ √elevation; profile fixed at 34 m vs each city's own elevation |
+
+Baghdad itself matches to ≤1 min. The engine is **still untouched** (hard rule below) — only the
+wrapper's *selection policy* changed (which preset + that it now covers all of Iraq). This is the
+modeling-philosophy the user values: one calibrated general model, validated against the official
+authority — not a per-city fudge. Rationale in `DECISIONS.md` ADR-002.
 
 ---
 
@@ -117,7 +131,7 @@ calibrated general model, applied only where its calibration is valid — not a 
 | Module | Purpose |
 |---|---|
 | `prayer/compute.ts` | `computePrayerTimes(coords, tz, method, asr, date)` → calls `calculatePrayerTimes` |
-| `prayer/method-detect.ts` | country/city → method (table in `DECISIONS.md`) + the Baghdad-radius rule |
+| `prayer/method-detect.ts` | country → method (table in `DECISIONS.md`); IQ → calibrated profile country-wide (no radius rule) |
 | `prayer/payload.ts` | the generalized payload builder (`PRAYER_TIMES_API.md`) |
 | `prayer/format.ts` | `fmtTime(date, tz)`, `fmtCountdown(ms)`, `dateKey(date, tz)`, `minuteOfDay(date, tz)` |
 | `prayer/hijri.ts` | `hijriDate(date, tz)`, `nextIslamicEvent(date, tz)` |

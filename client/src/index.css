@@ -29,17 +29,17 @@
   --color-ink-dim: #8fb3ad;
   --color-ink-faint: #5c8079;
 
-  /* Proximity accents (countdown urgency) */
-  --color-imminent: #f87171;
-  --color-critical: #fb923c;
-  --color-urgent: #f5c451;
-  --color-warning: #34d399;
-  --color-safe: #2dd4bf;
+  /* Proximity accents (countdown vibe): green → yellow → orange → red → pulse */
+  --color-safe: #34d399; /* > 15 min  — green */
+  --color-warning: #f5c451; /* ≤ 15 min — yellow */
+  --color-urgent: #fb923c; /* ≤ 10 min — orange */
+  --color-critical: #f87171; /* ≤ 5 min  — red */
+  --color-imminent: #f87171; /* ≤ 1 min  — pulsing red */
 
   /* Typography */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-arabic: "Tajawal", "Inter", system-ui, sans-serif;
-  --font-serif-ar: "Amiri", "Tajawal", serif;
+  --font-arabic: "Cairo", "Inter", system-ui, sans-serif;
+  --font-serif-ar: "Amiri", "Cairo", serif;
   --font-mono: "SF Mono", "Cascadia Code", Consolas, monospace;
 
   --breakpoint-lg: 1100px;
@@ -78,8 +78,8 @@
 }
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 18px -6px rgba(45, 212, 191, 0.45); }
-  50% { box-shadow: 0 0 34px -4px rgba(45, 212, 191, 0.75); }
+  0%, 100% { box-shadow: 0 0 18px -6px rgba(52, 211, 153, 0.45); }
+  50% { box-shadow: 0 0 34px -4px rgba(52, 211, 153, 0.75); }
 }
 
 @keyframes soft-pulse {

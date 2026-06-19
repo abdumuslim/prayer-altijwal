@@ -8,10 +8,9 @@ import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
 import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
-import { LocationBar } from "@/components/LocationBar";
+import { TopBar } from "@/components/TopBar";
 import { NextPrayerCountdown } from "@/components/NextPrayerCountdown";
 import { PrayerList } from "@/components/PrayerList";
-import { HijriDate } from "@/components/HijriDate";
 import { NextEvent } from "@/components/NextEvent";
 import { CitySearch } from "@/components/CitySearch";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -23,7 +22,6 @@ import {
 import type { AsrMadhab } from "@/types/api";
 
 function App() {
-  const { t } = useI18n();
   const { lang } = useI18n();
   const location = useLocation();
   const settings = useSettings();
@@ -52,8 +50,6 @@ function App() {
     lang,
   });
 
-  const methodInfo = times.data?.method ?? null;
-
   const showLocationNeeded =
     !location.location &&
     (location.status === "denied" || location.status === "error");
@@ -78,15 +74,11 @@ function App() {
       <>
         <NextPrayerCountdown next={times.next} now={times.now} />
         <PrayerList prayers={times.prayers} now={times.now} />
-        <section className="card flex flex-col gap-3 p-4">
-          <HijriDate data={times.data} />
-          {times.data.nextEvent && (
-            <>
-              <div className="h-px bg-border-soft/60" />
-              <NextEvent event={times.data.nextEvent} />
-            </>
-          )}
-        </section>
+        {times.data.nextEvent && (
+          <section className="card p-4">
+            <NextEvent event={times.data.nextEvent} />
+          </section>
+        )}
         {times.error && (
           <p className="text-center text-xs text-imminent/80">{times.error}</p>
         )}
@@ -97,36 +89,31 @@ function App() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-4 px-4 pb-10 pt-5 sm:pt-7">
-      <LocationBar
+      <TopBar
         location={location.location}
-        method={methodInfo}
+        data={times.data}
+        now={times.now}
         resolving={location.resolving}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
-        onUseGps={() => void location.requestGps()}
       />
 
       {mainContent}
-
-      <footer className="mt-auto pt-2 text-center text-[11px] text-ink-faint">
-        {t("common.credit")}
-      </footer>
 
       <CitySearch
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
         onSelect={(loc) => location.setLocation(loc)}
+        country={location.location?.country ?? null}
+        onUseGps={() => void location.requestGps()}
+        resolving={location.resolving}
       />
 
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        resolvedMethod={methodInfo}
-        methodAuto={settings.methodAuto}
-        effectiveAsr={effectiveAsr}
-        onSelectMethod={settings.setMethod}
-        onResetAuto={settings.resetMethodToAuto}
-        onSelectAsr={settings.setAsr}
+        location={location.location}
+        onSelectLocation={(loc) => location.setLocation(loc)}
         push={push}
       />
     </div>

@@ -5,6 +5,11 @@ import type {
   Subscription,
   SubscriptionPrefs,
 } from "../db/repositories/subscriptions.js";
+import type {
+  AlertRule,
+  AlertRuleInput,
+  AlertRulesRepo,
+} from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
 import type { SendResult } from "./webpush.js";
 
@@ -42,6 +47,39 @@ class FakeSubscriptionsRepo implements SubscriptionsRepo {
   }
 }
 
+class FakeAlertRulesRepo implements AlertRulesRepo {
+  private seq = 0;
+  constructor(public rules: AlertRule[] = []) {
+    this.seq = rules.reduce((m, r) => Math.max(m, r.id), 0);
+  }
+  async listByEndpoint(endpoint: string): Promise<AlertRule[]> {
+    return this.rules.filter((r) => r.endpoint === endpoint);
+  }
+  async listAll(): Promise<AlertRule[]> {
+    return this.rules;
+  }
+  async create(input: AlertRuleInput): Promise<AlertRule> {
+    const rule = { id: ++this.seq, ...input };
+    this.rules.push(rule);
+    return rule;
+  }
+  async update(
+    id: number,
+    endpoint: string,
+    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers">,
+  ): Promise<AlertRule | null> {
+    const rule = this.rules.find((r) => r.id === id && r.endpoint === endpoint);
+    if (!rule) return null;
+    Object.assign(rule, patch);
+    return rule;
+  }
+  async delete(id: number, endpoint: string): Promise<void> {
+    this.rules = this.rules.filter((r) => !(r.id === id && r.endpoint === endpoint));
+  }
+}
+
+const ALL_PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+
 function makeSub(overrides: Partial<Subscription> = {}): Subscription {
   return {
     endpoint: "https://push.example/ep1",
@@ -53,8 +91,19 @@ function makeSub(overrides: Partial<Subscription> = {}): Subscription {
     method: "BaghdadYMA",
     asr: "Standard",
     leadMinutes: [0],
-    prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"],
+    prayers: ALL_PRAYERS,
     lang: "ar",
+    ...overrides,
+  };
+}
+
+function makeRule(overrides: Partial<AlertRule> = {}): AlertRule {
+  return {
+    id: 1,
+    endpoint: "https://push.example/ep1",
+    timing: "at_time",
+    minutes: null,
+    prayers: ALL_PRAYERS,
     ...overrides,
   };
 }
@@ -82,12 +131,14 @@ describe("PrayerScheduler", () => {
     send = vi.fn<SendFn>(async () => ({ ok: true, gone: false }));
   });
 
-  // (a) exactly one fire per prayer/lead/day across repeated ticks
-  it("fires exactly once per prayer/lead/day across repeated ticks", async () => {
+  // (a) exactly one fire per rule/prayer/day across repeated ticks
+  it("fires exactly once per rule/prayer/day across repeated ticks", async () => {
     const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
     const logRepo = new FakePushLogRepo();
     const scheduler = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo,
       now: () => NOW,
       computeTimes: () => fixedTable(),
@@ -106,13 +157,30 @@ describe("PrayerScheduler", () => {
     );
   });
 
+  it("a subscription with no rules never fires", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([]); // no reminders configured
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+    await scheduler.tick();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("skips invalid (NaN) prayer times", async () => {
     // Make isha "due" but NaN — it must never fire.
     const table = { ...fixedTable(), isha: new Date(NaN) };
-    const subsRepo = new FakeSubscriptionsRepo([makeSub({ prayers: ["isha"] })]);
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ prayers: ["isha"] })]);
     const logRepo = new FakePushLogRepo();
     const scheduler = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo,
       now: () => NOW,
       computeTimes: () => table,
@@ -127,9 +195,11 @@ describe("PrayerScheduler", () => {
   it("does not re-fire after a simulated restart (shared ledger, fresh caches)", async () => {
     const sharedSeen = new Set<string>();
     const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
 
     const first = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo: new FakePushLogRepo(sharedSeen),
       now: () => NOW,
       computeTimes: () => fixedTable(),
@@ -142,6 +212,7 @@ describe("PrayerScheduler", () => {
     // same persistent ledger (sharedSeen), same DB state.
     const second = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo: new FakePushLogRepo(sharedSeen),
       now: () => NOW,
       computeTimes: () => fixedTable(),
@@ -168,9 +239,14 @@ describe("PrayerScheduler", () => {
       subscription: { endpoint: "https://push.example/B", keys: { p256dh: "p", auth: "a" } },
     });
     const subsRepo = new FakeSubscriptionsRepo([subA, subB]);
+    const rulesRepo = new FakeAlertRulesRepo([
+      makeRule({ id: 1, endpoint: "https://push.example/A" }),
+      makeRule({ id: 2, endpoint: "https://push.example/B" }),
+    ]);
     const logRepo = new FakePushLogRepo();
     const scheduler = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo,
       now: () => NOW,
       // Each subscriber gets a table with dhuhr due; reuse fixedTable.
@@ -190,13 +266,19 @@ describe("PrayerScheduler", () => {
     expect(logRepo.seen.size).toBe(2);
   });
 
-  it("fires across multiple leads for the same prayer", async () => {
-    // dhuhr is exactly due (minutesLeft=0). leads [0, 1]: lead=0 (0<=0, 0>-1.5)
-    // and lead=1 (0<=1, 0>-0.5) are BOTH in-window → two distinct fireKeys.
-    const subsRepo = new FakeSubscriptionsRepo([makeSub({ leadMinutes: [0, 1] })]);
+  it("fires across multiple rules for the same prayer", async () => {
+    // dhuhr is exactly due (minutesLeft=0). Two rules: at_time (lead 0; 0<=0,
+    // 0>-1.5) and before-1min (lead 1; 0<=1, 0>-0.5) — both in-window, and their
+    // per-rule fireKeys are distinct → two sends.
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([
+      makeRule({ id: 1, timing: "at_time" }),
+      makeRule({ id: 2, timing: "before", minutes: 1 }),
+    ]);
     const logRepo = new FakePushLogRepo();
     const scheduler = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo,
       now: () => NOW,
       computeTimes: () => fixedTable(),
@@ -214,10 +296,12 @@ describe("PrayerScheduler", () => {
   // (d) a {gone:true} send result deletes that subscription
   it("deletes a subscription when send reports gone (404/410)", async () => {
     const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
     const logRepo = new FakePushLogRepo();
     const goneSend = vi.fn<SendFn>(async () => ({ ok: false, gone: true }));
     const scheduler = new PrayerScheduler({
       subsRepo,
+      alertRulesRepo: rulesRepo,
       logRepo,
       now: () => NOW,
       computeTimes: () => fixedTable(),
@@ -235,9 +319,11 @@ describe("PrayerScheduler", () => {
     vi.useFakeTimers();
     try {
       const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+      const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
       const logRepo = new FakePushLogRepo();
       const scheduler = new PrayerScheduler({
         subsRepo,
+        alertRulesRepo: rulesRepo,
         logRepo,
         now: () => NOW,
         computeTimes: () => fixedTable(),

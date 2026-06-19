@@ -34,11 +34,25 @@ PWA. We chose the backend approach instead.
 
 ---
 
-## ADR-002 — Calculation method: auto-detect by location + manual picker ✅ ⚠️
+## ADR-002 — Calculation method: auto-detect by location ✅ ⚠️
 
-**Decision.** Default the calculation method by the user's **location** (country/city → the official
-method for that place); expose a **manual picker** (all 13 presets + Asr Standard/Hanafi) that
-overrides and is remembered in `localStorage`.
+> **Reversed (this revision):** two changes from the original ADR. **(a) Iraq is now nationwide.** The
+> calibrated `BaghdadYMA` profile (offsets included) applies to the **whole country**, not just
+> Baghdad — see the "Nationwide Iraqi method" box below; the old Baghdad-radius rule is gone. **(b)
+> The method/madhab are no longer surfaced to users.** The manual 13-preset picker and the Asr
+> Standard/Hanafi selector were removed from the UI (ADR-003); method is still auto-resolved
+> server-side and returned in the API `method` object, but the app never shows YMA/MWL names or a
+> madhab. A **governorate quick-pick** (pick your city from your country's admin-1 capitals) replaced
+> the manual override as the only location-tuning control. The historical decision and its
+> per-country detection table below remain accurate; only the Iraq policy and the UI exposure changed.
+
+**Decision (current).** Default the calculation method by the user's **location** (country → the
+official method for that place), with **no user-facing method/madhab controls**. Iraq uses the
+calibrated Iraqi profile country-wide. Asr is always Standard in the app (the engine still supports
+Hanafi).
+
+**Original decision (superseded UI).** Default by location **+** expose a **manual picker** (all 13
+presets + Asr Standard/Hanafi) that overrides and is remembered in `localStorage`.
 
 Detection table (country code → method):
 
@@ -57,22 +71,38 @@ Detection table (country code → method):
 | IR | `Tehran` | |
 | *(all others)* | `MWL` | Global default |
 
-**⚠️ BaghdadYMA-offset nuance (must respect).** `BaghdadYMA` is MWL angles (Fajr 18° / Isha 17°,
-Standard Asr) **plus Baghdad-specific calibration**: `+5` Dhuhr, `+3` Asr, `+2` Maghrib minute
-offsets and a fixed 34 m elevation, tuned to match Baghdad's *printed* calendar (≤1 min over 38
-dates). Those offsets encode Baghdad's local convention — they are **not** a universal Iraqi rule.
+**⚠️ Nationwide Iraqi method (current rule).** `BaghdadYMA` is MWL angles (Fajr 18° / Isha 17°,
+Standard Asr) **plus calibration**: `+5` Dhuhr, `+3` Asr, `+2` Maghrib minute offsets, a Fajr floor,
+and a fixed 34 m observer elevation, fitted to the Iraqi Sunni Endowment's *printed* Baghdad calendar
+(≤1 min over 38 dates). This calibrated profile is now applied to the **entire country** (cc=IQ) —
+not Baghdad only.
 
-Policy: apply the full `BaghdadYMA` profile (with offsets) **only when the resolved location is
-Baghdad** (or within a small radius). For other Iraqi cities, use its **angles without the offsets**
-(effectively MWL 18/17, Standard Asr, with the city's own elevation from the dataset). Surface which
-is active in the UI ("Iraqi Sunni Endowment — Baghdad calibration" vs "MWL angles"). Detail in
-`PRAYER_ENGINE.md`.
+**Why the reversal.** The original ADR assumed the offsets encoded a *Baghdad* convention. The
+official **ديوان الوقف السني poster for 4 Muharram 1448 / 19 June 2026** publishes a
+**per-governorate** table computed with **one unified Iraqi method**. Evaluating our `BaghdadYMA`
+profile at each governorate's own coordinates reproduces that poster to **≤2 min** (Baghdad ≤1 min;
+14 other governorates within per-prayer tolerances — dhuhr/asr/fajr/isha ≤2 min, sunrise/maghrib
+≤3 min, the looser bound only because the profile is fixed at Baghdad's 34 m while the Waqf appears to
+use each city's own elevation). So the offsets are a *national* convention, not a local one. Verified
+by `server/src/prayer/iraq-governorates.test.ts` (poster regression fixture). This is the
+modeling-philosophy the user values: one calibrated general model, validated against the official
+authority, rather than a Baghdad-only special case. Detail + tolerances in `PRAYER_ENGINE.md`.
 
-**Why.** Iraqi users expect times matching their local mosque/printed calendar; nationally-correct
-defaults beat a single global method, while the picker covers travellers and differing madhāhib.
+**Why auto-detect (no picker).** Iraqi users expect times matching their local mosque/printed
+calendar; nationally-correct defaults beat a single global method. The manual picker was dropped
+because the auto-resolved method is correct for the audience and surfacing YMA/MWL/madhab names added
+noise without value (ADR-003); travellers are served by the governorate quick-pick + GPS rather than a
+method override.
 
-**Consequences.** Needs a country (and ideally city) resolver from GPS — see `GEOCODING.md`. The
-method-detection table and the Baghdad-radius rule live in a small server module.
+**Consequences.** Needs a country resolver from GPS — see `GEOCODING.md`. The country→method table
+lives in a small server module (`prayer/method-detect.ts`); for IQ it short-circuits to the calibrated
+profile (no radius check). `compute.ts` uses BaghdadYMA's baked-in 34 m for all of Iraq.
+
+**Default location = Baghdad (2026-06-19).** The app opens on Baghdad (`33.3152, 44.3661`,
+`Asia/Baghdad`) with **no auto-GPS prompt** — Iraq-centric audience. GPS is **opt-in** (the "Use my
+location" button in the search panel); city search + the governorate quick-pick also change it. A
+location persisted before Arabic names existed is upgraded once (reverse lookup → `cityAr`). See
+`FRONTEND.md` §1.
 
 ---
 
@@ -81,9 +111,16 @@ method-detection table and the Baghdad-radius rule live in a small server module
 **Decision.** First version ships:
 - **Core:** today's six times (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) + a live **next-prayer
   countdown** + **Hijri date** + **next Islamic event**.
-- **Web-push reminders** — browser notifications ahead of each prayer (`NOTIFICATIONS.md`).
-- **Manual location / city search** — override GPS by searching a city; remembered (`GEOCODING.md`,
-  `FRONTEND.md`).
+- **Web-push reminders** — **multiple independent rules** per device, each firing chosen prayers
+  at-time or N-minutes-before (`NOTIFICATIONS.md`).
+- **Manual location / city search + governorate quick-pick** — override GPS by searching a city or
+  picking one of your country's governorate capitals; remembered (`GEOCODING.md`, `FRONTEND.md`).
+
+**As-built UI simplification (this revision).** No method/source UI: the manual calculation-method
+picker and the Asr Standard/Hanafi selector were **removed** (method auto-resolves server-side and is
+never shown; Asr is always Standard in the app — see ADR-002). The governorate quick-pick replaced the
+manual method override as the location-tuning control. Reminders grew from a single per-prayer/lead
+toggle set into the multi-rule model above.
 
 🔭 **Deferred (future, documented hooks only):** Qibla compass, monthly times table.
 
@@ -98,15 +135,18 @@ scheduler. The core app (everything except push) is independently shippable firs
 
 ## ADR-004 — Localization: bilingual AR/EN, Arabic default, RTL ✅
 
-**Decision.** Bilingual Arabic/English with a toggle. **Arabic is the default**; layout is
-**RTL-aware** (switch `dir`/`lang` on the root, use CSS logical properties). Choice persisted.
+**Decision.** Bilingual Arabic/English with a toggle. **Arabic is the hard default** — independent of
+the browser's language; a stored choice wins. Layout is **RTL-aware** (switch `dir`/`lang` on the
+root, use CSS logical properties). Choice persisted. Prayer names + place names (city/country/
+governorate) are localized too (`lib/locale.ts`, `Intl.DisplayNames` + dataset `nar`).
 
 **Why.** The audience is Iraq-centric (via altijwal.com); Arabic-first serves them best while English
 keeps the app broadly usable.
 
 **Consequences.** A lightweight in-house i18n layer (two flat dictionaries, a `t()` lookup — no heavy
-library), RTL-safe styling, and a decision on Arabic-Indic vs Latin numerals in time strings (pick
-one consistently). Detail in `FRONTEND.md`.
+library) and RTL-safe styling. **Numerals are always Latin** (product decision "keep numbers in
+English"), even in Arabic mode — Arabic text + Latin digits via the `-nu-latn` locale extension, so
+times/countdowns/Hijri read consistently. Arabic font is **Cairo**. Detail in `FRONTEND.md`.
 
 ---
 

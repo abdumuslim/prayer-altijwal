@@ -1,19 +1,19 @@
-// Hero live timer to the next prayer. Big tabular clock inside a progress ring
-// that depletes across the current interval, with a proximity-tinted glow.
+// Hero live timer to the next prayer: a single header line + a progress ring
+// (depleting across the interval) holding the prayer name, the live countdown,
+// and the prayer's clock time. Kept vertically compact so it fits on a phone.
 
 import { useMemo } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { proximityStyle } from "@/components/ui/proximity";
 import {
-  formatHeroClock,
+  formatCountdown,
   intervalProgress,
   localizeTimeString,
 } from "@/lib/format";
-import { PRAYER_ICONS } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { DerivedNext } from "@/hooks/usePrayerTimes";
-import type { PrayerName } from "@/types/api";
+import type { StringKey } from "@/i18n/strings.en";
 
 interface NextPrayerCountdownProps {
   next: DerivedNext | null;
@@ -30,14 +30,13 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
   if (!next) {
     return (
-      <section className="card arabesque animate-rise-in flex min-h-[260px] items-center justify-center p-8 text-center">
+      <section className="card arabesque animate-rise-in flex min-h-[220px] items-center justify-center p-8 text-center">
         <p className="text-ink-dim">{t("loading.times")}</p>
       </section>
     );
   }
 
-  const Icon = PRAYER_ICONS[next.name as PrayerName] ?? PRAYER_ICONS.fajr;
-  const clock = formatHeroClock(next.timestamp, now, lang);
+  const clock = formatCountdown(next.timestamp, now, lang);
   const progress = intervalProgress(next.intervalStart, next.timestamp, now);
   const ringProgress = 1 - progress; // depletes as time passes
   const isImminent = next.proximity === "imminent";
@@ -45,32 +44,25 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
   return (
     <section
       className={cn(
-        "card arabesque animate-rise-in relative overflow-hidden p-6 sm:p-8",
-        isImminent ? style.glow : "animate-glow-pulse",
+        "card arabesque animate-rise-in relative overflow-hidden p-5 sm:p-6",
+        style.glow,
       )}
     >
-      {/* soft radial accent behind the ring */}
+      {/* soft radial accent behind the ring — physical `left-1/2` so it stays
+          centred under both LTR and RTL. */}
       <div
-        className="pointer-events-none absolute -top-24 start-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+        className="pointer-events-none absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
         style={{ background: style.ring }}
         aria-hidden="true"
       />
 
-      <div className="relative flex flex-col items-center gap-5">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold tracking-wide",
-              style.border,
-              style.text,
-              "bg-white/5 backdrop-blur",
-            )}
-          >
-            <Icon className="size-4" />
-            {t("next.label")}
+      <div className="relative flex flex-col items-center gap-3">
+        <div className="flex items-center justify-center gap-2 text-center">
+          <span className={cn("text-sm font-semibold", style.text)}>
+            {next.msUntil <= 0 ? t("next.now") : t("next.header")}
           </span>
           {next.tomorrow && (
-            <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-ink-dim">
+            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-ink-dim">
               {t("next.tomorrow")}
             </span>
           )}
@@ -78,32 +70,28 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
         <ProgressRing
           progress={ringProgress}
-          size={224}
-          stroke={10}
+          size={210}
+          stroke={9}
           color={style.ring}
         >
           <div className="flex flex-col items-center gap-1">
             <span className="text-2xl font-bold text-gold sm:text-[1.7rem]">
-              {next.label}
+              {t(`prayer.${next.name}` as StringKey)}
             </span>
             <span
               className={cn(
-                "tnum text-4xl font-extrabold leading-none sm:text-5xl",
+                "tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
                 style.text,
                 isImminent && "animate-soft-pulse",
               )}
             >
               {clock}
             </span>
-            <span className="mt-1 text-sm text-ink-dim">
+            <span className="mt-0.5 text-sm text-ink-dim">
               {localizeTimeString(next.time, lang)}
             </span>
           </div>
         </ProgressRing>
-
-        <p className={cn("text-sm font-medium", style.text)}>
-          {next.msUntil <= 0 ? t("next.now") : t("next.remaining")}
-        </p>
       </div>
     </section>
   );

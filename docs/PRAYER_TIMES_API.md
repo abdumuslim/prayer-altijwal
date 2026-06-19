@@ -54,7 +54,7 @@ client hook generalizes with minimal change):
 
 | Field | Meaning |
 |---|---|
-| `location`, `method` | **New vs home** — echo what was computed so the UI can show "what am I looking at" + confirm auto-detection |
+| `location`, `method` | **New vs home** — echo what was computed. `method` is **not surfaced in the UI** any more (the picker was removed — `DECISIONS.md` ADR-002/003); it's still returned for display logic. `location` drives the city/country shown. |
 | `prayers[].timestamp` | epoch ms (UTC) — **drives the client's live local countdown** |
 | `prayers[].time` | display string formatted in `location.tz` (and `lang` locale) |
 | `prayers[].isPassed` / `isNext` | epoch-ms arithmetic vs server `now`; client re-derives locally each tick |
@@ -77,11 +77,17 @@ lat/lon, unknown `tz`/`method`/`asr`, malformed `date`.
 
 ```
 GET /api/geo/reverse?lat={n}&lon={n}
-  → { city, country, admin1, tz, elevation, method }      // nearest city; method = detected default
+  → { city, cityAr, country, admin1, tz, elevation, method }   // nearest city; method = detected default
 
 GET /api/geo/search?q={text}&lang={ar|en}
-  → { results: [ { name, country, admin1, tz, lat, lon, elevation, population } ] }   // ranked, top ~8
+  → { results: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }   // ranked, top ~8
+
+GET /api/geo/governorates?country={ISO-2}
+  → { governorates: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }   // one capital per admin-1
 ```
+
+`cityAr`/`nameAr` are the Arabic-script names (or `null`). `governorates` is the quick-pick that
+replaced the manual method override (most-populous city per admin-1 division). Detail in `GEOCODING.md`.
 
 ---
 
@@ -89,9 +95,30 @@ GET /api/geo/search?q={text}&lang={ar|en}
 
 ```
 GET  /api/push/vapid-key            → { publicKey }
-POST /api/push/subscribe            ← { subscription, lat, lon, tz, country, method, asr, prayers[], leadMinutes[], lang }
+POST /api/push/subscribe            ← { subscription, lat, lon, tz, country?, method?, asr?, lang }   // prayers/leadMinutes now optional (reminders live in alert rules)
 POST /api/push/unsubscribe          ← { endpoint }
-POST /api/push/prefs                ← { endpoint, prayers?[], leadMinutes?[], method?, asr? }   // update prefs
+POST /api/push/prefs                ← { endpoint, prayers?[], leadMinutes?[], method?, asr?, lang? }   // update subscription prefs
+```
+
+**Reminder rules — multiple independent alerts per device** (CRUD; ownership scoped to the
+`endpoint`):
+
+```
+GET    /api/push/alerts?endpoint={url}     → { alerts: AlertRule[] }
+POST   /api/push/alerts                     ← AlertRuleBody             → 201 { alert: AlertRule }
+PUT    /api/push/alerts/:id                 ← AlertRuleBody             → { alert } | 404
+DELETE /api/push/alerts/:id?endpoint={url}                              → { ok: true }
+```
+
+```jsonc
+// AlertRuleBody (request)            // AlertRule (response)
+{ "endpoint": "https://…",           { "id": 7,
+  "timing": "before",                  "endpoint": "https://…",
+  "minutes": 10,                       "timing": "before",
+  "prayers": ["fajr","dhuhr",          "minutes": 10,
+              "asr","maghrib","isha"]  "prayers": ["fajr","dhuhr","asr","maghrib","isha"] }
+}
+// timing ∈ {"at_time","before"}; minutes (1–180) is REQUIRED when timing="before", else null/ignored.
 ```
 
 ---
@@ -105,11 +132,13 @@ GET /api/health  → { ok: true, db: "up" }     // DB connectivity probe; used b
 ## As-built notes (MVP)
 
 - `GET /api/prayer-times` also accepts **`country`** (ISO-2) and **`city`** query params: `country`
-  drives method auto-detection (with the Baghdad-radius rule) when `method` is omitted, and both are
-  echoed back in `location`. When `method` is given it wins (auto=false).
+  drives method auto-detection when `method` is omitted (for IQ → the calibrated Iraqi profile
+  country-wide; `DECISIONS.md` ADR-002, reversed), and both are echoed back in `location`. When
+  `method` is given it wins (auto=false). The UI no longer sends a `method` (the picker was removed),
+  so detection is the live path.
 - The response adds **`now`** (server epoch ms, for client clock-sync), **`lang`**, and on `method`:
-  **`auto`** (was it auto-detected) and **`baghdadCalibrated`** (true only inside Baghdad's radius, i.e.
-  the +5/+3/+2 offsets are active). `nextPrayer` carries a **`tomorrow`** boolean; `nextEvent` carries a
-  stable **`key`** alongside the localized `name`.
+  **`auto`** (was it auto-detected) and **`baghdadCalibrated`** (true for **all of Iraq** now — the
+  +5/+3/+2 offsets are active country-wide). `nextPrayer` carries a **`tomorrow`** boolean; `nextEvent`
+  carries a stable **`key`** alongside the localized `name`.
 - `db` health is `"up" | "down" | "disabled"` ("disabled" = no `DATABASE_URL`, stateless mode).
 - Push endpoints (`/api/push/*`) return 503 when push isn't configured (no VAPID/DB).

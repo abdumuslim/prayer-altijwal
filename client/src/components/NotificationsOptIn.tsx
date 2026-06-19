@@ -1,45 +1,67 @@
-// Prayer reminders opt-in: enable/disable, per-prayer toggles, lead-time chips
-// (0/5/10/15 min). Shows the iOS "Add to Home Screen" hint when iOS && !standalone.
+// Prayer reminders: enable/disable web push, then manage MULTIPLE independent
+// reminder rules (different prayers, different timings) — add / edit / delete.
+// Shows the iOS "Add to Home Screen" hint when iOS && !standalone.
 
-import { Bell, BellOff, BellRing, Share, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bell, BellOff, BellRing, Share, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { PRAYER_ICONS } from "@/components/ui/icons";
 import { localizeNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PrayerName } from "@/types/api";
+import { usePrayerAlerts } from "@/hooks/usePrayerAlerts";
+import { AlertForm, type AlertDraft } from "@/components/AlertForm";
+import type { PrayerAlert } from "@/types/api";
 import type { StringKey } from "@/i18n/strings.en";
 import type { UsePushSubscription } from "@/hooks/usePushSubscription";
-
-const REMINDER_PRAYERS: PrayerName[] = [
-  "fajr",
-  "dhuhr",
-  "asr",
-  "maghrib",
-  "isha",
-];
-const LEAD_OPTIONS = [0, 5, 10, 15];
+import type { TFunction } from "@/i18n/I18nProvider";
+import type { Lang } from "@/types/api";
 
 interface NotificationsOptInProps {
   push: UsePushSubscription;
 }
 
+const ALL_PRAYERS = 5;
+
+/** Human description of a rule, e.g. "Fajr, Dhuhr — 10 min before". */
+function describeRule(a: PrayerAlert, t: TFunction, lang: Lang): string {
+  const names =
+    a.prayers.length === ALL_PRAYERS
+      ? t("notify.allPrayers")
+      : a.prayers.map((p) => t(`prayer.${p}` as StringKey)).join(t("notify.listSep"));
+  const timing =
+    a.timing === "at_time"
+      ? t("notify.atTime")
+      : t("notify.minBefore", { min: localizeNumber(a.minutes ?? 0, lang) });
+  return `${names} — ${timing}`;
+}
+
 export function NotificationsOptIn({ push }: NotificationsOptInProps) {
   const { t, lang } = useI18n();
-  const { status, prefs } = push;
+  const { status, endpoint } = push;
+  const { alerts, loading, create, update, remove } = usePrayerAlerts(endpoint);
 
-  const togglePrayer = (name: string) => {
-    const set = new Set(prefs.prayers);
-    if (set.has(name)) set.delete(name);
-    else set.add(name);
-    push.setPrayers([...set]);
-  };
+  // editing: null = none, "new" = adding, number = editing that rule id
+  const [editing, setEditing] = useState<number | "new" | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const toggleLead = (min: number) => {
-    const set = new Set(prefs.leadMinutes);
-    if (set.has(min)) set.delete(min);
-    else set.add(min);
-    const next = [...set].sort((a, b) => a - b);
-    push.setLeadMinutes(next.length ? next : [0]);
+  // Seed one sensible default rule the first time a device subscribes with none.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (status !== "subscribed" || !endpoint || loading) return;
+    if (alerts.length === 0 && !seeded.current) {
+      seeded.current = true;
+      void create({ timing: "before", minutes: 10, prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"] });
+    }
+  }, [status, endpoint, loading, alerts.length, create]);
+
+  const save = async (id: number | "new", draft: AlertDraft) => {
+    setBusy(true);
+    try {
+      if (id === "new") await create(draft);
+      else await update(id, draft);
+      setEditing(null);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -58,9 +80,7 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
         <div className="flex items-start gap-2.5 rounded-xl border border-gold/30 bg-gold/[0.07] px-3.5 py-3">
           <Share className="mt-0.5 size-4.5 shrink-0 text-gold" />
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold text-gold">
-              {t("notify.iosHint")}
-            </span>
+            <span className="text-sm font-semibold text-gold">{t("notify.iosHint")}</span>
             <span className="text-xs text-ink-dim">{t("notify.iosHintDetail")}</span>
           </div>
         </div>
@@ -119,64 +139,67 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
           )}
 
           {status === "subscribed" && (
-            <div className="flex flex-col gap-4 rounded-xl border border-border-soft/70 bg-white/[0.02] p-3.5">
-              {/* Per-prayer */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                  {t("notify.prayers")}
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {REMINDER_PRAYERS.map((name) => {
-                    const Icon = PRAYER_ICONS[name];
-                    const on = prefs.prayers.includes(name);
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => togglePrayer(name)}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                          on
-                            ? "border-emerald/50 bg-emerald/10 text-emerald"
-                            : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
-                        )}
-                      >
-                        <Icon className="size-3.5" />
-                        {t(`prayer.${name}` as StringKey)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="flex flex-col gap-2">
+              {/* Existing rules */}
+              {alerts.map((a) =>
+                editing === a.id ? (
+                  <AlertForm
+                    key={a.id}
+                    initial={a}
+                    busy={busy}
+                    onSave={(draft) => void save(a.id, draft)}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <div
+                    key={a.id}
+                    className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-white/[0.02] px-3.5 py-2.5"
+                  >
+                    <BellRing className="size-4 shrink-0 text-gold" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                      {describeRule(a, t, lang)}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={t("notify.edit")}
+                      onClick={() => setEditing(a.id)}
+                      className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-teal"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("notify.delete")}
+                      onClick={() => void remove(a.id)}
+                      className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-imminent"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                ),
+              )}
 
-              {/* Lead-time chips */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                  {t("notify.leadTime")}
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {LEAD_OPTIONS.map((min) => {
-                    const on = prefs.leadMinutes.includes(min);
-                    return (
-                      <button
-                        key={min}
-                        type="button"
-                        onClick={() => toggleLead(min)}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                          on
-                            ? "border-gold/50 bg-gold/10 text-gold"
-                            : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
-                        )}
-                      >
-                        {min === 0
-                          ? t("notify.atTime")
-                          : t("notify.minBefore", { min: localizeNumber(min, lang) })}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Add new */}
+              {editing === "new" ? (
+                <AlertForm
+                  busy={busy}
+                  onSave={(draft) => void save("new", draft)}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditing("new")}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-soft bg-white/[0.02] px-4 py-2.5 text-sm font-medium text-ink-dim transition-colors hover:border-teal/40 hover:text-teal"
+                >
+                  <Plus className="size-4" />
+                  {t("notify.add")}
+                </button>
+              )}
+
+              {loading && alerts.length === 0 && (
+                <p className="py-2 text-center text-xs text-ink-faint">{t("notify.saving")}</p>
+              )}
             </div>
           )}
         </>

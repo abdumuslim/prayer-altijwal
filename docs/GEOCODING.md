@@ -41,12 +41,14 @@ distance. 25k points → a linear scan is sub-millisecond, but use a simple **la
 
 ```
 GET /api/geo/reverse?lat&lon
-  → { city, country, admin1, tz, elevation, method }
+  → { city, cityAr, country, admin1, tz, elevation, method }
 ```
 
-`method` is `method-detect.ts` applied to the resolved `country` (+ the Baghdad-radius rule from
-`DECISIONS.md` ADR-002). The UI shows "Nearest: {city}" wording so a far nearest-city in sparse
-regions doesn't surprise users — the **times are still exact** because they use the GPS coords.
+`method` is `method-detect.ts` applied to the resolved `country` (for IQ → the calibrated Iraqi
+profile country-wide; see `DECISIONS.md` ADR-002, reversed — no Baghdad radius). `cityAr` is the
+matched city's Arabic-script name (or `null`); the client shows it in Arabic mode. The UI shows
+"Nearest: {city}" wording so a far nearest-city in sparse regions doesn't surprise users — the
+**times are still exact** because they use the GPS coords.
 
 ---
 
@@ -57,10 +59,12 @@ in the same in-memory dataset, ranked by `population` desc, top ~8.
 
 ```
 GET /api/geo/search?q&lang
-  → { results: [ { name, country, admin1, tz, lat, lon, elevation, population } ] }
+  → { results: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }
 ```
 
-Optional fallback (online): if **zero** offline hits and the network is available, call **Open-Meteo
+`nameAr` is the Arabic-script city name (or `null`); Arabic queries also match it (`search()` includes
+`nar` in its haystack). Optional fallback (online): if **zero** offline hits and the network is
+available, call **Open-Meteo
 geocoding** (`https://geocoding-api.open-meteo.com/v1/search?name=&count=8&language={ar|en}`) — free,
 no key — which returns `name, latitude, longitude, elevation, country_code, admin1, timezone,
 population`, mapped 1:1 to our candidate shape. This covers rare/misspelled names without making
@@ -68,12 +72,32 @@ Open-Meteo a hard dependency. (Home already uses Open-Meteo for weather, so it's
 
 ---
 
+## 3a. Governorate quick-pick — a country's admin-1 capitals
+
+The location picker that **replaced the manual method override**: rather than typing, pick your
+governorate from a list. `CitiesIndex.governorates(cc)` returns **one representative city — the most
+populous — per first-level admin division** of the country (for Iraq: Baghdad, Basra, Mosul, …),
+sorted by population. The route caps the list (40) to cover every country's admin-1 set.
+
+```
+GET /api/geo/governorates?country={ISO-2}
+  → { governorates: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }
+```
+
+Shape = the same `GeoResult` as forward search. Offline-only (no external call). `country` is a
+required 2-letter code (`GeoGovernoratesQuery`). Surfaced in **both** the city-search panel (the
+default list when the query is empty) and Settings, via the shared `GovernorateList` component;
+selecting one sets the location.
+
+---
+
 ## 4. Method detection
 
 `method-detect.ts` maps the resolved `country` → method using the table in `DECISIONS.md` ADR-002
-(IQ→BaghdadYMA*, EG→Egyptian, SA→UmmAlQura, TR→Diyanet, US/CA→ISNA, … else MWL), with the
-**Baghdad-only offset** rule (`*` full BaghdadYMA inside Baghdad's radius; MWL-angles elsewhere in
-Iraq). The user can always override via the picker (`FRONTEND.md`), persisted in `localStorage`.
+(IQ→BaghdadYMA, EG→Egyptian, SA→UmmAlQura, TR→Diyanet, US/CA→ISNA, … else MWL). For **IQ the
+calibrated Iraqi profile applies country-wide** — `detectMethod` short-circuits on `cc === "IQ"`, no
+radius check (ADR-002, reversed). The method is **not user-overridable** any more (the picker was
+removed); it is auto-resolved server-side and returned for display logic only.
 
 ---
 
@@ -99,12 +123,19 @@ never blocks; a clear "Set your location" affordance is always available.
 - Built dataset: `server/data/cities15000.json` (~33,868 cities, ~6.5 MB), regenerate with
   `npm --prefix server run build:cities` (`server/scripts/build-cities.mjs`).
 - **Compact row schema** (to shrink the file): `{ n:name, a:asciiname, lat, lon, cc:countryCode,
-  adm1:admin1, pop:population, tz:timezone, ele:elevation|dem|null, alt?:Latin alternate names }`.
+  adm1:admin1, pop:population, tz:timezone, ele:elevation|dem|null, alt?:Latin alternate names,
+  nar?:Arabic name }`.
 - The extra **`alt`** field (comma-joined Latin-script GeoNames alternate names) lets exonym search
   work (e.g. "Mecca" → Makkah, "Zurich" → Zürich) without per-city hardcoding; non-Latin scripts are
-  dropped (the native form is already in `n`). `search()` matches over `n`, `a`, and `alt`.
-- `reverse` uses the **request** lat/lon for method detection (not the matched city's centroid), so the
-  Baghdad-radius rule is correct near the city edge. `admin1` is returned as the raw GeoNames code.
+  dropped (the native form is already in `n`). `search()` matches over `n`, `a`, `alt`, and `nar`.
+- **`nar`** (Arabic-script name) is a lightweight addition — `build-cities.mjs` extracts the **first
+  Arabic-script token** from GeoNames `alternatenames` (no extra download). Coverage: 12,249 of 33,868
+  cities have `nar` (95/100 Iraqi cities). It powers Arabic display (`nameAr`/`cityAr`) and Arabic-query
+  matching. Country names are localized separately on the client via `Intl.DisplayNames` (`lib/locale.ts`).
+- `CitiesIndex.governorates(cc)` backs `/api/geo/governorates` (the governorate quick-pick): most-populous
+  city per admin-1, sorted by population.
+- `reverse` uses the **request** lat/lon for method detection (not the matched city's centroid).
+  `admin1` is returned as the raw GeoNames code.
 
 ## Attribution
 

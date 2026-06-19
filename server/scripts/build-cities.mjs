@@ -27,6 +27,9 @@
 //        alternatenames deduped against n/a — lets English exonyms (e.g. "Mecca"
 //        for Makkah, "Cairo" for Al Qahirah) match in search. Non-Latin scripts
 //        are dropped (the native form already lives in `n`) to keep the file small.
+//   nar  arabic name    (string, optional)  first Arabic-script alternate name
+//        (e.g. "بغداد") so the UI can show Arabic city names. Absent when GeoNames
+//        has no Arabic alternate for the city (the UI then falls back to `n`/`a`).
 
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -61,6 +64,22 @@ const COL = {
 // Basic Latin + Latin-1/Extended-A letters, spaces, hyphens, apostrophes, dots.
 // Used to keep only Latin-script alternate names (English/European exonyms).
 const LATIN_ALT = /^[ -~À-ſ]+$/;
+
+// Arabic script (incl. Supplement / presentation forms). Picks the Arabic name.
+const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+
+/** First Arabic-script GeoNames alternate name (or "" if none). */
+function arabicAltName(altField, name) {
+  if (ARABIC.test(name)) return name; // GeoNames `name` already Arabic
+  if (!altField) return "";
+  for (const raw of altField.split(",")) {
+    const t = raw.trim();
+    // Require the WHOLE token to be Arabic letters/space/punctuation (no Latin
+    // mixed in) so we don't pick transliteration-with-diacritics noise.
+    if (t && ARABIC.test(t) && !/[A-Za-z]/.test(t)) return t;
+  }
+  return "";
+}
 
 /** Latin-script GeoNames alternate names, deduped against name/asciiname. */
 function latinAltNames(altField, name, asciiname) {
@@ -126,6 +145,7 @@ function toCity(cols) {
   const n = cols[COL.name];
   const a = cols[COL.asciiname];
   const alt = latinAltNames(cols[COL.alternatenames], n, a);
+  const nar = arabicAltName(cols[COL.alternatenames], n);
   const city = {
     n,
     a,
@@ -138,6 +158,7 @@ function toCity(cols) {
     ele: parseElevation(cols[COL.elevation], cols[COL.dem]),
   };
   if (alt) city.alt = alt;
+  if (nar && nar !== n) city.nar = nar;
   return city;
 }
 
