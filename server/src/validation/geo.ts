@@ -1,0 +1,17 @@
+import { z } from "zod";
+
+/** Query schema for GET /api/geo/reverse. Coerces numeric query strings. */
+export const GeoReverseQuery = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
+});
+
+export type GeoReverseQueryInput = z.infer<typeof GeoReverseQuery>;
+
+/** Query schema for GET /api/geo/search. */
+export const GeoSearchQuery = z.object({
+  q: z.string().trim().min(1).max(120),
+  lang: z.enum(["ar", "en"]).default("ar"),
+});
+
+export type GeoSearchQueryInput = z.infer<typeof GeoSearchQuery>;

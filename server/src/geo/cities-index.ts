@@ -1,0 +1,147 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { haversineKm } from "../util/geo-distance.js";
+import { childLogger } from "../logger.js";
+
+const log = childLogger("geo/cities-index");
+
+/**
+ * One city from the bundled GeoNames `cities15000` dataset.
+ * Field names mirror the compact JSON keys produced by scripts/build-cities.mjs.
+ */
+export interface City {
+  /** Display name (may be non-ASCII / Arabic). */
+  n: string;
+  /** ASCII transliteration. */
+  a: string;
+  lat: number;
+  lon: number;
+  /** ISO-3166 alpha-2 country code. */
+  cc: string;
+  /** First-level admin division code. */
+  adm1: string;
+  /** Population. */
+  pop: number;
+  /** IANA timezone id. */
+  tz: string;
+  /** Elevation (or DEM) in metres; null if unknown. */
+  ele: number | null;
+  /** Comma-joined Latin-script alternate names (optional). */
+  alt?: string;
+}
+
+/** Number of integer-latitude bands searched on each side for reverse lookup. */
+const BAND_SEARCH_RADIUS = 2;
+
+/** Default dataset path, resolved relative to THIS module. */
+function defaultJsonPath(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  // Works in dev (src/geo) and compiled (dist/geo): Docker copies data to /app/data.
+  return path.resolve(here, "../../data/cities15000.json");
+}
+
+function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/**
+ * In-memory index over the GeoNames `cities15000` dataset.
+ * - reverse: nearest city by great-circle distance (lat-band bucketed).
+ * - search: diacritic-/case-insensitive prefix/substring match, ranked by pop.
+ */
+export class CitiesIndex {
+  private readonly cities: readonly City[];
+  /** Map<floor(lat), City[]> for bounded reverse-lookup scans. */
+  private readonly bands: ReadonlyMap<number, readonly City[]>;
+
+  private constructor(cities: readonly City[]) {
+    this.cities = cities;
+    const bands = new Map<number, City[]>();
+    for (const c of cities) {
+      const key = Math.floor(c.lat);
+      const bucket = bands.get(key);
+      if (bucket) {
+        bucket.push(c);
+      } else {
+        bands.set(key, [c]);
+      }
+    }
+    this.bands = bands;
+  }
+
+  /** Load the dataset once from disk. */
+  static load(jsonPath?: string): CitiesIndex {
+    const file = jsonPath ?? defaultJsonPath();
+    const raw = readFileSync(file, "utf8");
+    const cities = JSON.parse(raw) as City[];
+    log.info("loaded cities index", { count: cities.length, file });
+    return new CitiesIndex(cities);
+  }
+
+  get size(): number {
+    return this.cities.length;
+  }
+
+  /** Nearest city to the given coordinates, or null if the dataset is empty. */
+  reverse(lat: number, lon: number): City | null {
+    const center = Math.floor(lat);
+    let best: City | null = null;
+    let bestKm = Infinity;
+
+    for (let d = -BAND_SEARCH_RADIUS; d <= BAND_SEARCH_RADIUS; d++) {
+      const bucket = this.bands.get(center + d);
+      if (!bucket) continue;
+      for (const c of bucket) {
+        const km = haversineKm(lat, lon, c.lat, c.lon);
+        if (km < bestKm) {
+          bestKm = km;
+          best = c;
+        }
+      }
+    }
+
+    // Sparse-region fallback: nothing in the ±band window — scan everything.
+    if (best === null) {
+      for (const c of this.cities) {
+        const km = haversineKm(lat, lon, c.lat, c.lon);
+        if (km < bestKm) {
+          bestKm = km;
+          best = c;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  /**
+   * Diacritic- and case-insensitive prefix/substring search over name,
+   * asciiname and Latin alternate names. Prefix matches rank above substring
+   * matches; within each tier, higher population wins.
+   */
+  search(q: string, limit = 8): City[] {
+    const needle = normalize(q.trim());
+    if (needle === "") return [];
+
+    const matches: Array<{ city: City; rank: number }> = [];
+    for (const c of this.cities) {
+      const hay = normalize(c.alt ? `${c.n}\n${c.a}\n${c.alt}` : `${c.n}\n${c.a}`);
+      const idx = hay.indexOf(needle);
+      if (idx === -1) continue;
+      // rank 0 = match at a token start (prefix), rank 1 = mid-string substring.
+      const prefix = idx === 0 || hay[idx - 1] === "\n" || hay[idx - 1] === " ";
+      matches.push({ city: c, rank: prefix ? 0 : 1 });
+    }
+
+    matches.sort((x, y) => {
+      if (x.rank !== y.rank) return x.rank - y.rank;
+      return y.city.pop - x.city.pop;
+    });
+
+    return matches.slice(0, limit).map((m) => m.city);
+  }
+}

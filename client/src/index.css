@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Theme — refined Islamic palette: deep night → teal → emerald, warm gold.
+   Tailwind 4 CSS-first: tokens here become utilities (bg-night, text-gold…).
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Surfaces — deep night / teal */
+  --color-night: #04181a;
+  --color-night-2: #06231f;
+  --color-surface: #0a2c2a;
+  --color-surface-2: #0e3a36;
+  --color-border: #16504a;
+  --color-border-soft: #103e3a;
+
+  /* Brand — teal / emerald */
+  --color-teal: #2dd4bf;
+  --color-emerald: #34d399;
+  --color-emerald-deep: #0f766e;
+  --color-mint: #6ee7b7;
+
+  /* Accent — warm gold */
+  --color-gold: #f5c451;
+  --color-gold-soft: #fbe3a1;
+  --color-amber: #f59e0b;
+
+  /* Text */
+  --color-ink: #eafaf6;
+  --color-ink-dim: #8fb3ad;
+  --color-ink-faint: #5c8079;
+
+  /* Proximity accents (countdown urgency) */
+  --color-imminent: #f87171;
+  --color-critical: #fb923c;
+  --color-urgent: #f5c451;
+  --color-warning: #34d399;
+  --color-safe: #2dd4bf;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-arabic: "Tajawal", "Inter", system-ui, sans-serif;
+  --font-serif-ar: "Amiri", "Tajawal", serif;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  --breakpoint-lg: 1100px;
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-rise-in: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-overlay-in: overlay-in 160ms ease-out;
+  --animate-panel-in: panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
+  --animate-soft-pulse: soft-pulse 1.6s ease-in-out infinite;
+  --animate-imminent-pulse: imminent-pulse 1s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-spin-slow: spin-slow 22s linear infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 18px -6px rgba(45, 212, 191, 0.45); }
+  50% { box-shadow: 0 0 34px -4px rgba(45, 212, 191, 0.75); }
+}
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes imminent-pulse {
+  0%, 100% {
+    box-shadow: 0 0 14px -4px rgba(248, 113, 113, 0.5);
+    border-color: rgba(248, 113, 113, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 30px -2px rgba(248, 113, 113, 0.85), 0 0 60px -10px rgba(248, 113, 113, 0.35);
+    border-color: rgba(248, 113, 113, 0.95);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(circle at 85% -5%, rgba(45, 212, 191, 0.16), transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(15, 118, 110, 0.22), transparent 50%),
+      radial-gradient(circle at 50% 120%, rgba(245, 196, 81, 0.06), transparent 45%),
+      var(--color-night);
+    background-attachment: fixed;
+    color: var(--color-ink);
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Arabic typography when RTL */
+  html[lang="ar"] body {
+    font-family: var(--font-arabic);
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: rgba(45, 212, 191, 0.3);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  /* Frosted card surface */
+  .card {
+    background: linear-gradient(160deg, rgba(14, 58, 54, 0.55), rgba(6, 35, 31, 0.65));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--color-border-soft);
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 40px -16px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Subtle dotted arabesque texture overlay */
+  .arabesque {
+    background-image: radial-gradient(rgba(110, 231, 183, 0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .shimmer-text {
+    background: linear-gradient(
+      100deg,
+      var(--color-gold-soft) 0%,
+      var(--color-gold) 40%,
+      #fff6dd 50%,
+      var(--color-gold) 60%,
+      var(--color-gold-soft) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: var(--animate-shimmer);
+  }
+}
+
+@layer utilities {
+  /* Tabular figures so the live timer never jitters */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

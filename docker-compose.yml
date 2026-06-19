@@ -1,0 +1,27 @@
+services:
+  prayer:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    env_file: .env
+    networks:
+      - rag_default
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      # ⚠️ Router/service names MUST be `prayer.*` — a duplicate name on the
+      # shared Traefik silently breaks routing for sibling apps (e.g. home.*).
+      - traefik.enable=true
+      - traefik.http.routers.prayer.rule=Host(`prayer.altijwal.com`)
+      - traefik.http.routers.prayer.tls=true
+      - traefik.http.routers.prayer.entrypoints=web,websecure
+      - traefik.http.services.prayer.loadbalancer.server.port=8000
+
+networks:
+  rag_default:
+    external: true

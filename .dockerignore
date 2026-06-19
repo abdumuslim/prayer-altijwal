@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+.git
+.gitignore
+.claude
+docs
+*.md
+*.tar.gz
+ssh_out*.txt
+.env
+.env.*
+# Raw GeoNames download (only the built cities15000.json is needed in the image)
+server/data/_raw

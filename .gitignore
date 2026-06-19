@@ -1,0 +1,27 @@
+# Dependencies / build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets & local-only ops (NEVER commit)
+.env
+.env.*
+!.env.example
+docs/OPERATIONS.md
+CLAUDE.md
+
+# Local SSH/debug scratch
+ssh_out.txt
+*.log
+
+# Bundled GeoNames dataset IS committed (the Docker image copies it directly;
+# a clean clone must build without network). Regenerate with `npm run build:cities`.
+# Only the raw download artifact stays out:
+server/data/_raw/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
