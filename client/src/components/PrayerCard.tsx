@@ -27,7 +27,7 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 transition-colors",
+        "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-5 transition-colors",
         isNext
           ? cn("border-transparent bg-white/[0.06]", style.border, proximity !== "safe" && style.glow)
           : "border-border-soft/60 bg-white/[0.02]",
