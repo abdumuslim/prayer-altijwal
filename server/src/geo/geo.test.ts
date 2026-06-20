@@ -158,6 +158,26 @@ describe("createGeoRouter — HTTP routes", () => {
     expect(baghdad.tz).toBe("Asia/Baghdad");
   });
 
+  it("GET /api/geo/governorates?country=IQ → curated capitals (real seats, no Halabja/Khanaqin/new-old)", async () => {
+    const res = await fetch(`${base}/api/geo/governorates?country=IQ`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names: string[] = body.governorates.map((g: { name: string }) => g.name);
+    const arabic: string[] = body.governorates.map((g: { nameAr: string }) => g.nameAr);
+
+    // Real governorate seats are present (Diyala→Baqubah, Salah ad-Din→Tikrit,
+    // clean Mosul/Basra rather than the populous "new/old" districts).
+    expect(names).toEqual(expect.arrayContaining(["Baghdad", "Mosul", "Basra", "Baqubah", "Tikrit"]));
+    // All 18 governorate capitals (Halabja deliberately omitted).
+    expect(body.governorates.length).toBe(18);
+
+    // The names the user asked to remove never appear.
+    const blob = [...names, ...arabic].join(" ");
+    expect(/halabja|حلبجة/i.test(blob)).toBe(false);
+    expect(/khanaqin|خانقين/i.test(blob)).toBe(false);
+    expect(/jadidah|qadimah|الجديدة|القديمة/i.test(blob)).toBe(false);
+  });
+
   it("GET /api/geo/governorates with bad country → 400", async () => {
     const res = await fetch(`${base}/api/geo/governorates?country=IRAQ`);
     expect(res.status).toBe(400);

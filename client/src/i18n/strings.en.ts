@@ -34,6 +34,7 @@ export const en = {
   "event.arafah": "Day of Arafah",
   "event.eidAlAdha": "Eid al-Adha",
   "event.upcoming": "Upcoming",
+  "event.next": "Next Event",
   "event.today": "Today",
   "event.inDays": "in {days} days",
   "event.inDay": "in 1 day",

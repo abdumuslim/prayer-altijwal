@@ -76,8 +76,19 @@ Open-Meteo a hard dependency. (Home already uses Open-Meteo for weather, so it's
 
 The location picker that **replaced the manual method override**: rather than typing, pick your
 governorate from a list. `CitiesIndex.governorates(cc)` returns **one representative city — the most
-populous — per first-level admin division** of the country (for Iraq: Baghdad, Basra, Mosul, …),
-sorted by population. The route caps the list (40) to cover every country's admin-1 set.
+populous — per first-level admin division** of the country, sorted by population. The route caps the
+list (40) to cover every country's admin-1 set.
+
+**Iraq is curated, not heuristic.** The most-populous-per-`adm1` rule surfaced wrong/ugly seats for IQ —
+GeoNames metro/district features outrank the real capital: `Al Mawsil al Jadidah` (new) and
+`Al Basrah al Qadimah` (old) instead of Mosul/Basra, `Khanaqin` instead of Diyala's seat Baqubah,
+`Bayji` instead of Tikrit — plus the small Halabja governorate the product doesn't want listed. So for
+`cc==="IQ"`, `governorates()` returns a fixed **18-row capitals table** (`server/src/geo/iq-governorates.ts`,
+Halabja intentionally omitted) with clean Arabic names; every **other** country still uses the heuristic.
+This is an Iraq calibration analogous to the `BaghdadYMA` method profile. **Reverse-geocoding and search
+are unaffected** — Halabja, Khanaqin and the "new/old" districts stay in `cities15000.json` and remain
+searchable; only the quick-pick is curated. Regression: `geo.test.ts` asserts the curated set (Baqubah,
+Mosul, Basra present; no Halabja/Khanaqin/`jadidah|qadimah`).
 
 ```
 GET /api/geo/governorates?country={ISO-2}
@@ -133,7 +144,8 @@ never blocks; a clear "Set your location" affordance is always available.
   cities have `nar` (95/100 Iraqi cities). It powers Arabic display (`nameAr`/`cityAr`) and Arabic-query
   matching. Country names are localized separately on the client via `Intl.DisplayNames` (`lib/locale.ts`).
 - `CitiesIndex.governorates(cc)` backs `/api/geo/governorates` (the governorate quick-pick): most-populous
-  city per admin-1, sorted by population.
+  city per admin-1, sorted by population — **except `IQ`, served by the curated capitals table**
+  (`iq-governorates.ts`; see §3a).
 - `reverse` uses the **request** lat/lon for method detection (not the matched city's centroid).
   `admin1` is returned as the raw GeoNames code.
 

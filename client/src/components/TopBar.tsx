@@ -2,7 +2,7 @@
 //   [settings] [time]      <location, centred>      [Hijri / Gregorian dates]
 // GPS lives in the search panel now. Keeps the header to one row to save space.
 
-import { Settings2, Clock } from "lucide-react";
+import { Settings2, Clock, ChevronDown } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizeCountry, storedCityName } from "@/lib/locale";
 import type { PrayerTimesResponse } from "@/types/api";
@@ -65,28 +65,33 @@ export function TopBar({
       </button>
       {time && (
         <span className="flex shrink-0 items-center gap-1 text-teal">
-          <Clock className="size-3.5" />
-          <span className="tnum text-sm font-bold text-ink">{time}</span>
+          <Clock className="size-4" />
+          <span className="tnum text-base font-bold text-ink">{time}</span>
         </span>
       )}
 
-      {/* location — centred, opens search */}
+      {/* location — centred, opens search. The chevron + hover pill signal that
+          it's tappable / changeable. */}
       <button
         type="button"
         onClick={onOpenSearch}
-        className="flex min-w-0 flex-1 flex-col items-center leading-tight"
+        aria-label={t("location.change")}
+        className="group flex min-w-0 flex-1 flex-col items-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-white/5"
       >
-        <span className="truncate text-sm font-semibold text-ink">{cityLabel}</span>
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-base font-semibold text-ink">{cityLabel}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-ink-dim transition-colors group-hover:text-gold" />
+        </span>
         {countryLabel && (
-          <span className="truncate text-[10px] text-ink-dim">{countryLabel}</span>
+          <span className="truncate text-[11px] text-ink-dim">{countryLabel}</span>
         )}
       </button>
 
       {/* both dates */}
       {data && (
         <div className="flex shrink-0 flex-col items-end text-end leading-tight">
-          <span className="text-[11px] font-bold text-gold">{data.hijriDate}</span>
-          {gregorian && <span className="text-[10px] text-ink-dim">{gregorian}</span>}
+          <span className="text-xs font-bold text-gold">{data.hijriDate}</span>
+          {gregorian && <span className="text-[11px] text-ink-dim">{gregorian}</span>}
         </div>
       )}
     </header>

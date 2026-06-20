@@ -75,8 +75,12 @@ function App() {
         <NextPrayerCountdown next={times.next} now={times.now} />
         <PrayerList prayers={times.prayers} now={times.now} />
         {times.data.nextEvent && (
-          <section className="card p-4">
-            <NextEvent event={times.data.nextEvent} />
+          <section className="card p-3">
+            <NextEvent
+              event={times.data.nextEvent}
+              now={times.now}
+              tz={location.location?.tz}
+            />
           </section>
         )}
         {times.error && (
@@ -88,7 +92,7 @@ function App() {
   }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-4 px-4 pb-10 pt-5 sm:pt-7">
+    <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-3 px-4 pb-4 pt-3">
       <TopBar
         location={location.location}
         data={times.data}

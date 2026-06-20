@@ -37,6 +37,7 @@ export const ar: Record<StringKey, string> = {
   "event.arafah": "يوم عرفة",
   "event.eidAlAdha": "عيد الأضحى",
   "event.upcoming": "المناسبة القادمة",
+  "event.next": "المناسبة القادمة",
   "event.today": "اليوم",
   "event.inDays": "بعد {days} أيام",
   "event.inDay": "بعد يوم واحد",

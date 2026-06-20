@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { haversineKm } from "../util/geo-distance.js";
+import { IQ_GOVERNORATE_CAPITALS } from "./iq-governorates.js";
 import { childLogger } from "../logger.js";
 
 const log = childLogger("geo/cities-index");
@@ -155,9 +156,17 @@ export class CitiesIndex {
    * of a country. For Iraq this yields the governorate capitals (Baghdad, Basra,
    * Mosul, …), used by the location quick-pick that replaced the method override.
    * Sorted by population (largest first).
+   *
+   * Iraq is served by a CURATED capitals table (`iq-governorates.ts`) instead of
+   * the heuristic: the generic max-pop rule surfaced wrong/ugly names (Mosul/Basra
+   * "new/old" districts, Khanaqin over Baqubah) and the unwanted Halabja. Every
+   * other country still uses the heuristic below.
    */
   governorates(cc: string): City[] {
     const upper = cc.toUpperCase();
+    if (upper === "IQ") {
+      return [...IQ_GOVERNORATE_CAPITALS].sort((a, b) => b.pop - a.pop);
+    }
     const best = new Map<string, City>();
     for (const c of this.cities) {
       if (c.cc.toUpperCase() !== upper || !c.adm1) continue;

@@ -43,7 +43,9 @@ approaches. Colour vars live in `index.css`.
 **Countdown text:** both the hero "remaining circle" and the prayer rows use the same
 `formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains:
 `2 س:5 د` past an hour, `59 د:19 ث` under it, `30 ث` in the last minute (Arabic units shown; `h/m/s`
-in English). Latin digits.
+in English). Latin digits. **Every upcoming prayer row shows its own remaining countdown** (not just the
+next one) — the next prayer carries the proximity accent, the rest stay calm (`text-ink-dim`), passed
+rows dim with no countdown.
 
 ---
 
@@ -94,14 +96,21 @@ the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATI
 **Components:**
 - `TopBar` — single consolidated header row: **[settings][live local time]** at the start, the
   **location centred** (Arabic name in Arabic mode; opens search), and **both dates** (Hijri +
-  Gregorian) at the end. Replaced the old `LocationBar` + `NowCard` (deleted) to save vertical space.
-- `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 natural-height rows).
-  Boxes are stacked (icon / name / time); the next prayer adds the live countdown + a proximity
-  accent; passed prayers dim.
+  Gregorian) at the end. The centred location is visibly tappable — a trailing `ChevronDown` + a
+  hover pill signal "change location". Replaced the old `LocationBar` + `NowCard` (deleted) to save
+  vertical space.
+- `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 rows). Each box uses its
+  full width as **two horizontal rows**: `[icon · name]` then `[clock time · remaining countdown]`. The
+  countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
+  passed dim).
 - `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring: a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
-  time. RTL-safe centred glow.
-- `NextEvent` — next Islamic event (alone in the bottom card; only rendered when an event exists).
+  time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
+  they breathe without touching the ring. RTL-safe centred glow.
+- `NextEvent` — next Islamic event (bottom card; only when an event exists), laid out **horizontally**:
+  title (`event.next`) at the start · event name centred · the event **date over the days-left chip**
+  (same column) at the end. The date is derived client-side from `daysLeft` (now + days, formatted in
+  the location tz, Latin digits).
 - `CitySearch` — debounced forward search (`/api/geo/search`); a **"Use my location" (GPS)** button +
   the **governorate list** as its default when the query is empty.
 - `GovernorateList` — shared list of the country's governorate capitals (`/api/geo/governorates`);

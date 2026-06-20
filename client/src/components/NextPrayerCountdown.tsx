@@ -44,7 +44,7 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
   return (
     <section
       className={cn(
-        "card arabesque animate-rise-in relative overflow-hidden p-5 sm:p-6",
+        "card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5",
         style.glow,
       )}
     >
@@ -56,7 +56,7 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
         aria-hidden="true"
       />
 
-      <div className="relative flex flex-col items-center gap-3">
+      <div className="relative flex flex-col items-center gap-2.5">
         <div className="flex items-center justify-center gap-2 text-center">
           <span className={cn("text-sm font-semibold", style.text)}>
             {next.msUntil <= 0 ? t("next.now") : t("next.header")}
@@ -70,12 +70,14 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
         <ProgressRing
           progress={ringProgress}
-          size={210}
+          size={184}
           stroke={9}
           color={style.ring}
         >
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-2xl font-bold text-gold sm:text-[1.7rem]">
+          {/* Height-constrained column so the three lines breathe (justify-between)
+              while staying inside the ring's inscribed area — never touching it. */}
+          <div className="flex h-[58%] flex-col items-center justify-between text-center">
+            <span className="text-2xl font-bold leading-none text-gold">
               {t(`prayer.${next.name}` as StringKey)}
             </span>
             <span
@@ -87,7 +89,7 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
             >
               {clock}
             </span>
-            <span className="mt-0.5 text-sm text-ink-dim">
+            <span className="text-sm leading-none text-ink-dim">
               {localizeTimeString(next.time, lang)}
             </span>
           </div>
