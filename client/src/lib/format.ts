@@ -59,10 +59,12 @@ export function countdownParts(targetTs: number, now: number): CountdownParts {
 
 /**
  * Compact localized countdown string recomputed each tick. Spaced unit labels
- * joined by a colon; seconds dropped once an hour remains:
- *   > 1h   →  "2 h : 5 m"   / "2 س : 5 د"
+ * joined by a colon; seconds dropped once an hour remains. Every numeric value
+ * is zero-padded to **2 digits** so the tabular-figure width never changes and
+ * the text doesn't shift as the digits tick:
+ *   > 1h   →  "02 h : 05 m" / "02 س : 05 د"
  *   < 1h   →  "59 m : 19 s" / "59 د : 19 ث"
- *   < 1m   →  "30 s" / "30 ث"
+ *   < 1m   →  "05 s" / "05 ث"
  */
 export function formatCountdown(
   targetTs: number,
@@ -74,14 +76,15 @@ export function formatCountdown(
     lang === "ar"
       ? { h: "س", m: "د", s: "ث" }
       : { h: "h", m: "m", s: "s" };
+  const pad = (n: number): string => String(n).padStart(2, "0");
 
   let out: string;
   if (hours > 0) {
-    out = `${hours} ${u.h} : ${minutes} ${u.m}`;
+    out = `${pad(hours)} ${u.h} : ${pad(minutes)} ${u.m}`;
   } else if (minutes > 0) {
-    out = `${minutes} ${u.m} : ${seconds} ${u.s}`;
+    out = `${pad(minutes)} ${u.m} : ${pad(seconds)} ${u.s}`;
   } else {
-    out = `${seconds} ${u.s}`;
+    out = `${pad(seconds)} ${u.s}`;
   }
   return localizeDigits(out, lang);
 }

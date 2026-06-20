@@ -41,8 +41,9 @@ suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks
 approaches. Colour vars live in `index.css`.
 
 **Countdown text:** both the hero "remaining circle" and the prayer rows use the same
-`formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains:
-`2 س:5 د` past an hour, `59 د:19 ث` under it, `30 ث` in the last minute (Arabic units shown; `h/m/s`
+`formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains.
+Every value is **zero-padded to 2 digits** so the tabular figures never shift width as they tick:
+`02 س:05 د` past an hour, `59 د:19 ث` under it, `05 ث` in the last minute (Arabic units shown; `h/m/s`
 in English). Latin digits. **Every upcoming prayer row shows its own remaining countdown** (not just the
 next one) — the next prayer carries the proximity accent, the rest stay calm (`text-ink-dim`), passed
 rows dim with no countdown.
