@@ -37,7 +37,7 @@ server. **Re-fetch** on: location/method change, local-midnight rollover, tab re
 **green → yellow → orange → red → pulsing red**, resetting to green when the next prayer's countdown
 begins. The hero's only animated glow is the **soft radial halo** behind the ring (the `<div>` whose
 `background` is the proximity accent) — it **breathes** via the `halo-breath` keyframe (**scale + opacity** — spreads
-between ~25% and ~90% of its area, opacity floored so it never fully fades), and
+between ~40% and ~95% of its area, opacity floored so it never fully fades), and
 its **speed ramps with the countdown**: a calm, barely-noticeable slow breath when far off,
 accelerating each minute from the 15-min mark until it matches the last-minute pulse.
 `glowBreathPeriod(ms)` (`lib/format.ts`) maps the remaining minutes to `--glow-period` (~14s far → 1s

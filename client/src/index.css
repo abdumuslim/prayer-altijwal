@@ -84,11 +84,11 @@
 
 /* The soft radial halo behind the ring breathes (area via scale + opacity),
    driven by --glow-period so it accelerates with the countdown. Spreads between
-   ~25% of its max area (scale 0.5) and ~90% (scale 0.95); opacity never reaches 0
-   so it never fully disappears. `translateX(-50%)` keeps it centred while scaling. */
+   ~40% of its max area (scale 0.63) and ~95% (scale 0.975); opacity never reaches
+   0 so it never fully disappears. `translateX(-50%)` keeps it centred while scaling. */
 @keyframes halo-breath {
-  0%, 100% { transform: translateX(-50%) scale(0.5); opacity: 0.14; }
-  50% { transform: translateX(-50%) scale(0.95); opacity: 0.3; }
+  0%, 100% { transform: translateX(-50%) scale(0.63); opacity: 0.14; }
+  50% { transform: translateX(-50%) scale(0.975); opacity: 0.3; }
 }
 
 @keyframes soft-pulse {
