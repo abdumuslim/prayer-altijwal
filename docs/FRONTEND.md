@@ -102,9 +102,10 @@ the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATI
   2-line location sets (no taller row). The centred location is visibly tappable — a trailing
   `ChevronDown` + a hover pill signal "change location". Replaced the old `LocationBar` + `NowCard`.
 - `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 rows). Each box is a
-  **single vertically-centred row**: `[icon · name]` at the start, `[clock time / remaining]` as a
-  centred stacked column at the end. The countdown shows for **every upcoming** prayer (next = proximity
-  accent + glow/border, others calm, passed dim).
+  **single vertically-centred row** with **generous vertical padding** (`py-5`, breathing room):
+  `[icon · name]` at the start, `[clock time / remaining]` as a centred stacked column at the end. The
+  countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
+  passed dim).
 - `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring: a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
@@ -142,3 +143,9 @@ Premium, polished feel — pill shapes, subtle shadows, gentle glow, animated ic
 visual identity and breathing room. Compact cards (minimize vertical height, inline colored text over
 progress bars). All icons in a set must be visually **unique**. Title-case labels. The user prefers
 to **see layouts live and iterate** over rounds of description — expect to run the app and refine.
+
+**Single-screen fit:** the whole main view is designed to fit a phone viewport **without scrolling**
+(verified at 390×844 and 360×740) — budget vertical space for any new section, and trim gaps/paddings/
+ring size before adding height. **True-centre** a row's middle element with a 3-column grid
+(`grid-cols-[1fr_auto_1fr]`) so a start-side icon never shifts it off-centre. Keep ticking numbers from
+jittering: **tabular figures + fixed digit width** (the countdown zero-pads to 2 digits — see §2).
