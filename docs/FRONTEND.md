@@ -74,6 +74,10 @@ rows dim with no countdown.
   fallback). See `GEOCODING.md`.
 - **Fonts:** Arabic is **Cairo** (`--font-arabic` in `index.css`, Google Fonts in `index.html`) —
   switched from Tajawal.
+- **Arabic line-height (clipping caveat):** Arabic glyphs (Cairo) have descenders that a tight line
+  box crops — **never pair `leading-none` with `truncate`** (`truncate` sets `overflow:hidden`, so the
+  glyph bottoms get clipped) on Arabic text. Use `leading-snug`+. The prayer-card titles hit this when
+  bumped to `text-base` (clipped at the bottom) and were fixed to `leading-snug` (2026-06-20).
 - Persist `language`; initialize from stored value or `navigator.language`, defaulting to `ar`.
 
 ---
@@ -106,7 +110,8 @@ the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATI
   `ChevronDown` + a hover pill signal "change location". Replaced the old `LocationBar` + `NowCard`.
 - `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 rows). Each box is a
   **single vertically-centred row** with **generous vertical padding** (`py-5`, breathing room):
-  `[name]` at the start (per-prayer icon removed; name bumped to `text-base`),
+  `[name]` at the start (per-prayer icon removed; name is `text-base` with `leading-snug` — tight
+  `leading-none` clipped Arabic descenders under `truncate`, see §3),
   `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
   passed dim).
