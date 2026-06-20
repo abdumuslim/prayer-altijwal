@@ -35,20 +35,20 @@ server. **Re-fetch** on: location/method change, local-midnight rollover, tab re
 **Proximity palette (as-built — `lib/format.ts` + `components/ui/proximity.ts`):** thresholds are
 `safe` (>15 min) → `warning` (≤15) → `urgent` (≤10) → `critical` (≤5) → `imminent` (≤1), colours
 **green → yellow → orange → red → pulsing red**, resetting to green when the next prayer's countdown
-begins. The **hero card's** glow **always breathes** (the `glow-breath` keyframe; its colour follows
-the proximity accent via the inline `--glow-c` var) and its **breathing speed ramps with the
-countdown** — a calm, barely-noticeable slow breath when far off, accelerating each minute from the
-15-min mark until it matches the last-minute pulse. `glowBreathPeriod(ms)` (`lib/format.ts`) maps the
-remaining minutes to the period (`--glow-period`, ~7s far → 1s at the last minute) **bucketed to whole
-minutes** so the animation re-times once per minute, not every tick (no jitter). The last minute
-(`imminent`) keeps its dedicated red `imminent-pulse`. The soft radial **halo** behind the ring
-breathes in sync (`halo-breath`, opacity, same inherited `--glow-period`). **Gotcha:** the entrance
-(`rise-in`) and the glow are set together in **one inline `animation` list** on the section
-(`var(--animate-rise-in), var(--animate-glow-breath|imminent-pulse)`) — two separate `animate-*`
-utilities both set the `animation` shorthand and the later one wins, which had silently killed the
-hero glow entirely (it never ran). The **prayer rows** stay calm while far off —
-the next-row glow is suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks
-in as the prayer approaches. Colour vars live in `index.css`.
+begins. The hero's only animated glow is the **soft radial halo** behind the ring (the `<div>` whose
+`background` is the proximity accent) — it **breathes** via the `halo-breath` keyframe (**scale + opacity** — spreads
+between ~25% and ~90% of its area, opacity floored so it never fully fades), and
+its **speed ramps with the countdown**: a calm, barely-noticeable slow breath when far off,
+accelerating each minute from the 15-min mark until it matches the last-minute pulse.
+`glowBreathPeriod(ms)` (`lib/format.ts`) maps the remaining minutes to `--glow-period` (~7s far → 1s
+at the last minute), **bucketed to whole minutes** so it re-times once per minute, not every tick (no
+jitter). **No card-edge/border glow** — by request the hero card does not glow its border in any state
+(the section keeps only the `rise-in` entrance + the static `.card` depth shadow). **Gotcha:** never
+stack two `animate-*` utilities on one element — both set the `animation` shorthand and the later one
+silently wins (this once killed the hero glow); the halo breath lives on its **own** element, so it
+never clashes with the section's `rise-in`. The **prayer rows** stay calm while far off — the next-row
+glow is suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks in as the
+prayer approaches. Colour vars live in `index.css`.
 
 **Countdown text:** both the hero "remaining circle" and the prayer rows use the same
 `formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains.

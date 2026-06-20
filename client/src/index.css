@@ -50,9 +50,6 @@
   --animate-overlay-in: overlay-in 160ms ease-out;
   --animate-panel-in: panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
-  /* Hero glow that always breathes; colour (--glow-c) + speed (--glow-period)
-     are set inline so the period can ramp with the countdown. */
-  --animate-glow-breath: glow-breath var(--glow-period, 7s) ease-in-out infinite;
   --animate-soft-pulse: soft-pulse 1.6s ease-in-out infinite;
   --animate-imminent-pulse: imminent-pulse 1s ease-in-out infinite;
   --animate-shimmer: shimmer 2.2s linear infinite;
@@ -85,27 +82,13 @@
   50% { box-shadow: 0 0 34px -4px rgba(52, 211, 153, 0.75); }
 }
 
-/* Generic breathing glow — the colour comes from --glow-c (the proximity accent)
-   so one keyframe serves green→yellow→orange→red. Keeps the card's depth shadow
-   underneath so the breathing only adds/removes the coloured halo. */
-@keyframes glow-breath {
-  0%, 100% {
-    box-shadow:
-      0 10px 40px -16px rgba(0, 0, 0, 0.55),
-      0 0 16px -8px color-mix(in srgb, var(--glow-c, var(--color-safe)) 40%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 10px 40px -16px rgba(0, 0, 0, 0.55),
-      0 0 40px -2px color-mix(in srgb, var(--glow-c, var(--color-safe)) 85%, transparent);
-  }
-}
-
-/* The soft radial halo behind the ring breathes in sync (opacity), driven by the
-   inherited --glow-period so it accelerates with the countdown. */
+/* The soft radial halo behind the ring breathes (area via scale + opacity),
+   driven by --glow-period so it accelerates with the countdown. Spreads between
+   ~25% of its max area (scale 0.5) and ~90% (scale 0.95); opacity never reaches 0
+   so it never fully disappears. `translateX(-50%)` keeps it centred while scaling. */
 @keyframes halo-breath {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.5; }
+  0%, 100% { transform: translateX(-50%) scale(0.5); opacity: 0.3; }
+  50% { transform: translateX(-50%) scale(0.95); opacity: 0.5; }
 }
 
 @keyframes soft-pulse {

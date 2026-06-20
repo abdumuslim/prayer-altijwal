@@ -41,34 +41,23 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
   const progress = intervalProgress(next.intervalStart, next.timestamp, now);
   const ringProgress = 1 - progress; // depletes as time passes
   const isImminent = next.proximity === "imminent";
-  // Always-on breathing glow: colour follows the proximity accent, speed ramps
-  // from a calm slow breath (far off) to the last-minute pulse. The last minute
-  // keeps its dedicated red imminent-pulse.
+  // Breathing lives only in the radial halo (no card-edge/border glow). Its speed
+  // ramps from a calm slow breath (far off) to the last-minute pulse via
+  // --glow-period; colour follows the proximity accent.
   const breathPeriod = glowBreathPeriod(next.msUntil);
 
   return (
-    <section
-      className="card arabesque relative overflow-hidden p-4 sm:p-5"
-      style={
-        {
-          "--glow-c": style.ring,
-          "--glow-period": `${breathPeriod.toFixed(2)}s`,
-          // Compose the one-shot entrance with the looping glow in a SINGLE
-          // `animation` list. Two separate animation utilities (e.g.
-          // `animate-rise-in` + `animate-glow-breath`) both set the `animation`
-          // shorthand, so only one wins and the glow silently never runs.
-          animation: isImminent
-            ? "var(--animate-rise-in), var(--animate-imminent-pulse)"
-            : "var(--animate-rise-in), var(--animate-glow-breath)",
-        } as CSSProperties
-      }
-    >
+    <section className="card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5">
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
-          centred under both LTR and RTL. Breathes in sync via the inherited
-          `--glow-period` (opacity pulse). */}
+          centred under both LTR and RTL. Breathes (opacity) at --glow-period. */}
       <div
-        className="halo-breath pointer-events-none absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full blur-3xl"
-        style={{ background: style.ring }}
+        className="halo-breath pointer-events-none absolute -top-24 left-1/2 h-80 w-80 rounded-full blur-3xl"
+        style={
+          {
+            background: style.ring,
+            "--glow-period": `${breathPeriod.toFixed(2)}s`,
+          } as CSSProperties
+        }
         aria-hidden="true"
       />
 
