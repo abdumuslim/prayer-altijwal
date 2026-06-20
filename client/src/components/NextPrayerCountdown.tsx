@@ -48,23 +48,26 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
   return (
     <section
-      className={cn(
-        "card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5",
-        isImminent ? "animate-imminent-pulse" : "animate-glow-breath",
-      )}
+      className="card arabesque relative overflow-hidden p-4 sm:p-5"
       style={
-        isImminent
-          ? undefined
-          : ({
-              "--glow-c": style.ring,
-              "--glow-period": `${breathPeriod.toFixed(2)}s`,
-            } as CSSProperties)
+        {
+          "--glow-c": style.ring,
+          "--glow-period": `${breathPeriod.toFixed(2)}s`,
+          // Compose the one-shot entrance with the looping glow in a SINGLE
+          // `animation` list. Two separate animation utilities (e.g.
+          // `animate-rise-in` + `animate-glow-breath`) both set the `animation`
+          // shorthand, so only one wins and the glow silently never runs.
+          animation: isImminent
+            ? "var(--animate-rise-in), var(--animate-imminent-pulse)"
+            : "var(--animate-rise-in), var(--animate-glow-breath)",
+        } as CSSProperties
       }
     >
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
-          centred under both LTR and RTL. */}
+          centred under both LTR and RTL. Breathes in sync via the inherited
+          `--glow-period` (opacity pulse). */}
       <div
-        className="pointer-events-none absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+        className="halo-breath pointer-events-none absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full blur-3xl"
         style={{ background: style.ring }}
         aria-hidden="true"
       />

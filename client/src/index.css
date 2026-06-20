@@ -86,10 +86,26 @@
 }
 
 /* Generic breathing glow — the colour comes from --glow-c (the proximity accent)
-   so one keyframe serves green→yellow→orange→red. Mirrors glow-pulse's amplitude. */
+   so one keyframe serves green→yellow→orange→red. Keeps the card's depth shadow
+   underneath so the breathing only adds/removes the coloured halo. */
 @keyframes glow-breath {
-  0%, 100% { box-shadow: 0 0 18px -6px color-mix(in srgb, var(--glow-c, var(--color-safe)) 45%, transparent); }
-  50% { box-shadow: 0 0 36px -4px color-mix(in srgb, var(--glow-c, var(--color-safe)) 78%, transparent); }
+  0%, 100% {
+    box-shadow:
+      0 10px 40px -16px rgba(0, 0, 0, 0.55),
+      0 0 16px -8px color-mix(in srgb, var(--glow-c, var(--color-safe)) 40%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 10px 40px -16px rgba(0, 0, 0, 0.55),
+      0 0 40px -2px color-mix(in srgb, var(--glow-c, var(--color-safe)) 85%, transparent);
+  }
+}
+
+/* The soft radial halo behind the ring breathes in sync (opacity), driven by the
+   inherited --glow-period so it accelerates with the countdown. */
+@keyframes halo-breath {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.5; }
 }
 
 @keyframes soft-pulse {
@@ -198,6 +214,11 @@
   .tnum {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+  }
+
+  /* Breathing halo behind the hero ring; speed from the inherited --glow-period. */
+  .halo-breath {
+    animation: halo-breath var(--glow-period, 7s) ease-in-out infinite;
   }
 
   .scrollbar-hide {
