@@ -2,12 +2,13 @@
 // (depleting across the interval) holding the prayer name, the live countdown,
 // and the prayer's clock time. Kept vertically compact so it fits on a phone.
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { proximityStyle } from "@/components/ui/proximity";
 import {
   formatCountdown,
+  glowBreathPeriod,
   intervalProgress,
   localizeTimeString,
 } from "@/lib/format";
@@ -40,13 +41,25 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
   const progress = intervalProgress(next.intervalStart, next.timestamp, now);
   const ringProgress = 1 - progress; // depletes as time passes
   const isImminent = next.proximity === "imminent";
+  // Always-on breathing glow: colour follows the proximity accent, speed ramps
+  // from a calm slow breath (far off) to the last-minute pulse. The last minute
+  // keeps its dedicated red imminent-pulse.
+  const breathPeriod = glowBreathPeriod(next.msUntil);
 
   return (
     <section
       className={cn(
         "card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5",
-        style.glow,
+        isImminent ? "animate-imminent-pulse" : "animate-glow-breath",
       )}
+      style={
+        isImminent
+          ? undefined
+          : ({
+              "--glow-c": style.ring,
+              "--glow-period": `${breathPeriod.toFixed(2)}s`,
+            } as CSSProperties)
+      }
     >
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
           centred under both LTR and RTL. */}

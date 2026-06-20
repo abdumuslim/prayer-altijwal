@@ -50,6 +50,9 @@
   --animate-overlay-in: overlay-in 160ms ease-out;
   --animate-panel-in: panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
+  /* Hero glow that always breathes; colour (--glow-c) + speed (--glow-period)
+     are set inline so the period can ramp with the countdown. */
+  --animate-glow-breath: glow-breath var(--glow-period, 7s) ease-in-out infinite;
   --animate-soft-pulse: soft-pulse 1.6s ease-in-out infinite;
   --animate-imminent-pulse: imminent-pulse 1s ease-in-out infinite;
   --animate-shimmer: shimmer 2.2s linear infinite;
@@ -80,6 +83,13 @@
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 18px -6px rgba(52, 211, 153, 0.45); }
   50% { box-shadow: 0 0 34px -4px rgba(52, 211, 153, 0.75); }
+}
+
+/* Generic breathing glow — the colour comes from --glow-c (the proximity accent)
+   so one keyframe serves green→yellow→orange→red. Mirrors glow-pulse's amplitude. */
+@keyframes glow-breath {
+  0%, 100% { box-shadow: 0 0 18px -6px color-mix(in srgb, var(--glow-c, var(--color-safe)) 45%, transparent); }
+  50% { box-shadow: 0 0 36px -4px color-mix(in srgb, var(--glow-c, var(--color-safe)) 78%, transparent); }
 }
 
 @keyframes soft-pulse {

@@ -35,10 +35,15 @@ server. **Re-fetch** on: location/method change, local-midnight rollover, tab re
 **Proximity palette (as-built — `lib/format.ts` + `components/ui/proximity.ts`):** thresholds are
 `safe` (>15 min) → `warning` (≤15) → `urgent` (≤10) → `critical` (≤5) → `imminent` (≤1), colours
 **green → yellow → orange → red → pulsing red**, resetting to green when the next prayer's countdown
-begins. The **hero card's** glow tracks the level at every step (green has its own `glow-pulse`
-keyframe; imminent pulses red). The **prayer rows** stay calm while far off — the next-row glow is
-suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks in as the prayer
-approaches. Colour vars live in `index.css`.
+begins. The **hero card's** glow **always breathes** (the `glow-breath` keyframe; its colour follows
+the proximity accent via the inline `--glow-c` var) and its **breathing speed ramps with the
+countdown** — a calm, barely-noticeable slow breath when far off, accelerating each minute from the
+15-min mark until it matches the last-minute pulse. `glowBreathPeriod(ms)` (`lib/format.ts`) maps the
+remaining minutes to the period (`--glow-period`, ~7s far → 1s at the last minute) **bucketed to whole
+minutes** so the animation re-times once per minute, not every tick (no jitter). The last minute
+(`imminent`) keeps its dedicated red `imminent-pulse`. The **prayer rows** stay calm while far off —
+the next-row glow is suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks
+in as the prayer approaches. Colour vars live in `index.css`.
 
 **Countdown text:** both the hero "remaining circle" and the prayer rows use the same
 `formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains.
@@ -99,7 +104,10 @@ selections are **server-side** (alert rules) — no `reminderPrefs` key.
 ## 5. Components & hooks
 
 **Hooks:** `usePrayerTimes`, `useLocation`, `useSettings`, `usePushSubscription` (lifecycle + exposes
-the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATIONS.md`).
+the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATIONS.md`), `useWakeLock`
+(holds a Screen Wake Lock so the phone screen doesn't sleep while the app is open; feature-detected,
+re-acquires on `visibilitychange` since browsers drop the lock when the tab hides; silent no-op where
+unsupported — no UI, called once in `App`).
 
 **Components:**
 - `TopBar` — single consolidated header row, a **3-column grid** (`grid-cols-[1fr_auto_1fr]`) so the

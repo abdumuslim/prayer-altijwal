@@ -8,6 +8,7 @@ import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
 import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import { TopBar } from "@/components/TopBar";
 import { NextPrayerCountdown } from "@/components/NextPrayerCountdown";
 import { PrayerList } from "@/components/PrayerList";
@@ -25,6 +26,7 @@ function App() {
   const { lang } = useI18n();
   const location = useLocation();
   const settings = useSettings();
+  useWakeLock(); // keep the screen awake while the app is open
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 

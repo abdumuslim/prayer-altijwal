@@ -39,6 +39,23 @@ export function proximityFromMs(ms: number): Proximity {
   return "safe";
 }
 
+/**
+ * Hero glow breathing period (seconds) from ms remaining. A calm, barely-
+ * noticeable slow breath when far off; from the 15-min mark it accelerates each
+ * minute until it matches the last-minute pulse speed. Bucketed to whole minutes
+ * so the value is stable within a minute → the CSS animation only re-times once
+ * per minute (no per-second restart/jitter). See FRONTEND.md §2.
+ */
+export function glowBreathPeriod(ms: number): number {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  const SLOW = 7; // far-away calm breath (barely noticeable)
+  const FAST = 1; // last-minute speed (matches imminent-pulse's 1s)
+  const RAMP_START = 15; // begin accelerating here
+  if (minutes >= RAMP_START) return SLOW;
+  if (minutes <= 1) return FAST;
+  return FAST + (SLOW - FAST) * ((minutes - 1) / (RAMP_START - 1));
+}
+
 export interface CountdownParts {
   hours: number;
   minutes: number;
