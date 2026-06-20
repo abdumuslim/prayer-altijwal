@@ -87,8 +87,8 @@
    ~25% of its max area (scale 0.5) and ~90% (scale 0.95); opacity never reaches 0
    so it never fully disappears. `translateX(-50%)` keeps it centred while scaling. */
 @keyframes halo-breath {
-  0%, 100% { transform: translateX(-50%) scale(0.5); opacity: 0.3; }
-  50% { transform: translateX(-50%) scale(0.95); opacity: 0.5; }
+  0%, 100% { transform: translateX(-50%) scale(0.5); opacity: 0.14; }
+  50% { transform: translateX(-50%) scale(0.95); opacity: 0.3; }
 }
 
 @keyframes soft-pulse {
