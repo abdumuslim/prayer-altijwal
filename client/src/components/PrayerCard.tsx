@@ -1,5 +1,5 @@
-// One prayer box for the 2-column grid. Two horizontal rows that use the cell's
-// full width: [icon · name] on top, [clock time · remaining countdown] below.
+// One prayer box for the 2-column grid — a single vertically-centered row:
+//   [icon · name]  at the start,  [clock time / remaining] stacked at the end.
 // Every UPCOMING prayer shows its live remaining time (not just the next one);
 // the next prayer carries the proximity accent, the rest stay calm, passed dim.
 
@@ -27,15 +27,15 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-1.5 rounded-xl border px-2.5 py-2 transition-colors",
+        "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 transition-colors",
         isNext
           ? cn("border-transparent bg-white/[0.06]", style.border, proximity !== "safe" && style.glow)
           : "border-border-soft/60 bg-white/[0.02]",
         prayer.isPassed && !isNext && "opacity-45",
       )}
     >
-      {/* row 1: icon + prayer name */}
-      <div className="flex items-center gap-2">
+      {/* start: icon + prayer name */}
+      <div className="flex min-w-0 items-center gap-2">
         <span
           className={cn(
             "grid size-8 shrink-0 place-items-center rounded-lg",
@@ -54,8 +54,8 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
         </span>
       </div>
 
-      {/* row 2: clock time + remaining countdown (all upcoming prayers) */}
-      <div className="flex items-baseline justify-between gap-1">
+      {/* end: clock time over remaining countdown — centred stacked column */}
+      <div className="flex shrink-0 flex-col items-center gap-0.5 leading-tight">
         <span className="tnum text-xs text-ink-dim">
           {localizeTimeString(prayer.time, lang)}
         </span>

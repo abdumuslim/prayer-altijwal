@@ -46,22 +46,22 @@ export function NextEvent({ event, now, tz }: NextEventProps) {
   })();
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
       {/* start: icon + title */}
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="grid size-9 place-items-center rounded-xl bg-emerald/10 text-emerald">
+      <div className="flex min-w-0 items-center gap-2 justify-self-start">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald/10 text-emerald">
           <EventIcon eventKey={event.key} className="size-4.5" />
         </span>
-        <span className="text-xs font-medium text-ink-dim">{t("event.next")}</span>
+        <span className="truncate text-xs font-medium text-ink-dim">{t("event.next")}</span>
       </div>
 
-      {/* center: event name */}
-      <span className="min-w-0 flex-1 truncate text-center text-sm font-bold text-ink">
+      {/* center: event name — truly centred (auto column between equal 1fr sides) */}
+      <span className="min-w-0 justify-self-center truncate text-center text-sm font-bold text-ink">
         {localizedName}
       </span>
 
-      {/* end: date over days-left chip, same column */}
-      <div className="flex shrink-0 flex-col items-end gap-0.5 leading-tight">
+      {/* end: date over days-left chip — centred stacked column */}
+      <div className="flex min-w-0 flex-col items-center justify-self-end gap-0.5 leading-tight">
         {eventDate && <span className="tnum text-[11px] text-ink-dim">{eventDate}</span>}
         <span
           className={
