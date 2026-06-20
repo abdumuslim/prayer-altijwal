@@ -201,7 +201,7 @@
 
   /* Breathing halo behind the hero ring; speed from the inherited --glow-period. */
   .halo-breath {
-    animation: halo-breath var(--glow-period, 7s) ease-in-out infinite;
+    animation: halo-breath var(--glow-period, 14s) ease-in-out infinite;
   }
 
   .scrollbar-hide {
