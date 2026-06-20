@@ -62,7 +62,10 @@ rows dim with no countdown.
 - **Numerals are ALWAYS Latin** (product decision "keep numbers in English"), even in Arabic.
   `lib/format.ts` `localizeDigits` is a deliberate **no-op pass-through**; the server uses the
   `-nu-latn` locale extension (`fmtTime` → `ar-u-nu-latn`, `hijriDate` → `…-nu-latn`) so Arabic text
-  carries Latin digits. `TopBar`'s clock + Gregorian line also use `ar-u-nu-latn`.
+  carries Latin digits. `TopBar`'s live time uses `ar-u-nu-latn`; its **Gregorian line uses the
+  Levantine/Iraqi month names** (`lib/gregorian.ts` — حزيران not يونيو, Latin numerals, month
+  resolved in the target tz). The **next-event date renders in the Hijri calendar** (`lib/hijri.ts`,
+  Umm al-Qura, mirroring the server's `hijriDate`).
 - **Prayer names are translated client-side** via the existing `prayer.*` keys (`t(`prayer.${name}`)`
   in `NextPrayerCountdown` + `PrayerCard`) — the server `LABELS` are English-only and were showing raw
   in Arabic mode.
@@ -96,30 +99,34 @@ the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATI
 
 **Components:**
 - `TopBar` — single consolidated header row, a **3-column grid** (`grid-cols-[1fr_auto_1fr]`) so the
-  **location is truly centred** regardless of the side widths: **[settings][live local time]** at the
-  start, the centred location (Arabic name in Arabic mode; opens search), and **both dates** (Hijri +
-  Gregorian, centred stacked column) at the end. Time + dates are sized up to fill the row height the
+  **location is truly centred** regardless of the side widths: **[settings][live local time, no icon]**
+  at the start, the centred location (Arabic name in Arabic mode; opens search), and **both dates**
+  (Hijri + **Levantine** Gregorian, centred stacked column) at the end. Time + dates are sized up to fill the row height the
   2-line location sets (no taller row). The centred location is visibly tappable — a trailing
   `ChevronDown` + a hover pill signal "change location". Replaced the old `LocationBar` + `NowCard`.
 - `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 rows). Each box is a
   **single vertically-centred row** with **generous vertical padding** (`py-5`, breathing room):
-  `[icon · name]` at the start, `[clock time / remaining]` as a centred stacked column at the end. The
+  `[name]` at the start (per-prayer icon removed; name bumped to `text-base`),
+  `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
   passed dim).
-- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring: a single header line
+- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**208px**): a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
   they breathe without touching the ring. RTL-safe centred glow.
 - `NextEvent` — next Islamic event (bottom card; only when an event exists), a **3-column grid** so the
-  event name is **truly centred**: title (`event.next`) at the start · event name centred · the event
-  **date over the days-left chip** (centred stacked column) at the end. The date is derived client-side
-  from `daysLeft` (now + days, formatted in the location tz, Latin digits).
+  event name is **truly centred**: the label (`event.next`) at the start (**no icon**) · event name
+  centred · the event **date over the days-left chip** (centred stacked column) at the end. The date is
+  the **Hijri (Umm al-Qura)** date of `now + daysLeft` in the location tz (`lib/hijri.ts`), matching the
+  header's Hijri line.
 - `CitySearch` — debounced forward search (`/api/geo/search`); a **"Use my location" (GPS)** button +
   the **governorate list** as its default when the query is empty.
-- `GovernorateList` — shared list of the country's governorate capitals (`/api/geo/governorates`);
-  selecting one sets the location. **This replaced the manual method/Asr controls.**
-- `SettingsPanel` — language toggle, the governorate quick-pick, and the reminders section. **No method
-  picker and no Asr madhab toggle** (removed — `DECISIONS.md` ADR-002/003).
+- `GovernorateList` — list of the country's governorate capitals (`/api/geo/governorates`), shown
+  **in `CitySearch` only**; selecting one sets the location. **This replaced the manual method/Asr controls.**
+- `SettingsPanel` — the reminders section and language toggle. **The location quick-pick is not here** —
+  it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as redundant (the
+  location header already opens the picker). **No method picker and no Asr madhab toggle** (removed —
+  `DECISIONS.md` ADR-002/003).
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
   non-standalone (`NOTIFICATIONS.md`).
@@ -141,7 +148,9 @@ lives in `GEOCODING.md`).
 
 Premium, polished feel — pill shapes, subtle shadows, gentle glow, animated icons; components get
 visual identity and breathing room. Compact cards (minimize vertical height, inline colored text over
-progress bars). All icons in a set must be visually **unique**. Title-case labels. The user prefers
+progress bars). All icons in a set must be visually **unique**. (As of 2026-06-20 the time,
+per-prayer, and next-event icons were intentionally **removed** for a cleaner, text-forward
+header/cards; per-prayer icons remain only in the reminder picker (`AlertForm`).) Title-case labels. The user prefers
 to **see layouts live and iterate** over rounds of description — expect to run the app and refine.
 
 **Single-screen fit:** the whole main view is designed to fit a phone viewport **without scrolling**

@@ -89,15 +89,23 @@ create databases, pre-create `prayer` and let the app run migrations only.
 ## 5. Deploy sequence (same as home)
 
 ```bash
-# 1. tarball (exclude node_modules, dist, .git)
+# 1. tarball (exclude node_modules, dist, .git, and the gitignored sensitive ops doc —
+#    `docs/OPERATIONS.md` must never land on the VPS)
 tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=.git \
+  --exclude=docs/OPERATIONS.md \
   server client Dockerfile docker-compose.yml .env.example docs
 
 # 2. upload  (SSH/SCP specifics — host, key — in OPERATIONS.md)
 scp /tmp/prayer-deploy.tar.gz <vps>:/tmp/
 
 # 3. extract + build on the VPS
-ssh <vps> "mkdir -p /opt/prayer && cd /opt/prayer && tar xzf /tmp/prayer-deploy.tar.gz && \
+#    `tar xzf` over an existing tree ADDS/overwrites but never DELETES: a file removed
+#    since the last deploy lingers on the VPS and can break the build (e.g. a deleted
+#    component still importing a now-removed symbol — happened 2026-06-20). Clear the
+#    source trees first so deletions propagate. `.env` lives in the /opt/prayer ROOT,
+#    not in these dirs, so it is preserved.
+ssh <vps> "mkdir -p /opt/prayer && cd /opt/prayer && rm -rf client server docs && \
+           tar xzf /tmp/prayer-deploy.tar.gz && \
            docker compose up -d --build && docker builder prune -f --filter until=48h"
 
 # 4. verify
