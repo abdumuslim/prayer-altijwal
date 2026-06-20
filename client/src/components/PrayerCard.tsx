@@ -36,7 +36,7 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
       <div className="flex min-w-0 items-center">
         <span
           className={cn(
-            "truncate text-sm font-semibold leading-none",
+            "truncate text-base font-semibold leading-none",
             isNext ? "text-ink" : "text-ink/90",
           )}
         >
