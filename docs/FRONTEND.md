@@ -41,7 +41,12 @@ countdown** — a calm, barely-noticeable slow breath when far off, accelerating
 15-min mark until it matches the last-minute pulse. `glowBreathPeriod(ms)` (`lib/format.ts`) maps the
 remaining minutes to the period (`--glow-period`, ~7s far → 1s at the last minute) **bucketed to whole
 minutes** so the animation re-times once per minute, not every tick (no jitter). The last minute
-(`imminent`) keeps its dedicated red `imminent-pulse`. The **prayer rows** stay calm while far off —
+(`imminent`) keeps its dedicated red `imminent-pulse`. The soft radial **halo** behind the ring
+breathes in sync (`halo-breath`, opacity, same inherited `--glow-period`). **Gotcha:** the entrance
+(`rise-in`) and the glow are set together in **one inline `animation` list** on the section
+(`var(--animate-rise-in), var(--animate-glow-breath|imminent-pulse)`) — two separate `animate-*`
+utilities both set the `animation` shorthand and the later one wins, which had silently killed the
+hero glow entirely (it never ran). The **prayer rows** stay calm while far off —
 the next-row glow is suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks
 in as the prayer approaches. Colour vars live in `index.css`.
 
