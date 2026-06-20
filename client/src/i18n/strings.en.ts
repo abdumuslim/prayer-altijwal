@@ -58,7 +58,6 @@ export const en = {
 
   // Settings
   "settings.title": "Settings",
-  "settings.governoratesIn": "Cities in {country}",
   "settings.language": "Language",
   "settings.done": "Done",
 

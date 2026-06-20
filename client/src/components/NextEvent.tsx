@@ -1,11 +1,11 @@
 // Next Islamic event, distributed horizontally across the row:
-//   [icon · title]      <event name, centred>      [date / days-left]
+//   [label]      <event name, centred>      [Hijri date / days-left]
 // The payload carries no event date, so it's derived from daysLeft client-side
-// (now + daysLeft days, formatted in the location's tz with Latin digits).
+// (now + daysLeft days, rendered in the Hijri calendar in the location's tz).
 
 import { useI18n } from "@/i18n/I18nProvider";
-import { EventIcon } from "@/components/ui/DynamicIcon";
 import { localizeNumber } from "@/lib/format";
+import { hijriDayMonth } from "@/lib/hijri";
 import type { StringKey } from "@/i18n/strings.en";
 import type { NextEvent as NextEventData } from "@/types/api";
 
@@ -31,27 +31,15 @@ export function NextEvent({ event, now, tz }: NextEventProps) {
       ? t("event.inDay")
       : t("event.inDays", { days: localizeNumber(event.daysLeft, lang) });
 
-  // Gregorian date of the event = today + daysLeft (Latin digits, location tz).
-  const eventDate = (() => {
-    if (!tz) return "";
-    try {
-      return new Intl.DateTimeFormat(lang === "ar" ? "ar-u-nu-latn" : "en", {
-        timeZone: tz,
-        day: "numeric",
-        month: "short",
-      }).format(new Date(now + event.daysLeft * 86_400_000));
-    } catch {
-      return "";
-    }
-  })();
+  // Hijri date of the event = today + daysLeft (Umm al-Qura, location tz).
+  const eventDate = tz
+    ? hijriDayMonth(new Date(now + event.daysLeft * 86_400_000), tz, lang)
+    : "";
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-      {/* start: icon + title */}
+      {/* start: label */}
       <div className="flex min-w-0 items-center gap-2 justify-self-start">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald/10 text-emerald">
-          <EventIcon eventKey={event.key} className="size-4.5" />
-        </span>
         <span className="truncate text-xs font-medium text-ink-dim">{t("event.next")}</span>
       </div>
 

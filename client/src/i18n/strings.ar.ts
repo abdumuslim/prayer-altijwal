@@ -61,7 +61,6 @@ export const ar: Record<StringKey, string> = {
 
   // Settings
   "settings.title": "الإعدادات",
-  "settings.governoratesIn": "مدن {country}",
   "settings.language": "اللغة",
   "settings.done": "تم",
 

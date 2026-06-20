@@ -2,8 +2,9 @@
 //   [settings] [time]      <location, centred>      [Hijri / Gregorian dates]
 // GPS lives in the search panel now. Keeps the header to one row to save space.
 
-import { Settings2, Clock, ChevronDown } from "lucide-react";
+import { Settings2, ChevronDown } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { gregorianFull } from "@/lib/gregorian";
 import { localizeCountry, storedCityName } from "@/lib/locale";
 import type { PrayerTimesResponse } from "@/types/api";
 import type { StoredLocation } from "@/lib/storage";
@@ -42,7 +43,7 @@ export function TopBar({
   };
 
   const time = fmt({ hour: "numeric", minute: "2-digit", hour12: true });
-  const gregorian = fmt({ weekday: "long", day: "numeric", month: "long" });
+  const gregorian = tz ? gregorianFull(at, tz, lang) : "";
 
   const cityLabel =
     resolving && !location
@@ -65,10 +66,7 @@ export function TopBar({
           <Settings2 className="size-4" />
         </button>
         {time && (
-          <span className="flex shrink-0 items-center gap-1.5 text-teal">
-            <Clock className="size-4" />
-            <span className="tnum text-xl font-bold text-ink">{time}</span>
-          </span>
+          <span className="tnum shrink-0 text-xl font-bold text-ink">{time}</span>
         )}
       </div>
 

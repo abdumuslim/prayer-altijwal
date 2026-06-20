@@ -51,7 +51,7 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
           centred under both LTR and RTL. */}
       <div
-        className="pointer-events-none absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+        className="pointer-events-none absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
         style={{ background: style.ring }}
         aria-hidden="true"
       />
@@ -70,8 +70,8 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
         <ProgressRing
           progress={ringProgress}
-          size={184}
-          stroke={9}
+          size={208}
+          stroke={10}
           color={style.ring}
         >
           {/* Height-constrained column so the three lines breathe (justify-between)

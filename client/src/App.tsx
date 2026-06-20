@@ -116,8 +116,6 @@ function App() {
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        location={location.location}
-        onSelectLocation={(loc) => location.setLocation(loc)}
         push={push}
       />
     </div>

@@ -5,7 +5,6 @@
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { proximityStyle } from "@/components/ui/proximity";
-import { PRAYER_ICONS } from "@/components/ui/icons";
 import { formatCountdown, localizeTimeString, proximityFromMs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
@@ -18,7 +17,6 @@ interface PrayerCardProps {
 
 export function PrayerCard({ prayer, now }: PrayerCardProps) {
   const { t, lang } = useI18n();
-  const Icon = PRAYER_ICONS[prayer.name];
   const isNext = prayer.isNext;
   const isUpcoming = prayer.msUntil > 0;
   const proximity = isNext ? proximityFromMs(prayer.msUntil) : "safe";
@@ -34,16 +32,8 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
         prayer.isPassed && !isNext && "opacity-45",
       )}
     >
-      {/* start: icon + prayer name */}
-      <div className="flex min-w-0 items-center gap-2">
-        <span
-          className={cn(
-            "grid size-8 shrink-0 place-items-center rounded-lg",
-            isNext ? cn("bg-white/10", style.text) : "bg-white/5 text-ink-dim",
-          )}
-        >
-          <Icon className="size-4" />
-        </span>
+      {/* start: prayer name */}
+      <div className="flex min-w-0 items-center">
         <span
           className={cn(
             "truncate text-sm font-semibold leading-none",
