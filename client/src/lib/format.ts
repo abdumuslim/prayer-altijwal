@@ -44,7 +44,14 @@ export function proximityFromMs(ms: number): Proximity {
  * noticeable slow breath when far off; from the 15-min mark it accelerates each
  * minute until it matches the last-minute pulse speed. Bucketed to whole minutes
  * so the value is stable within a minute → the CSS animation only re-times once
- * per minute (no per-second restart/jitter). See FRONTEND.md §2.
+ * per minute (no per-second restart/jitter).
+ *
+ * The ramp is **geometric** (constant ratio per minute), not linear: perceived
+ * speed is frequency (1/period), so a linear period ramp barely changes the felt
+ * speed near the top (14s→13s is invisible) and only collapses in the last few
+ * minutes. A constant ~0.83×/min step makes every minute a visibly faster breath
+ * from the moment you drop under 15 min (Weber's law — speed is judged by ratio).
+ * See FRONTEND.md §2.
  */
 export function glowBreathPeriod(ms: number): number {
   const minutes = Math.max(0, Math.floor(ms / 60_000));
@@ -53,7 +60,8 @@ export function glowBreathPeriod(ms: number): number {
   const RAMP_START = 15; // begin accelerating here
   if (minutes >= RAMP_START) return SLOW;
   if (minutes <= 1) return FAST;
-  return FAST + (SLOW - FAST) * ((minutes - 1) / (RAMP_START - 1));
+  const t = (RAMP_START - minutes) / (RAMP_START - 1); // 0 at 15 min → 1 at 1 min
+  return SLOW * Math.pow(FAST / SLOW, t); // geometric, not linear
 }
 
 export interface CountdownParts {

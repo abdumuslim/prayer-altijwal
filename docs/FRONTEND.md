@@ -42,7 +42,11 @@ its **speed ramps with the countdown**: a calm, barely-noticeable slow breath wh
 accelerating each minute from the 15-min mark until it matches the last-minute pulse.
 `glowBreathPeriod(ms)` (`lib/format.ts`) maps the remaining minutes to `--glow-period` (~14s far → 1s
 at the last minute), **bucketed to whole minutes** so it re-times once per minute, not every tick (no
-jitter). **No card-edge/border glow** — by request the hero card does not glow its border in any state
+jitter). The ramp is **geometric (constant ratio ≈0.83×/min)**, not linear: perceived speed is
+*frequency* (1/period), so a linear period ramp barely changes the felt speed near the top
+(14s→13s is invisible) and only collapses in the final minutes — the geometric curve makes every
+minute a visibly faster breath from the moment you drop under 15 min (Weber's law). Sample:
+15min→14s, 14→11.6s, 13→9.6s, 10→5.5s, 5→2.1s, 1→1s. **No card-edge/border glow** — by request the hero card does not glow its border in any state
 (the section keeps only the `rise-in` entrance + the static `.card` depth shadow). **Gotcha:** never
 stack two `animate-*` utilities on one element — both set the `animation` shorthand and the later one
 silently wins (this once killed the hero glow); the halo breath lives on its **own** element, so it
