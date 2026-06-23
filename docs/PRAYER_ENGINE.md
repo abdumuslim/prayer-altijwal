@@ -81,7 +81,7 @@ The engine still supports both, but the app always uses `Standard` (the Hanafi/m
 Endowment's printed 2026 calendar (ديوان الوقف السني / jāmiʿat al-shubbān al-muslimīn):
 
 ```
-elevationMeters: 34
+elevationMeters: 34   // FALLBACK only — see elevation note below
 adjustments:     { dhuhr: +5, asr: +3, maghrib: +2 }   // minutes
 rounding:        { fajr: "down" }                      // Fajr floors to the minute
 // Result: ≤1 min vs the printed Baghdad calendar, mean ≈0.12 over 38 dates; locked by prayer-engine.test.ts
@@ -91,19 +91,41 @@ rounding:        { fajr: "down" }                      // Fajr floors to the min
 (cc=IQ), not just Baghdad. The offsets turned out to be a *national* convention: the official
 **ديوان الوقف السني per-governorate poster (4 Muharram 1448 / 19 June 2026)** is computed with one
 unified Iraqi method, and our profile reproduces it country-wide. `detectMethod("IQ", …)`
-short-circuits to `BaghdadYMA` with `baghdadCalibrated: true` for any Iraqi location (no radius check);
-`compute.ts` uses the baked-in 34 m everywhere in Iraq. (This **reverses** the old Baghdad-only rule in
-`DECISIONS.md` ADR-002.)
+short-circuits to `BaghdadYMA` with `baghdadCalibrated: true` for any Iraqi location (no radius check).
+(This **reverses** the old Baghdad-only rule in `DECISIONS.md` ADR-002.)
+
+**Per-city elevation (changed 2026-06-23):** `compute.ts` now passes each location's **real elevation**
+(governorate/city dataset `ele`, or GPS) to the engine for **every** method, BaghdadYMA included — the
+baked-in 34 m is only the fallback when no elevation is known. This fixes the sunrise/maghrib horizon
+dip for non-Baghdad governorates (Mosul 228 m, Kirkuk 346 m, Basra 4 m) where the old fixed-34 m was
+wrong; Baghdad's real ~41 m ≈ 34 m so the anchor is unchanged. Across all seasons this lifts the
+calculated fallback's exact-minute agreement with the Waqf table from ~67 % → ~75 % (biggest gains on
+the low winter sun). It is **not** exact, by design: see the elevation/almanac note below.
+
+**Why the calculated method can't be made exact — and the data path.** A 2026-06-23 calibration study
+(22 official dates × 15 govs, both solstices) proved **no formula reproduces the Waqf table to the
+minute**: the best portable config caps at ~84 %, and even a free per-city/per-prayer offset only
+reaches ~84 %. Reimplementing the simpler PrayTimes.org almanac produced the *same* minutes as our
+high-precision engine (97 % identical) and missed the *same* Waqf cells — so the residual ±1-min jitter
+lives in the **Waqf table itself** (its closed "Accurate Times" generator rounds idiosyncratically),
+not in our algorithm. The method parameters were independently **confirmed** (peer-reviewed *Iraqi
+Journal of Science* + IAC): Fajr 18°/Isha 17°, Standard Asr, Hohenkerk–Sinclair refraction, elevation
+term −0.8333−0.0347√H, +5 Dhuhr/+3 Asr — i.e. exactly `BaghdadYMA`. The full per-governorate poster
+data is **not available online** (verified down to decompiling the Waqf's own app, which itself just
+calls Aladhan/ISNA). **Conclusion:** for exact-to-the-minute capital times, serve the official poster
+numbers as bundled **data** (hybrid: official table for the capitals, this calibrated formula for every
+other GPS point). The official-data layer is the planned next step, gated on digitizing the full-year
+Waqf calendar.
 
 **Poster regression — `server/src/prayer/iraq-governorates.test.ts`:** evaluates the profile at 15
-governorate capitals' own coordinates and asserts it matches the poster within physically-motivated
-per-prayer tolerances:
+governorate capitals' own coordinates **and their own elevation** (the live path) and asserts it
+matches the poster within physically-motivated per-prayer tolerances:
 
 | Prayer | Tolerance | Why |
 |---|---|---|
 | dhuhr, asr | ≤2 min | elevation-independent |
 | fajr, isha | ≤2 min | depression angles, weakly elevation-sensitive |
-| sunrise, maghrib | ≤3 min | horizon dip ∝ √elevation; profile fixed at 34 m vs each city's own elevation |
+| sunrise, maghrib | ≤3 min | horizon dip ∝ √elevation; even with each city's real elevation the Waqf's almanac rounds/handles dip slightly differently (e.g. Kirkuk) |
 
 Baghdad itself matches to ≤1 min. The engine is **still untouched** (hard rule below) — only the
 wrapper's *selection policy* changed (which preset + that it now covers all of Iraq). This is the
