@@ -66,6 +66,8 @@ export interface PrayerTimesPayload {
   hijriDate: string;
   nextEvent: NextEventInfo | null;
   tomorrowFajr: number | null;
+  /** Yesterday's Isha — anchors the pre-Fajr ring interval (Isha→Fajr across midnight). */
+  yesterdayIsha: number | null;
 }
 
 export interface BuildPayloadInput {
@@ -116,6 +118,19 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
     method: input.method,
     asr: input.asr,
     date: tomorrowAnchor,
+  });
+
+  // Yesterday, anchored the same way — supplies yesterday's Isha so the client can
+  // draw the pre-Fajr ring interval (Isha→Fajr) that spans midnight.
+  const yesterdayAnchor = new Date(today.dhuhr.getTime() - DAY_MS);
+  const yesterday = computePrayerTimes({
+    lat: input.lat,
+    lon: input.lon,
+    elevation: input.elevation,
+    tz: input.tz,
+    method: input.method,
+    asr: input.asr,
+    date: yesterdayAnchor,
   });
 
   const prayers: PrayerEntry[] = PRAYER_ORDER.map((name) => {
@@ -187,5 +202,6 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
     hijriDate: hijriDate(anchor, input.tz, input.lang),
     nextEvent: nextIslamicEvent(eventAnchor, input.tz, input.lang),
     tomorrowFajr: tsOrNull(tomorrow.fajr),
+    yesterdayIsha: tsOrNull(yesterday.isha),
   };
 }

@@ -45,7 +45,8 @@ GET /api/prayer-times?lat={n}&lon={n}&tz={IANA}&method={name}&asr={Standard|Hana
   "nextPrayer": { "name": "dhuhr", "label": "Dhuhr", "time": "12:20 PM", "timestamp": 1789028400000, "countdown": "2h 5m" },
   "hijriDate": "Dhul-Hijjah 4, 1447 AH",
   "nextEvent": { "name": "Day of Arafah", "isToday": false, "daysLeft": 5 },
-  "tomorrowFajr": 1789086600000
+  "tomorrowFajr": 1789086600000,
+  "yesterdayIsha": 1788958320000
 }
 ```
 
@@ -63,6 +64,7 @@ client hook generalizes with minimal change):
 | `hijriDate` | Umm al-Qura calendar via `Intl`, formatted in `location.tz` |
 | `nextEvent` | next of the 10 tracked Islamic events (`isToday`, `daysLeft`) |
 | `tomorrowFajr` | epoch ms of tomorrow's Fajr — lets the client count past today's Isha |
+| `yesterdayIsha` | epoch ms of yesterday's Isha — anchors the pre-Fajr countdown **ring** interval (Isha→Fajr across midnight) so it depletes instead of sitting full. Both wraparound anchors are computed from today's solar noon ±24 h (DST-safe). |
 
 **Tracked Islamic events** (Hijri): Islamic New Year (1 Muharram), Ashura (10 Muharram), Mawlid
 (12 Rabiʿ I), Isra & Miʿraj (27 Rajab), Change of Qibla (15 Shaʿban), Ramadan (1 Ramadan), Laylat

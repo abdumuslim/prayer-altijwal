@@ -175,4 +175,33 @@ describe("buildPrayerTimesPayload", () => {
     expect(p.nextPrayer!.tomorrow).toBe(true);
     expect(p.nextPrayer!.name).toBe("fajr");
   });
+
+  it("pre-Fajr ring: yesterdayIsha anchors a partial (depleting) interval before Fajr", () => {
+    const p = buildPrayerTimesPayload({
+      lat: BAGHDAD.lat,
+      lon: BAGHDAD.lon,
+      tz: "Asia/Baghdad",
+      lang: "en",
+      method: "BaghdadYMA",
+      methodLabel: "Baghdad",
+      asr: "Standard",
+      auto: true,
+      baghdadCalibrated: true,
+      country: "IQ",
+      date: "2026-02-18",
+      now: new Date("2026-02-18T01:00:00Z"), // 04:00 Baghdad — before today's Fajr (~05:20)
+    });
+    // Today's Fajr is the upcoming prayer (not tomorrow's).
+    expect(p.nextPrayer!.name).toBe("fajr");
+    expect(p.nextPrayer!.tomorrow).toBe(false);
+    const fajr = p.prayers.find((x) => x.name === "fajr")!;
+    // yesterdayIsha is present and precedes today's Fajr (the night before).
+    expect(p.yesterdayIsha).not.toBeNull();
+    expect(p.yesterdayIsha!).toBeLessThan(fajr.timestamp as number);
+    // `now` falls strictly inside [yesterdayIsha → Fajr], so the depleting ring is
+    // partial (0 < frac < 1) — the pre-Fajr "stuck full" bug would make this 0/1.
+    const frac = (p.now - p.yesterdayIsha!) / ((fajr.timestamp as number) - p.yesterdayIsha!);
+    expect(frac).toBeGreaterThan(0);
+    expect(frac).toBeLessThan(1);
+  });
 });

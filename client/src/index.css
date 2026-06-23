@@ -49,12 +49,24 @@
   --animate-rise-in: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-overlay-in: overlay-in 160ms ease-out;
   --animate-panel-in: panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
-  --animate-soft-pulse: soft-pulse 1.6s ease-in-out infinite;
-  --animate-imminent-pulse: imminent-pulse 1s ease-in-out infinite;
   --animate-shimmer: shimmer 2.2s linear infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-spin-slow: spin-slow 22s linear infinite;
+}
+
+/* One shared breath value (0=trough, 1=peak) animated on a common ancestor and
+   inherited by every breathing element (hero halo + the next-prayer card). A
+   single timeline = all breaths peak together, with no phase drift even when the
+   "next prayer" rolls over. Registered so it can interpolate. */
+@property --breath {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@keyframes breath-cycle {
+  0%, 100% { --breath: 0; }
+  50% { --breath: 1; }
 }
 
 @keyframes fade-in {
@@ -75,36 +87,6 @@
 @keyframes panel-in {
   from { opacity: 0; transform: scale(0.97) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 18px -6px rgba(52, 211, 153, 0.45); }
-  50% { box-shadow: 0 0 34px -4px rgba(52, 211, 153, 0.75); }
-}
-
-/* The soft radial halo behind the ring breathes (area via scale + opacity),
-   driven by --glow-period so it accelerates with the countdown. Spreads between
-   ~40% of its max area (scale 0.63) and ~95% (scale 0.975); opacity never reaches
-   0 so it never fully disappears. `translateX(-50%)` keeps it centred while scaling. */
-@keyframes halo-breath {
-  0%, 100% { transform: translateX(-50%) scale(0.63); opacity: 0.22; }
-  50% { transform: translateX(-50%) scale(0.975); opacity: 0.32; }
-}
-
-@keyframes soft-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
-}
-
-@keyframes imminent-pulse {
-  0%, 100% {
-    box-shadow: 0 0 14px -4px rgba(248, 113, 113, 0.5);
-    border-color: rgba(248, 113, 113, 0.55);
-  }
-  50% {
-    box-shadow: 0 0 30px -2px rgba(248, 113, 113, 0.85), 0 0 60px -10px rgba(248, 113, 113, 0.35);
-    border-color: rgba(248, 113, 113, 0.95);
-  }
 }
 
 @keyframes shimmer {
@@ -199,9 +181,26 @@
     font-feature-settings: "tnum";
   }
 
-  /* Breathing halo behind the hero ring; speed from the inherited --glow-period. */
+  /* The single breath timeline. Lives on a common ancestor of the hero + list;
+     speed ramps with the countdown via the inherited --glow-period. Animates only
+     the --breath custom property — the visible breathing elements read it. */
+  .breath-driver {
+    animation: breath-cycle var(--glow-period, 14s) ease-in-out infinite;
+  }
+
+  /* Soft radial halo behind the hero ring. Breathes (area via scale + opacity) off
+     the shared --breath: scale 0.63→0.975 (~40%→95% area), opacity 0.22→0.32 (never
+     0, so it never fully disappears). `translateX(-50%)` keeps it centred. */
   .halo-breath {
-    animation: halo-breath var(--glow-period, 14s) ease-in-out infinite;
+    transform: translateX(-50%) scale(calc(0.63 + var(--breath, 0) * 0.345));
+    opacity: calc(0.22 + var(--breath, 0) * 0.1);
+  }
+
+  /* Next-prayer card glow, breathing in lockstep with the halo off the same
+     --breath. Colour comes from the proximity accent via --prox. */
+  .breath-glow {
+    box-shadow: 0 0 calc(16px + var(--breath, 0) * 20px) -6px
+      color-mix(in srgb, var(--prox, var(--color-safe)) 60%, transparent);
   }
 
   .scrollbar-hide {

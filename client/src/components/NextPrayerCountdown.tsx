@@ -2,13 +2,12 @@
 // (depleting across the interval) holding the prayer name, the live countdown,
 // and the prayer's clock time. Kept vertically compact so it fits on a phone.
 
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { proximityStyle } from "@/components/ui/proximity";
 import {
   formatCountdown,
-  glowBreathPeriod,
   intervalProgress,
   localizeTimeString,
 } from "@/lib/format";
@@ -40,24 +39,15 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
   const clock = formatCountdown(next.timestamp, now, lang);
   const progress = intervalProgress(next.intervalStart, next.timestamp, now);
   const ringProgress = 1 - progress; // depletes as time passes
-  const isImminent = next.proximity === "imminent";
-  // Breathing lives only in the radial halo (no card-edge/border glow). Its speed
-  // ramps from a calm slow breath (far off) to the last-minute pulse via
-  // --glow-period; colour follows the proximity accent.
-  const breathPeriod = glowBreathPeriod(next.msUntil);
 
   return (
     <section className="card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5">
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
-          centred under both LTR and RTL. Breathes (opacity) at --glow-period. */}
+          centred under both LTR and RTL. Breathes (scale + opacity) off the shared
+          --breath so it stays in lockstep with the next-prayer card. */}
       <div
         className="halo-breath pointer-events-none absolute -top-24 left-1/2 h-80 w-80 rounded-full blur-3xl"
-        style={
-          {
-            background: style.ring,
-            "--glow-period": `${breathPeriod.toFixed(2)}s`,
-          } as CSSProperties
-        }
+        style={{ background: style.ring }}
         aria-hidden="true"
       />
 
@@ -89,7 +79,6 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
               className={cn(
                 "tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
                 style.text,
-                isImminent && "animate-soft-pulse",
               )}
             >
               {clock}

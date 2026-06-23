@@ -206,8 +206,13 @@ export function usePrayerTimes({
     let nextOut: DerivedNext | null = null;
     if (upcomingIdx >= 0) {
       const np = timed[upcomingIdx];
+      // Fajr (index 0) has no same-day predecessor — its interval starts at
+      // yesterday's Isha (across midnight) so the ring depletes instead of
+      // sitting full. Falls back to null (soft fill) if unavailable.
       const prevTs =
-        upcomingIdx > 0 ? timed[upcomingIdx - 1].ts : null;
+        upcomingIdx > 0
+          ? timed[upcomingIdx - 1].ts
+          : data.yesterdayIsha ?? null;
       const ts = np.ts!;
       const msUntil = Math.max(0, ts - now);
       nextOut = {

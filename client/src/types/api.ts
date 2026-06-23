@@ -96,6 +96,8 @@ export interface PrayerTimesResponse {
   hijriDate: string;
   nextEvent: NextEvent | null;
   tomorrowFajr: number | null;
+  /** Yesterday's Isha — anchors the pre-Fajr ring interval (Isha→Fajr across midnight). */
+  yesterdayIsha: number | null;
 }
 
 export interface ReverseGeoResponse {

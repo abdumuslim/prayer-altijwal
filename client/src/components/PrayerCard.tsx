@@ -3,6 +3,7 @@
 // Every UPCOMING prayer shows its live remaining time (not just the next one);
 // the next prayer carries the proximity accent, the rest stay calm, passed dim.
 
+import type { CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { proximityStyle } from "@/components/ui/proximity";
 import { formatCountdown, localizeTimeString, proximityFromMs } from "@/lib/format";
@@ -26,11 +27,14 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
     <div
       className={cn(
         "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-5 transition-colors",
+        // The next prayer breathes in lockstep with the hero halo (shared --breath),
+        // tinted by its proximity accent via --prox; the rest stay calm.
         isNext
-          ? cn("border-transparent bg-white/[0.06]", style.border, proximity !== "safe" && style.glow)
+          ? cn("breath-glow border-transparent bg-white/[0.06]", style.border)
           : "border-border-soft/60 bg-white/[0.02]",
         prayer.isPassed && !isNext && "opacity-45",
       )}
+      style={isNext ? ({ "--prox": style.ring } as CSSProperties) : undefined}
     >
       {/* start: prayer name */}
       <div className="flex min-w-0 items-center">

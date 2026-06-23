@@ -35,24 +35,33 @@ server. **Re-fetch** on: location/method change, local-midnight rollover, tab re
 **Proximity palette (as-built — `lib/format.ts` + `components/ui/proximity.ts`):** thresholds are
 `safe` (>15 min) → `warning` (≤15) → `urgent` (≤10) → `critical` (≤5) → `imminent` (≤1), colours
 **green → yellow → orange → red → pulsing red**, resetting to green when the next prayer's countdown
-begins. The hero's only animated glow is the **soft radial halo** behind the ring (the `<div>` whose
-`background` is the proximity accent) — it **breathes** via the `halo-breath` keyframe (**scale + opacity** — spreads
-between ~40% and ~95% of its area, opacity floored so it never fully fades), and
-its **speed ramps with the countdown**: a calm, barely-noticeable slow breath when far off,
-accelerating each minute from the 15-min mark until it matches the last-minute pulse.
-`glowBreathPeriod(ms)` (`lib/format.ts`) maps the remaining minutes to `--glow-period` (~14s far → 1s
-at the last minute), **bucketed to whole minutes** so it re-times once per minute, not every tick (no
-jitter). The ramp is **geometric (constant ratio ≈0.83×/min)**, not linear: perceived speed is
-*frequency* (1/period), so a linear period ramp barely changes the felt speed near the top
-(14s→13s is invisible) and only collapses in the final minutes — the geometric curve makes every
-minute a visibly faster breath from the moment you drop under 15 min (Weber's law). Sample:
-15min→14s, 14→11.6s, 13→9.6s, 10→5.5s, 5→2.1s, 1→1s. **No card-edge/border glow** — by request the hero card does not glow its border in any state
-(the section keeps only the `rise-in` entrance + the static `.card` depth shadow). **Gotcha:** never
-stack two `animate-*` utilities on one element — both set the `animation` shorthand and the later one
-silently wins (this once killed the hero glow); the halo breath lives on its **own** element, so it
-never clashes with the section's `rise-in`. The **prayer rows** stay calm while far off — the next-row
-glow is suppressed in the `safe` (>15 min) state and only the colored/pulsing glow kicks in as the
-prayer approaches. Colour vars live in `index.css`.
+begins.
+
+**One synchronized breath (shared `--breath` driver):** every breathing element pulses off a **single**
+animated custom property so they all peak together — no phase drift even when the "next prayer" rolls
+over. `App.tsx` puts the `.breath-driver` class + an inline `--glow-period` on the page wrapper (a
+common ancestor of the hero and the list); that one element runs `@keyframes breath-cycle` which animates
+the **registered** `@property --breath` (0=trough→1=peak, `ease-in-out`). Two elements *read* the
+inherited `--breath` via `calc()`:
+- the **hero halo** (soft radial `<div>` behind the ring, `background` = proximity accent) — `scale`
+  0.63→0.975 (~40%→95% area) + `opacity` 0.22→0.32 (floored, never fully fades);
+- the **next-prayer card** (`.breath-glow`) — a `box-shadow` whose spread breathes, tinted by the
+  proximity accent via `--prox` (`color-mix`). Only the `isNext` card glows; the rest stay calm.
+
+Speed **ramps with the countdown** via `--glow-period`: `glowBreathPeriod(ms)` (`lib/format.ts`) maps
+remaining minutes to ~14s (far, calm) → 1s (last minute), **bucketed to whole minutes** so it re-times
+once per minute, not every tick (no jitter). The ramp is **geometric (≈0.83×/min)**, not linear:
+perceived speed is *frequency* (1/period), so a linear period ramp barely changes the felt speed near
+the top (14s→13s is invisible) and only collapses in the final minutes (Weber's law). Sample:
+15min→14s, 14→11.6s, 13→9.6s, 10→5.5s, 5→2.1s, 1→1s.
+
+**The countdown text does NOT breathe** (removed the old `soft-pulse` — by request it only fired in the
+last minute and read as out-of-sync). **No card-edge/border glow on the hero** — the section keeps only
+the `rise-in` entrance + the static `.card` depth shadow. **Gotcha** `[[hero_glow_animation_gotcha]]`:
+never stack two `animate-*` utilities on one element — both set the `animation` shorthand and the later
+one silently wins. With the shared-`--breath` model the halo/card carry **no** `animation` of their own
+(only computed `transform`/`opacity`/`box-shadow`), so nothing clashes with `rise-in`. Colour vars live
+in `index.css`.
 
 **Countdown text:** both the hero "remaining circle" and the prayer rows use the same
 `formatCountdown` format — spaced unit labels joined by a colon, seconds dropped once an hour remains.
@@ -135,7 +144,12 @@ unsupported — no UI, called once in `App`).
 - `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**208px**): a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
-  they breathe without touching the ring. RTL-safe centred glow.
+  they breathe without touching the ring. RTL-safe centred glow. The ring depletes across
+  `[previous prayer → next prayer]` via `intervalProgress(intervalStart, target, now)`; `intervalStart`
+  is the previous prayer's ts. **For Fajr (the day's first prayer)** there is no same-day predecessor,
+  so the hook anchors `intervalStart` to **`data.yesterdayIsha`** (Isha→Fajr across midnight) — without
+  it the ring sat **full and frozen** in the pre-Fajr window (`intervalProgress` returns 0 → `1 − 0`).
+  `null` still falls back to the old soft-fill at extreme latitudes where Isha is undefined.
 - `NextEvent` — next Islamic event (bottom card; only when an event exists), a **3-column grid** so the
   event name is **truly centred**: the label (`event.next`) at the start (**no icon**) · event name
   centred · the event **date over the days-left chip** (centred stacked column) at the end. The date is

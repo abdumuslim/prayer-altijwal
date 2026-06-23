@@ -2,13 +2,14 @@
 // event row, and the slide-over panels. Wires the live-countdown hook to the
 // resolved location + settings, degrading gracefully at every step.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
 import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { glowBreathPeriod } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
 import { NextPrayerCountdown } from "@/components/NextPrayerCountdown";
 import { PrayerList } from "@/components/PrayerList";
@@ -93,8 +94,17 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status]);
 
+  // One breath timeline for the whole screen: the period ramps with the next
+  // prayer's countdown, and every breathing element (hero halo + next-prayer
+  // card) inherits --glow-period / the animated --breath from this wrapper, so
+  // they all breathe in perfect lockstep. No next prayer → calm slow breath.
+  const breathPeriod = glowBreathPeriod(times.next?.msUntil ?? Number.POSITIVE_INFINITY);
+
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-3 px-4 pb-4 pt-3">
+    <div
+      className="breath-driver mx-auto flex min-h-screen w-full max-w-xl flex-col gap-3 px-4 pb-4 pt-3"
+      style={{ "--glow-period": `${breathPeriod.toFixed(2)}s` } as CSSProperties}
+    >
       <TopBar
         location={location.location}
         data={times.data}
