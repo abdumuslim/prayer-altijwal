@@ -53,11 +53,11 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
       <div className="relative flex flex-col items-center gap-2.5">
         <div className="flex items-center justify-center gap-2 text-center">
-          <span className={cn("text-sm font-semibold", style.text)}>
+          <span className={cn("text-base font-semibold", style.text)}>
             {next.msUntil <= 0 ? t("next.now") : t("next.header")}
           </span>
           {next.tomorrow && (
-            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-ink-dim">
+            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[12px] font-medium text-ink-dim">
               {t("next.tomorrow")}
             </span>
           )}
@@ -72,18 +72,18 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
           {/* Height-constrained column so the three lines breathe (justify-between)
               while staying inside the ring's inscribed area — never touching it. */}
           <div className="flex h-[58%] flex-col items-center justify-between text-center">
-            <span className="text-2xl font-bold leading-none text-gold">
+            <span className="text-3xl font-bold leading-none text-gold">
               {t(`prayer.${next.name}` as StringKey)}
             </span>
             <span
               className={cn(
-                "tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
+                "tnum text-[2.1rem] font-extrabold leading-none tracking-tight",
                 style.text,
               )}
             >
               {clock}
             </span>
-            <span className="text-sm leading-none text-ink-dim">
+            <span className="text-base leading-none text-ink-dim">
               {localizeTimeString(next.time, lang)}
             </span>
           </div>

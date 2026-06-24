@@ -8,7 +8,7 @@ export function LoadingState() {
   return (
     <div className="card flex min-h-[260px] flex-col items-center justify-center gap-3 p-8 text-center">
       <Loader2 className="size-7 animate-spin text-teal" />
-      <p className="text-sm text-ink-dim">{t("loading.times")}</p>
+      <p className="text-base text-ink-dim">{t("loading.times")}</p>
     </div>
   );
 }
@@ -25,11 +25,11 @@ export function FetchErrorState({ message, onRetry }: FetchErrorStateProps) {
       <span className="grid size-12 place-items-center rounded-2xl bg-imminent/10 text-imminent">
         <WifiOff className="size-6" />
       </span>
-      <p className="text-sm text-ink-dim">{message ?? t("error.fetch")}</p>
+      <p className="text-base text-ink-dim">{message ?? t("error.fetch")}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-deep to-emerald px-5 py-2.5 text-sm font-semibold text-night-2 transition hover:brightness-110"
+        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-deep to-emerald px-5 py-2.5 text-base font-semibold text-night-2 transition hover:brightness-110"
       >
         <RotateCw className="size-4" />
         {t("error.retry")}
@@ -55,7 +55,7 @@ export function LocationNeededState({
       <span className="grid size-12 place-items-center rounded-2xl bg-teal/10 text-teal">
         <MapPinOff className="size-6" />
       </span>
-      <p className="max-w-xs text-sm text-ink-dim">
+      <p className="max-w-xs text-base text-ink-dim">
         {denied ? t("error.locationDenied") : t("location.set")}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
@@ -63,7 +63,7 @@ export function LocationNeededState({
           <button
             type="button"
             onClick={onUseGps}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-deep to-emerald px-4 py-2.5 text-sm font-semibold text-night-2 transition hover:brightness-110"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-deep to-emerald px-4 py-2.5 text-base font-semibold text-night-2 transition hover:brightness-110"
           >
             <Compass className="size-4" />
             {t("location.useGps")}
@@ -72,7 +72,7 @@ export function LocationNeededState({
         <button
           type="button"
           onClick={onSearch}
-          className="rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-white/[0.06]"
+          className="rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2.5 text-base font-semibold text-ink transition hover:bg-white/[0.06]"
         >
           {t("search.title")}
         </button>

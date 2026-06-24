@@ -40,7 +40,7 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
       <div className="flex min-w-0 items-center">
         <span
           className={cn(
-            "truncate text-base font-semibold leading-snug",
+            "truncate text-lg font-semibold leading-snug",
             isNext ? "text-ink" : "text-ink/90",
           )}
         >
@@ -50,13 +50,13 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
 
       {/* end: clock time over remaining countdown — centred stacked column */}
       <div className="flex shrink-0 flex-col items-center gap-0.5 leading-tight">
-        <span className="tnum text-xs text-ink-dim">
+        <span className="tnum text-sm text-ink-dim">
           {localizeTimeString(prayer.time, lang)}
         </span>
         {isUpcoming && (
           <span
             className={cn(
-              "tnum text-[0.72rem] font-semibold leading-none",
+              "tnum text-[0.84rem] font-semibold leading-none",
               isNext ? style.text : "text-ink-dim",
             )}
           >

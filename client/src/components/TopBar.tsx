@@ -5,7 +5,7 @@
 import { Settings2, ChevronDown } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { gregorianFull } from "@/lib/gregorian";
-import { localizeCountry, storedCityName } from "@/lib/locale";
+import { storedCityName } from "@/lib/locale";
 import type { PrayerTimesResponse } from "@/types/api";
 import type { StoredLocation } from "@/lib/storage";
 
@@ -51,7 +51,6 @@ export function TopBar({
       : location
         ? storedCityName(location, lang) || t("location.unknown")
         : t("location.unknown");
-  const countryLabel = location ? localizeCountry(location.country, lang) : "";
 
   return (
     <header className="card grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2">
@@ -66,7 +65,7 @@ export function TopBar({
           <Settings2 className="size-4" />
         </button>
         {time && (
-          <span className="tnum shrink-0 text-xl font-bold text-ink">{time}</span>
+          <span className="tnum shrink-0 text-2xl font-bold text-ink">{time}</span>
         )}
       </div>
 
@@ -79,19 +78,16 @@ export function TopBar({
         className="group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-white/5"
       >
         <span className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-base font-semibold text-ink">{cityLabel}</span>
+          <span className="truncate text-lg font-semibold text-ink">{cityLabel}</span>
           <ChevronDown className="size-3.5 shrink-0 text-ink-dim transition-colors group-hover:text-gold" />
         </span>
-        {countryLabel && (
-          <span className="truncate text-[11px] text-ink-dim">{countryLabel}</span>
-        )}
       </button>
 
       {/* end: both dates — centred stacked column, sized up to fill the row */}
       {data ? (
         <div className="flex min-w-0 flex-col items-center justify-self-end leading-tight">
-          <span className="truncate text-sm font-bold text-gold">{data.hijriDate}</span>
-          {gregorian && <span className="truncate text-xs text-ink-dim">{gregorian}</span>}
+          <span className="truncate text-base font-bold text-gold">{data.hijriDate}</span>
+          {gregorian && <span className="truncate text-sm text-ink-dim">{gregorian}</span>}
         </div>
       ) : (
         <span className="justify-self-end" />

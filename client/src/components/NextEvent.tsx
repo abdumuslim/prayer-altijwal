@@ -40,20 +40,20 @@ export function NextEvent({ event, now, tz }: NextEventProps) {
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
       {/* start: label */}
       <div className="flex min-w-0 items-center gap-2 justify-self-start">
-        <span className="truncate text-xs font-medium text-ink-dim">{t("event.next")}</span>
+        <span className="truncate text-sm font-medium text-ink-dim">{t("event.next")}</span>
       </div>
 
       {/* center: event name — truly centred (auto column between equal 1fr sides) */}
-      <span className="min-w-0 justify-self-center truncate text-center text-sm font-bold text-ink">
+      <span className="min-w-0 justify-self-center truncate text-center text-base font-bold text-ink">
         {localizedName}
       </span>
 
       {/* end: date over days-left chip — centred stacked column */}
       <div className="flex min-w-0 flex-col items-center justify-self-end gap-0.5 leading-tight">
-        {eventDate && <span className="tnum text-[11px] text-ink-dim">{eventDate}</span>}
+        {eventDate && <span className="tnum text-[13px] text-ink-dim">{eventDate}</span>}
         <span
           className={
-            "rounded-full px-2 py-0.5 text-[11px] font-semibold " +
+            "rounded-full px-2 py-0.5 text-[13px] font-semibold " +
             (event.isToday ? "bg-gold/15 text-gold" : "bg-emerald/10 text-emerald")
           }
         >

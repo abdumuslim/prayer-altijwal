@@ -87,7 +87,7 @@ function App() {
           </section>
         )}
         {times.error && (
-          <p className="text-center text-xs text-imminent/80">{times.error}</p>
+          <p className="text-center text-sm text-imminent/80">{times.error}</p>
         )}
       </>
     );
