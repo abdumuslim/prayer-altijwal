@@ -65,7 +65,7 @@ export function NextPrayerCountdown({ next, now }: NextPrayerCountdownProps) {
 
         <ProgressRing
           progress={ringProgress}
-          size={208}
+          size={224}
           stroke={10}
           color={style.ring}
         >

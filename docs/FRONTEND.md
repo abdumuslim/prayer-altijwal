@@ -142,7 +142,7 @@ unsupported — no UI, called once in `App`).
   `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
   passed dim).
-- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**208px**): a single header line
+- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**224px**): a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
   they breathe without touching the ring. RTL-safe centred glow. The ring depletes across
