@@ -130,13 +130,14 @@ unsupported — no UI, called once in `App`).
 **Components:**
 - `TopBar` — single consolidated header row, a **3-column grid** (`grid-cols-[1fr_auto_1fr]`) so the
   **location is truly centred** regardless of the side widths: **[settings][live local time, no icon]**
-  at the start, the centred location (Arabic name in Arabic mode; opens search), and **both dates**
+  at the start, the centred location (Arabic name in Arabic mode; opens search — **city only, no
+  country sub-line** as of 2026-06-24), and **both dates**
   (Hijri + **Levantine** Gregorian, centred stacked column) at the end. Time + dates are sized up to fill the row height the
   2-line location sets (no taller row). The centred location is visibly tappable — a trailing
   `ChevronDown` + a hover pill signal "change location". Replaced the old `LocationBar` + `NowCard`.
 - `PrayerList` / `PrayerCard` — the six times as a compact **2-column grid** (3 rows). Each box is a
   **single vertically-centred row** with **generous vertical padding** (`py-5`, breathing room):
-  `[name]` at the start (per-prayer icon removed; name is `text-base` with `leading-snug` — tight
+  `[name]` at the start (per-prayer icon removed; name is `text-lg` with `leading-snug` — tight
   `leading-none` clipped Arabic descenders under `truncate`, see §3),
   `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
