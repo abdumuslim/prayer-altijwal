@@ -1,5 +1,6 @@
 import type { AsrMadhab, MethodName, PrayerTimesResult, TimeName } from "../prayer-engine/index.js";
 import { computePrayerTimes } from "./compute.js";
+import { baghdadInstant, iraqExactTimes } from "./iraq-calibration.js";
 import { dateKey, fmtCountdown, fmtTime, instantForCivilDate, isValidDate } from "./format.js";
 import { hijriDate, nextIslamicEvent } from "./hijri.js";
 import type { Lang } from "./events.js";
@@ -93,6 +94,27 @@ function tsOrNull(d: Date): number | null {
   return isValidDate(d) ? d.getTime() : null;
 }
 
+/**
+ * Overlay the official Iraqi Waqf poster numbers (verbatim) onto a computed-times
+ * result for a digitized (governorate, date) — a literal 0-min match. Only the
+ * Iraqi nationwide profile is eligible; every other location/day is unchanged.
+ */
+function applyIraqExact(
+  times: PrayerTimesResult,
+  input: BuildPayloadInput,
+  isoDate: string,
+): PrayerTimesResult {
+  if (!input.baghdadCalibrated) return times;
+  const exact = iraqExactTimes(input.lat, input.lon, isoDate);
+  if (!exact) return times;
+  const out: PrayerTimesResult = { ...times };
+  for (const name of PRAYER_ORDER) {
+    const hhmm = exact[name];
+    if (hhmm) out[name] = baghdadInstant(isoDate, hhmm);
+  }
+  return out;
+}
+
 export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPayload {
   const now = input.now ?? new Date();
   const nowMs = now.getTime();
@@ -133,8 +155,15 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
     date: yesterdayAnchor,
   });
 
+  // For the Iraqi profile, overlay the official Waqf poster numbers verbatim on
+  // any date we have digitized (a literal 0-min match); the calibrated formula
+  // stands for every other day. Tomorrow/yesterday anchors above are taken from
+  // the formula's solar noon (override only affects today's displayed times).
+  const todayKey = dateKey(anchor, input.tz);
+  const todayTimes = applyIraqExact(today, input, todayKey);
+
   const prayers: PrayerEntry[] = PRAYER_ORDER.map((name) => {
-    const d = today[name];
+    const d = todayTimes[name];
     const ts = tsOrNull(d);
     const isPassed = ts != null && ts <= nowMs;
     return {
@@ -176,7 +205,7 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
   }
 
   // Event scan anchored on the computed day's solar noon.
-  const eventAnchor = isValidDate(today.dhuhr) ? today.dhuhr : anchor;
+  const eventAnchor = isValidDate(todayTimes.dhuhr) ? todayTimes.dhuhr : anchor;
 
   return {
     location: {
@@ -194,7 +223,7 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
       auto: input.auto,
       baghdadCalibrated: input.baghdadCalibrated,
     },
-    date: dateKey(anchor, input.tz),
+    date: todayKey,
     lang: input.lang,
     now: nowMs,
     prayers,

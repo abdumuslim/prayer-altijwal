@@ -139,8 +139,8 @@ GET /api/health  → { ok: true, db: "up" }     // DB connectivity probe; used b
   `method` is given it wins (auto=false). The UI no longer sends a `method` (the picker was removed),
   so detection is the live path.
 - The response adds **`now`** (server epoch ms, for client clock-sync), **`lang`**, and on `method`:
-  **`auto`** (was it auto-detected) and **`baghdadCalibrated`** (true for **all of Iraq** now — the
-  +5/+3/+2 offsets are active country-wide). `nextPrayer` carries a **`tomorrow`** boolean; `nextEvent`
-  carries a stable **`key`** alongside the localized `name`.
+  **`auto`** (was it auto-detected) and **`baghdadCalibrated`** (true for **all of Iraq** — enables the
+  per-governorate Waqf calibration + the exact-data override; see `PRAYER_ENGINE.md` §4). `nextPrayer`
+  carries a **`tomorrow`** boolean; `nextEvent` carries a stable **`key`** alongside the localized `name`.
 - `db` health is `"up" | "down" | "disabled"` ("disabled" = no `DATABASE_URL`, stateless mode).
 - Push endpoints (`/api/push/*`) return 503 when push isn't configured (no VAPID/DB).

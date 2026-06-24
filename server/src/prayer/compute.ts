@@ -4,6 +4,7 @@ import {
   type MethodName,
   type PrayerTimesResult,
 } from "../prayer-engine/index.js";
+import { iraqCalibration } from "./iraq-calibration.js";
 
 export interface ComputeInput {
   lat: number;
@@ -25,15 +26,17 @@ export interface ComputeInput {
  * Elevation: we pass the location's real elevation for EVERY method — including
  * the Iraqi BaghdadYMA profile — so the sunrise/sunset horizon dip is correct per
  * location. The method's baked-in `elevationMeters` (Baghdad's ~34 m) is only the
- * fallback when no per-location elevation is available. BaghdadYMA's +5/+3/+2
- * calibration is elevation-robust: Baghdad's real ~41 m ≈ the baked 34 m (anchor
- * unchanged), while higher/lower governorates — Mosul 228 m, Kirkuk 346 m, Basra
- * 4 m — now get correct rise/set instead of being computed at Baghdad's altitude.
- * (The official Waqf table uses each city's own elevation; matching it improves
- * the calculated fallback. The exact poster numbers come from the official-data
- * layer; the formula is the GPS-portable best-effort for everywhere else.)
+ * fallback when no per-location elevation is available.
+ *
+ * Iraqi calibration: for the nationwide BaghdadYMA profile we replace the method's
+ * flat +5/+3/+2 offsets with the nearest governorate's per-prayer calibrated
+ * offset + rounding (`iraq-calibration.ts`, fit to the official ديوان الوقف السني
+ * table — ~83% exact-to-the-minute, 99.4% within ±1). For a LITERAL 0-min match on
+ * digitized dates, `payload.ts` overlays the official poster numbers verbatim
+ * (`iraqExactTimes`); this calibrated formula is the best-effort everywhere else.
  */
 export function computePrayerTimes(input: ComputeInput): PrayerTimesResult {
+  const cal = input.method === "BaghdadYMA" ? iraqCalibration(input.lat, input.lon) : null;
   return calculatePrayerTimes(
     {
       latitude: input.lat,
@@ -46,6 +49,7 @@ export function computePrayerTimes(input: ComputeInput): PrayerTimesResult {
       asr: input.asr,
       timezone: input.tz,
       highLatitudeRule: "AngleBased",
+      ...(cal ? { adjustments: cal.adjustments, rounding: cal.rounding } : {}),
     },
   );
 }

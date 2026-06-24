@@ -34,16 +34,23 @@ export interface UseLocation {
 }
 
 /** The default location: Baghdad. Shown until the user picks a city or grants
- *  GPS (opt-in via the search panel). Audience is Iraq-centric. */
+ *  GPS (opt-in via the search panel). Audience is Iraq-centric. Coordinates are
+ *  the governorate-dataset Baghdad (iq-governorates.ts) — the same anchor the
+ *  server's Waqf calibration is fit at, so the default open matches the official
+ *  table (and the governorate quick-pick) to the minute. */
 const BAGHDAD_DEFAULT: StoredLocation = {
   city: "Baghdad",
   cityAr: "بغداد",
   country: "IQ",
   tz: "Asia/Baghdad",
-  lat: 33.3152,
-  lon: 44.3661,
-  elevation: 34,
+  lat: 33.34058,
+  lon: 44.40088,
+  elevation: 41,
 };
+
+/** The previous default (pre-calibration). Used once to migrate stale persisted
+ *  state to the new anchor so returning users get the corrected times. */
+const OLD_BAGHDAD_DEFAULT = { lat: 33.3152, lon: 44.3661 } as const;
 
 export function useLocation(): UseLocation {
   const persisted = loadState().location;
@@ -144,6 +151,25 @@ export function useLocation(): UseLocation {
       cancelled = true;
     };
     // run once on mount for a stale persisted location
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // One-time migration: a location persisted at the OLD Baghdad default (before
+  // the Waqf calibration anchored the default to the governorate-dataset coords)
+  // is replaced with the new default so returning users see the corrected times.
+  // Only the exact old default is touched — searched/GPS locations are left alone.
+  useEffect(() => {
+    if (
+      persisted &&
+      persisted.country === "IQ" &&
+      persisted.city === "Baghdad" &&
+      persisted.lat === OLD_BAGHDAD_DEFAULT.lat &&
+      persisted.lon === OLD_BAGHDAD_DEFAULT.lon
+    ) {
+      setLocationState(BAGHDAD_DEFAULT);
+      patchState({ location: BAGHDAD_DEFAULT });
+    }
+    // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

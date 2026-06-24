@@ -94,43 +94,47 @@ unified Iraqi method, and our profile reproduces it country-wide. `detectMethod(
 short-circuits to `BaghdadYMA` with `baghdadCalibrated: true` for any Iraqi location (no radius check).
 (This **reverses** the old Baghdad-only rule in `DECISIONS.md` ADR-002.)
 
-**Per-city elevation (changed 2026-06-23):** `compute.ts` now passes each location's **real elevation**
-(governorate/city dataset `ele`, or GPS) to the engine for **every** method, BaghdadYMA included — the
-baked-in 34 m is only the fallback when no elevation is known. This fixes the sunrise/maghrib horizon
-dip for non-Baghdad governorates (Mosul 228 m, Kirkuk 346 m, Basra 4 m) where the old fixed-34 m was
-wrong; Baghdad's real ~41 m ≈ 34 m so the anchor is unchanged. Across all seasons this lifts the
-calculated fallback's exact-minute agreement with the Waqf table from ~67 % → ~75 % (biggest gains on
-the low winter sun). It is **not** exact, by design: see the elevation/almanac note below.
+**Per-city elevation:** `compute.ts` passes each location's **real elevation** (governorate/city
+dataset `ele`, or GPS) to the engine for **every** method, BaghdadYMA included — the baked-in 34 m is
+only the fallback when no elevation is known. This fixes the sunrise/maghrib horizon dip for
+non-Baghdad governorates (Mosul 228 m, Kirkuk 346 m, Basra 4 m); Baghdad's real ~41 m ≈ 34 m so the
+anchor is unchanged.
 
-**Why the calculated method can't be made exact — and the data path.** A 2026-06-23 calibration study
-(22 official dates × 15 govs, both solstices) proved **no formula reproduces the Waqf table to the
-minute**: the best portable config caps at ~84 %, and even a free per-city/per-prayer offset only
-reaches ~84 %. Reimplementing the simpler PrayTimes.org almanac produced the *same* minutes as our
-high-precision engine (97 % identical) and missed the *same* Waqf cells — so the residual ±1-min jitter
-lives in the **Waqf table itself** (its closed "Accurate Times" generator rounds idiosyncratically),
-not in our algorithm. The method parameters were independently **confirmed** (peer-reviewed *Iraqi
-Journal of Science* + IAC): Fajr 18°/Isha 17°, Standard Asr, Hohenkerk–Sinclair refraction, elevation
-term −0.8333−0.0347√H, +5 Dhuhr/+3 Asr — i.e. exactly `BaghdadYMA`. The full per-governorate poster
-data is **not available online** (verified down to decompiling the Waqf's own app, which itself just
-calls Aladhan/ISNA). **Conclusion:** for exact-to-the-minute capital times, serve the official poster
-numbers as bundled **data** (hybrid: official table for the capitals, this calibrated formula for every
-other GPS point). The official-data layer is the planned next step, gated on digitizing the full-year
-Waqf calendar.
+**Per-governorate calibration (`server/src/prayer/iraq-calibration.ts`, 2026-06-24).** The flat
+`+5/+3/+2` in `methods.ts` is the engine's *fallback*; our wrapper **overrides it per governorate**.
+`computePrayerTimes` (for BaghdadYMA only) looks up the **nearest of 15 calibrated governorates** and
+passes that gov's per-prayer `{offset, rounding}` as `config.adjustments` / `config.rounding`. The
+table (`server/data/iraq-waqf-calibration.json`) is fit by `scripts/build-waqf-calibration.ts` against
+**35 official dates × 15 govs** spanning the full solar year. Results (leave-one-date-out
+cross-validation): **~83 % exact-to-the-minute, 99.4 % within ±1**, every governorate at home's
+Baghdad-level accuracy (Baghdad worst error = 1 min). A **seasonal** (declination) term was tested and
+is negligible (<1 min drift across the 47° span), so a per-gov **constant** is the calibrated —
+not-overfit — model.
 
-**Poster regression — `server/src/prayer/iraq-governorates.test.ts`:** evaluates the profile at 15
-governorate capitals' own coordinates **and their own elevation** (the live path) and asserts it
-matches the poster within physically-motivated per-prayer tolerances:
+**Exact-data override (literal 0-min) — `iraqExactTimes` + `server/data/waqf-exact.json`.** For a
+location **at a governorate capital** (≤45 km) on a **digitized date**, `payload.ts` overlays the
+official poster numbers **verbatim** → a literal 0-shift match. Everything else uses the calibrated
+formula above. This realizes the "hybrid" the 2026-06-23 study concluded was required: **no formula can
+reproduce the closed "Accurate Times" table to the minute** (its own sources jitter ±1; method
+parameters independently confirmed by the *Iraqi Journal of Science* + IAC: Fajr 18°/Isha 17°, Standard
+Asr, refraction term −0.8333−0.0347√H). Both data files are **generated, never hand-edited**; re-run the
+build script after adding dates to the `_waqf_*.json` corpus. The override even surfaces a few
+poster typos (e.g. Basra maghrib 22 Jun, Amarah 22 Jul) where the formula is physically consistent.
 
-| Prayer | Tolerance | Why |
+**Poster regression — `server/src/prayer/iraq-governorates.test.ts`:** evaluates the **calibrated
+formula** at 15 governorate capitals' own coordinates + elevation (the live path) against the
+19-June-2026 poster, and separately asserts the **override** reproduces every gov verbatim (0 min):
+
+| Prayer | Formula tolerance | Why |
 |---|---|---|
-| dhuhr, asr | ≤2 min | elevation-independent |
-| fajr, isha | ≤2 min | depression angles, weakly elevation-sensitive |
-| sunrise, maghrib | ≤3 min | horizon dip ∝ √elevation; even with each city's real elevation the Waqf's almanac rounds/handles dip slightly differently (e.g. Kirkuk) |
+| dhuhr | ≤1 min | elevation-independent, well-calibrated |
+| fajr, asr, maghrib, isha | ≤2 min | depression angles / per-gov offset; residual ±1 is the Waqf's own jitter |
+| sunrise | ≤3 min | horizon dip ∝ √elevation; the Waqf almanac handles dip differently at high elevation (Kirkuk 346 m) |
 
-Baghdad itself matches to ≤1 min. The engine is **still untouched** (hard rule below) — only the
-wrapper's *selection policy* changed (which preset + that it now covers all of Iraq). This is the
-modeling-philosophy the user values: one calibrated general model, validated against the official
-authority — not a per-city fudge. Rationale in `DECISIONS.md` ADR-002.
+Baghdad matches to ≤1 min; the **override** is exact (0). The engine is **still untouched** (hard rule
+below) — only the wrapper calibrates via `config`. This is the modeling philosophy the user values: one
+calibrated general model + an official-data overlay, validated against the authority. Rationale in
+`DECISIONS.md` ADR-002.
 
 ---
 

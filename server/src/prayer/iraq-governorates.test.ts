@@ -3,30 +3,34 @@
 // The official ديوان الوقف السني poster for 4 Muharram 1448 / 19 June 2026
 // publishes Baghdad PLUS a per-governorate table, all computed with one unified
 // Iraqi method. We apply the calibrated `BaghdadYMA` profile to the WHOLE country
-// (method-detect.ts) and assert that, evaluated at each governorate's own
-// coordinates, it reproduces that poster.
+// (method-detect.ts) with a PER-GOVERNORATE calibration (iraq-calibration.ts, fit
+// to the official table — ~83% exact, 99.4% within ±1 over 35 dates × 15 govs) and
+// assert that, evaluated at each governorate's own coordinates, it reproduces the
+// poster within ≤2 min (Baghdad, the anchor, within ≤1).
 //
 // Each governorate is evaluated at its OWN elevation (the live path: compute.ts
 // passes the dataset/GPS elevation for every method, BaghdadYMA included).
-// Tolerances are physically motivated: dhuhr/asr are elevation-independent and
-// fajr/isha are depression angles (weakly elevation-sensitive) → ≤2 min; sunrise
-// and maghrib scale with horizon dip ∝ √elevation and still drift up to ~3 min
-// even with real elevation, because the Waqf's almanac (Accurate Times) rounds
-// and handles elevation slightly differently than our engine (e.g. Kirkuk) → ≤3.
+//
+// Separately, the exact-data override (iraqExactTimes / payload) serves the poster
+// numbers verbatim on a digitized date — a LITERAL 0-min match, asserted below.
 import { describe, it, expect } from "vitest";
 import { detectMethod } from "./method-detect.js";
 import { computePrayerTimes } from "./compute.js";
+import { iraqExactTimes } from "./iraq-calibration.js";
+import { buildPrayerTimesPayload } from "./payload.js";
 import type { TimeName } from "../prayer-engine/index.js";
 
 const TZ = "Asia/Baghdad";
 const ORDER: TimeName[] = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"];
-// Per-prayer tolerance (minutes), in ORDER.
+// Per-prayer tolerance (minutes) for the CALIBRATED FORMULA, in ORDER. The
+// per-gov calibration tightens the old 2/3/2/2/3/2 envelope; residual ±1 is the
+// Waqf table's own rounding jitter (its sources disagree by ±1).
 const TOL: Record<TimeName, number> = {
   fajr: 2,
-  sunrise: 3,
-  dhuhr: 2,
+  sunrise: 3, // Kirkuk (346 m): the Waqf almanac handles horizon dip slightly differently
+  dhuhr: 1,
   asr: 2,
-  maghrib: 3,
+  maghrib: 2,
   isha: 2,
 };
 
@@ -65,8 +69,8 @@ interface Gov {
 // official 19-June-2026 Waqf table.
 const BAGHDAD: Gov = {
   name: "Baghdad",
-  lat: 33.3152,
-  lon: 44.3661,
+  lat: 33.34058,
+  lon: 44.40088,
   ele: 41,
   poster: ["03:10", "04:52", "12:09", "15:51", "19:18", "20:51"],
 };
@@ -108,6 +112,35 @@ describe("Governorate times vs the official Waqf poster (2026-06-19)", () => {
     ORDER.forEach((name, i) => {
       const diff = Math.abs(baghdadMinute(t[name]) - tableMinute(gov.poster[i]));
       expect(diff, `${gov.name} ${name}`).toBeLessThanOrEqual(TOL[name]);
+    });
+  });
+});
+
+describe("Exact-data override reproduces the poster verbatim (literal 0-min)", () => {
+  // 2026-06-19 is a digitized date in waqf-exact.json.
+  it("iraqExactTimes returns the poster for a digitized (gov, date)", () => {
+    const exact = iraqExactTimes(BAGHDAD.lat, BAGHDAD.lon, "2026-06-19");
+    expect(exact).not.toBeNull();
+    ORDER.forEach((name, i) => {
+      expect(exact?.[name], `Baghdad ${name}`).toBe(BAGHDAD.poster[i]);
+    });
+  });
+
+  it("returns null for a non-digitized date (→ calibrated formula)", () => {
+    expect(iraqExactTimes(BAGHDAD.lat, BAGHDAD.lon, "2026-06-20")).toBeNull();
+  });
+
+  it.each([BAGHDAD, ...GOVERNORATES])("$name payload equals the poster exactly on the digitized date", (gov) => {
+    const payload = buildPrayerTimesPayload({
+      lat: gov.lat, lon: gov.lon, elevation: gov.ele, tz: TZ, lang: "en",
+      method: "BaghdadYMA", methodLabel: "BaghdadYMA", asr: "Standard",
+      auto: true, baghdadCalibrated: true, country: "IQ", date: "2026-06-19",
+      now: new Date("2026-06-19T00:00:00+03:00"),
+    });
+    payload.prayers.forEach((entry, i) => {
+      expect(entry.timestamp, `${gov.name} ${entry.name} present`).not.toBeNull();
+      const diff = Math.abs(baghdadMinute(new Date(entry.timestamp as number)) - tableMinute(gov.poster[i]));
+      expect(diff, `${gov.name} ${entry.name}`).toBe(0);
     });
   });
 });

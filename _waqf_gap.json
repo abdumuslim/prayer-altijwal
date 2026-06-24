@@ -1,0 +1,191 @@
+[
+  {
+    "hijri_date": "30 Rabi' al-Awwal 1447",
+    "gregorian_date": "22 September 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "04:28", "Sunrise": "05:50", "Dhuhr": "12:00", "Asr": "03:25", "Maghrib": "06:02", "Isha": "07:17" },
+      "Basra": { "Fajr": "04:17", "Sunrise": "05:37", "Dhuhr": "11:46", "Asr": "03:12", "Maghrib": "05:48", "Isha": "07:01" },
+      "Hillah": { "Fajr": "04:28", "Sunrise": "05:50", "Dhuhr": "12:00", "Asr": "03:25", "Maghrib": "06:02", "Isha": "07:16" },
+      "Diwaniyah": { "Fajr": "04:27", "Sunrise": "05:48", "Dhuhr": "11:58", "Asr": "03:23", "Maghrib": "06:00", "Isha": "07:14" },
+      "Ramadi": { "Fajr": "04:32", "Sunrise": "05:54", "Dhuhr": "12:05", "Asr": "03:30", "Maghrib": "06:07", "Isha": "07:22" },
+      "Samawah": { "Fajr": "04:26", "Sunrise": "05:47", "Dhuhr": "11:57", "Asr": "03:22", "Maghrib": "05:58", "Isha": "07:12" },
+      "Amarah": { "Fajr": "04:18", "Sunrise": "05:39", "Dhuhr": "11:49", "Asr": "03:14", "Maghrib": "05:50", "Isha": "07:05" },
+      "Fallujah": { "Fajr": "04:30", "Sunrise": "05:52", "Dhuhr": "12:03", "Asr": "03:28", "Maghrib": "06:05", "Isha": "07:20" },
+      "Kut": { "Fajr": "04:23", "Sunrise": "05:44", "Dhuhr": "11:54", "Asr": "03:20", "Maghrib": "05:56", "Isha": "07:11" },
+      "Mosul": { "Fajr": "04:29", "Sunrise": "05:53", "Dhuhr": "12:05", "Asr": "03:30", "Maghrib": "06:09", "Isha": "07:25" },
+      "Nasiriyah": { "Fajr": "04:22", "Sunrise": "05:43", "Dhuhr": "11:53", "Asr": "03:18", "Maghrib": "05:54", "Isha": "07:08" },
+      "Baqubah": { "Fajr": "04:26", "Sunrise": "05:48", "Dhuhr": "11:59", "Asr": "03:24", "Maghrib": "06:01", "Isha": "07:17" },
+      "Tikrit": { "Fajr": "04:29", "Sunrise": "05:51", "Dhuhr": "12:03", "Asr": "03:28", "Maghrib": "06:06", "Isha": "07:21" },
+      "Samarra": { "Fajr": "04:29", "Sunrise": "05:51", "Dhuhr": "12:02", "Asr": "03:27", "Maghrib": "06:05", "Isha": "07:20" },
+      "Kirkuk": { "Fajr": "04:25", "Sunrise": "05:47", "Dhuhr": "12:00", "Asr": "03:25", "Maghrib": "06:05", "Isha": "07:19" }
+    }
+  },
+  {
+    "hijri_date": "15 Rabi' al-Akhir 1447",
+    "gregorian_date": "7 October 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "04:39", "Sunrise": "06:00", "Dhuhr": "11:55", "Asr": "03:12", "Maghrib": "05:42", "Isha": "06:56" },
+      "Basra": { "Fajr": "04:26", "Sunrise": "05:45", "Dhuhr": "11:42", "Asr": "03:00", "Maghrib": "05:29", "Isha": "06:42" },
+      "Hillah": { "Fajr": "04:39", "Sunrise": "06:00", "Dhuhr": "11:55", "Asr": "03:12", "Maghrib": "05:42", "Isha": "06:56" },
+      "Diwaniyah": { "Fajr": "04:37", "Sunrise": "05:57", "Dhuhr": "11:53", "Asr": "03:11", "Maghrib": "05:40", "Isha": "06:54" },
+      "Ramadi": { "Fajr": "04:43", "Sunrise": "06:04", "Dhuhr": "12:00", "Asr": "03:17", "Maghrib": "05:47", "Isha": "07:01" },
+      "Samawah": { "Fajr": "04:36", "Sunrise": "05:56", "Dhuhr": "11:52", "Asr": "03:10", "Maghrib": "05:39", "Isha": "06:52" },
+      "Amarah": { "Fajr": "04:28", "Sunrise": "05:49", "Dhuhr": "11:44", "Asr": "03:02", "Maghrib": "05:31", "Isha": "06:45" },
+      "Fallujah": { "Fajr": "04:41", "Sunrise": "06:02", "Dhuhr": "11:58", "Asr": "03:14", "Maghrib": "05:45", "Isha": "06:59" },
+      "Kut": { "Fajr": "04:33", "Sunrise": "05:54", "Dhuhr": "11:49", "Asr": "03:07", "Maghrib": "05:37", "Isha": "06:50" },
+      "Mosul": { "Fajr": "04:42", "Sunrise": "06:05", "Dhuhr": "12:00", "Asr": "03:15", "Maghrib": "05:47", "Isha": "07:03" },
+      "Nasiriyah": { "Fajr": "04:32", "Sunrise": "05:52", "Dhuhr": "11:48", "Asr": "03:06", "Maghrib": "05:35", "Isha": "06:48" },
+      "Baqubah": { "Fajr": "04:37", "Sunrise": "05:59", "Dhuhr": "11:54", "Asr": "03:11", "Maghrib": "05:41", "Isha": "06:56" },
+      "Tikrit": { "Fajr": "04:41", "Sunrise": "06:03", "Dhuhr": "11:58", "Asr": "03:14", "Maghrib": "05:45", "Isha": "07:00" },
+      "Samarra": { "Fajr": "04:42", "Sunrise": "06:03", "Dhuhr": "11:56", "Asr": "03:13", "Maghrib": "05:43", "Isha": "06:58" },
+      "Kirkuk": { "Fajr": "04:38", "Sunrise": "05:59", "Dhuhr": "11:55", "Asr": "03:11", "Maghrib": "05:43", "Isha": "06:57" }
+    }
+  },
+  {
+    "hijri_date": "29 Rabi' al-Akhir 1447",
+    "gregorian_date": "21 October 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "04:49", "Sunrise": "06:11", "Dhuhr": "11:52", "Asr": "03:00", "Maghrib": "05:25", "Isha": "06:40" },
+      "Basra": { "Fajr": "04:35", "Sunrise": "05:55", "Dhuhr": "11:38", "Asr": "02:49", "Maghrib": "05:14", "Isha": "06:27" },
+      "Hillah": { "Fajr": "04:48", "Sunrise": "06:10", "Dhuhr": "11:52", "Asr": "03:00", "Maghrib": "05:25", "Isha": "06:39" },
+      "Diwaniyah": { "Fajr": "04:46", "Sunrise": "06:07", "Dhuhr": "11:50", "Asr": "02:59", "Maghrib": "05:24", "Isha": "06:37" },
+      "Ramadi": { "Fajr": "04:53", "Sunrise": "06:15", "Dhuhr": "11:57", "Asr": "03:04", "Maghrib": "05:30", "Isha": "06:45" },
+      "Samawah": { "Fajr": "04:45", "Sunrise": "06:06", "Dhuhr": "11:48", "Asr": "02:58", "Maghrib": "05:23", "Isha": "06:37" },
+      "Amarah": { "Fajr": "04:37", "Sunrise": "05:59", "Dhuhr": "11:41", "Asr": "02:50", "Maghrib": "05:15", "Isha": "06:29" },
+      "Fallujah": { "Fajr": "04:51", "Sunrise": "06:13", "Dhuhr": "11:54", "Asr": "03:02", "Maghrib": "05:27", "Isha": "06:42" },
+      "Kut": { "Fajr": "04:43", "Sunrise": "06:04", "Dhuhr": "11:46", "Asr": "02:55", "Maghrib": "05:20", "Isha": "06:34" },
+      "Mosul": { "Fajr": "04:54", "Sunrise": "06:17", "Dhuhr": "11:57", "Asr": "03:01", "Maghrib": "05:28", "Isha": "06:45" },
+      "Nasiriyah": { "Fajr": "04:41", "Sunrise": "06:02", "Dhuhr": "11:45", "Asr": "02:54", "Maghrib": "05:19", "Isha": "06:33" },
+      "Baqubah": { "Fajr": "04:48", "Sunrise": "06:10", "Dhuhr": "11:51", "Asr": "02:58", "Maghrib": "05:24", "Isha": "06:39" },
+      "Tikrit": { "Fajr": "04:52", "Sunrise": "06:14", "Dhuhr": "11:55", "Asr": "03:01", "Maghrib": "05:27", "Isha": "06:43" },
+      "Samarra": { "Fajr": "04:51", "Sunrise": "06:13", "Dhuhr": "11:54", "Asr": "03:01", "Maghrib": "05:27", "Isha": "06:42" },
+      "Kirkuk": { "Fajr": "04:49", "Sunrise": "06:11", "Dhuhr": "11:52", "Asr": "02:57", "Maghrib": "05:25", "Isha": "06:40" }
+    }
+  },
+  {
+    "hijri_date": "15 Jumada al-Awwal 1447",
+    "gregorian_date": "7 November 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "05:02", "Sunrise": "06:25", "Dhuhr": "11:51", "Asr": "02:47", "Maghrib": "05:08", "Isha": "06:25" },
+      "Basra": { "Fajr": "04:46", "Sunrise": "06:08", "Dhuhr": "11:37", "Asr": "02:38", "Maghrib": "04:59", "Isha": "06:14" },
+      "Hillah": { "Fajr": "05:01", "Sunrise": "06:24", "Dhuhr": "11:51", "Asr": "02:48", "Maghrib": "05:10", "Isha": "06:26" },
+      "Diwaniyah": { "Fajr": "04:59", "Sunrise": "06:21", "Dhuhr": "11:49", "Asr": "02:47", "Maghrib": "05:08", "Isha": "06:24" },
+      "Ramadi": { "Fajr": "05:06", "Sunrise": "06:30", "Dhuhr": "11:56", "Asr": "02:52", "Maghrib": "05:14", "Isha": "06:30" },
+      "Samawah": { "Fajr": "04:57", "Sunrise": "06:19", "Dhuhr": "11:48", "Asr": "02:47", "Maghrib": "05:08", "Isha": "06:23" },
+      "Amarah": { "Fajr": "04:49", "Sunrise": "06:12", "Dhuhr": "11:40", "Asr": "02:38", "Maghrib": "05:00", "Isha": "06:15" },
+      "Fallujah": { "Fajr": "05:04", "Sunrise": "06:28", "Dhuhr": "11:54", "Asr": "02:49", "Maghrib": "05:11", "Isha": "06:28" },
+      "Kut": { "Fajr": "04:55", "Sunrise": "06:18", "Dhuhr": "11:45", "Asr": "02:43", "Maghrib": "05:04", "Isha": "06:20" },
+      "Mosul": { "Fajr": "05:09", "Sunrise": "06:34", "Dhuhr": "11:56", "Asr": "02:47", "Maghrib": "05:10", "Isha": "06:28" },
+      "Nasiriyah": { "Fajr": "04:53", "Sunrise": "06:15", "Dhuhr": "11:44", "Asr": "02:43", "Maghrib": "05:04", "Isha": "06:20" },
+      "Baqubah": { "Fajr": "05:01", "Sunrise": "06:25", "Dhuhr": "11:50", "Asr": "02:45", "Maghrib": "05:07", "Isha": "06:24" },
+      "Tikrit": { "Fajr": "05:05", "Sunrise": "06:29", "Dhuhr": "11:54", "Asr": "02:48", "Maghrib": "05:10", "Isha": "06:27" },
+      "Samarra": { "Fajr": "05:04", "Sunrise": "06:28", "Dhuhr": "11:53", "Asr": "02:48", "Maghrib": "05:10", "Isha": "06:27" },
+      "Kirkuk": { "Fajr": "05:03", "Sunrise": "06:26", "Dhuhr": "11:51", "Asr": "02:43", "Maghrib": "05:07", "Isha": "06:24" }
+    }
+  },
+  {
+    "hijri_date": "1 Jumada al-Akhirah 1447",
+    "gregorian_date": "22 November 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "05:13", "Sunrise": "06:39", "Dhuhr": "11:54", "Asr": "02:40", "Maghrib": "05:00", "Isha": "06:19" },
+      "Basra": { "Fajr": "04:57", "Sunrise": "06:20", "Dhuhr": "11:40", "Asr": "02:32", "Maghrib": "04:51", "Isha": "06:08" },
+      "Hillah": { "Fajr": "05:12", "Sunrise": "06:37", "Dhuhr": "11:53", "Asr": "02:42", "Maghrib": "05:01", "Isha": "06:19" },
+      "Diwaniyah": { "Fajr": "05:10", "Sunrise": "06:34", "Dhuhr": "11:51", "Asr": "02:41", "Maghrib": "05:00", "Isha": "06:18" },
+      "Ramadi": { "Fajr": "05:18", "Sunrise": "06:43", "Dhuhr": "11:58", "Asr": "02:45", "Maghrib": "05:05", "Isha": "06:23" },
+      "Samawah": { "Fajr": "05:08", "Sunrise": "06:32", "Dhuhr": "11:50", "Asr": "02:41", "Maghrib": "05:00", "Isha": "06:17" },
+      "Amarah": { "Fajr": "05:01", "Sunrise": "06:25", "Dhuhr": "11:42", "Asr": "02:32", "Maghrib": "04:51", "Isha": "06:09" },
+      "Fallujah": { "Fajr": "05:16", "Sunrise": "06:41", "Dhuhr": "11:56", "Asr": "02:43", "Maghrib": "05:02", "Isha": "06:21" },
+      "Kut": { "Fajr": "05:07", "Sunrise": "06:32", "Dhuhr": "11:48", "Asr": "02:36", "Maghrib": "04:56", "Isha": "06:14" },
+      "Mosul": { "Fajr": "05:22", "Sunrise": "06:49", "Dhuhr": "11:59", "Asr": "02:39", "Maghrib": "05:00", "Isha": "06:20" },
+      "Nasiriyah": { "Fajr": "05:03", "Sunrise": "06:28", "Dhuhr": "11:46", "Asr": "02:38", "Maghrib": "04:58", "Isha": "06:14" },
+      "Baqubah": { "Fajr": "05:13", "Sunrise": "06:39", "Dhuhr": "11:53", "Asr": "02:39", "Maghrib": "04:58", "Isha": "06:17" },
+      "Tikrit": { "Fajr": "05:18", "Sunrise": "06:44", "Dhuhr": "11:56", "Asr": "02:41", "Maghrib": "05:01", "Isha": "06:20" },
+      "Samarra": { "Fajr": "05:16", "Sunrise": "06:42", "Dhuhr": "11:56", "Asr": "02:41", "Maghrib": "05:01", "Isha": "06:20" },
+      "Kirkuk": { "Fajr": "05:16", "Sunrise": "06:41", "Dhuhr": "11:54", "Asr": "02:36", "Maghrib": "04:58", "Isha": "06:16" }
+    }
+  },
+  {
+    "hijri_date": "18 Shawwal 1447",
+    "gregorian_date": "6 April 2026",
+    "locations": {
+      "Baghdad": { "Fajr": "04:19", "Sunrise": "05:43", "Dhuhr": "12:10", "Asr": "03:43", "Maghrib": "06:29", "Isha": "07:47" },
+      "Basra": { "Fajr": "04:10", "Sunrise": "05:32", "Dhuhr": "11:56", "Asr": "03:28", "Maghrib": "06:13", "Isha": "07:28" },
+      "Hillah": { "Fajr": "04:22", "Sunrise": "05:45", "Dhuhr": "12:10", "Asr": "03:42", "Maghrib": "06:28", "Isha": "07:44" },
+      "Diwaniyah": { "Fajr": "04:19", "Sunrise": "05:42", "Dhuhr": "12:08", "Asr": "03:40", "Maghrib": "06:26", "Isha": "07:42" },
+      "Ramadi": { "Fajr": "04:23", "Sunrise": "05:47", "Dhuhr": "12:14", "Asr": "03:48", "Maghrib": "06:35", "Isha": "07:51" },
+      "Samawah": { "Fajr": "04:19", "Sunrise": "05:41", "Dhuhr": "12:06", "Asr": "03:38", "Maghrib": "06:24", "Isha": "07:40" },
+      "Amarah": { "Fajr": "04:12", "Sunrise": "05:34", "Dhuhr": "11:59", "Asr": "03:31", "Maghrib": "06:17", "Isha": "07:32" },
+      "Fallujah": { "Fajr": "04:21", "Sunrise": "05:45", "Dhuhr": "12:12", "Asr": "03:46", "Maghrib": "06:32", "Isha": "07:49" },
+      "Kut": { "Fajr": "04:14", "Sunrise": "05:38", "Dhuhr": "12:04", "Asr": "03:37", "Maghrib": "06:23", "Isha": "07:39" },
+      "Mosul": { "Fajr": "04:18", "Sunrise": "05:44", "Dhuhr": "12:15", "Asr": "03:50", "Maghrib": "06:38", "Isha": "07:57" },
+      "Nasiriyah": { "Fajr": "04:15", "Sunrise": "05:37", "Dhuhr": "12:02", "Asr": "03:34", "Maghrib": "06:20", "Isha": "07:35" },
+      "Baqubah": { "Fajr": "04:17", "Sunrise": "05:41", "Dhuhr": "12:09", "Asr": "03:42", "Maghrib": "06:29", "Isha": "07:46" },
+      "Tikrit": { "Fajr": "04:19", "Sunrise": "05:44", "Dhuhr": "12:13", "Asr": "03:47", "Maghrib": "06:34", "Isha": "07:52" },
+      "Samarra": { "Fajr": "04:21", "Sunrise": "05:45", "Dhuhr": "12:12", "Asr": "03:46", "Maghrib": "06:32", "Isha": "07:49" },
+      "Kirkuk": { "Fajr": "04:15", "Sunrise": "05:39", "Dhuhr": "12:10", "Asr": "03:44", "Maghrib": "06:33", "Isha": "07:51" }
+    }
+  },
+  {
+    "hijri_date": "3 Dhu al-Qi'dah 1447",
+    "gregorian_date": "21 April 2026",
+    "locations": {
+      "Baghdad": { "Fajr": "03:57", "Sunrise": "05:24", "Dhuhr": "12:06", "Asr": "03:44", "Maghrib": "06:40", "Isha": "08:01" },
+      "Basra": { "Fajr": "03:51", "Sunrise": "05:15", "Dhuhr": "11:53", "Asr": "03:27", "Maghrib": "06:22", "Isha": "07:39" },
+      "Hillah": { "Fajr": "03:59", "Sunrise": "05:25", "Dhuhr": "12:06", "Asr": "03:43", "Maghrib": "06:39", "Isha": "07:59" },
+      "Diwaniyah": { "Fajr": "03:58", "Sunrise": "05:24", "Dhuhr": "12:04", "Asr": "03:40", "Maghrib": "06:36", "Isha": "07:55" },
+      "Ramadi": { "Fajr": "04:01", "Sunrise": "05:28", "Dhuhr": "12:11", "Asr": "03:49", "Maghrib": "06:46", "Isha": "08:06" },
+      "Samawah": { "Fajr": "03:58", "Sunrise": "05:24", "Dhuhr": "12:03", "Asr": "03:38", "Maghrib": "06:34", "Isha": "07:52" },
+      "Amarah": { "Fajr": "03:49", "Sunrise": "05:15", "Dhuhr": "11:55", "Asr": "03:31", "Maghrib": "06:27", "Isha": "07:45" },
+      "Fallujah": { "Fajr": "03:59", "Sunrise": "05:27", "Dhuhr": "12:09", "Asr": "03:47", "Maghrib": "06:43", "Isha": "08:03" },
+      "Kut": { "Fajr": "03:53", "Sunrise": "05:20", "Dhuhr": "12:00", "Asr": "03:37", "Maghrib": "06:34", "Isha": "07:53" },
+      "Mosul": { "Fajr": "03:54", "Sunrise": "05:24", "Dhuhr": "12:11", "Asr": "03:52", "Maghrib": "06:51", "Isha": "08:14" },
+      "Nasiriyah": { "Fajr": "03:55", "Sunrise": "05:20", "Dhuhr": "11:59", "Asr": "03:34", "Maghrib": "06:30", "Isha": "07:48" },
+      "Baqubah": { "Fajr": "03:55", "Sunrise": "05:23", "Dhuhr": "12:05", "Asr": "03:44", "Maghrib": "06:40", "Isha": "08:01" },
+      "Tikrit": { "Fajr": "03:56", "Sunrise": "05:25", "Dhuhr": "12:09", "Asr": "03:48", "Maghrib": "06:46", "Isha": "08:07" },
+      "Samarra": { "Fajr": "03:57", "Sunrise": "05:25", "Dhuhr": "12:08", "Asr": "03:47", "Maghrib": "06:44", "Isha": "08:05" },
+      "Kirkuk": { "Fajr": "03:51", "Sunrise": "05:19", "Dhuhr": "12:06", "Asr": "03:46", "Maghrib": "06:46", "Isha": "08:06" }
+    }
+  },
+  {
+    "hijri_date": "4 Dhu al-Hijjah 1447",
+    "gregorian_date": "21 May 2026",
+    "locations": {
+      "Baghdad": { "Fajr": "03:21", "Sunrise": "04:58", "Dhuhr": "12:04", "Asr": "03:46", "Maghrib": "07:03", "Isha": "08:31" },
+      "Basra": { "Fajr": "03:21", "Sunrise": "04:50", "Dhuhr": "11:50", "Asr": "03:29", "Maghrib": "06:44", "Isha": "08:08" },
+      "Hillah": { "Fajr": "03:25", "Sunrise": "04:59", "Dhuhr": "12:04", "Asr": "03:44", "Maghrib": "07:01", "Isha": "08:28" },
+      "Diwaniyah": { "Fajr": "03:24", "Sunrise": "04:59", "Dhuhr": "12:02", "Asr": "03:41", "Maghrib": "06:57", "Isha": "08:24" },
+      "Ramadi": { "Fajr": "03:25", "Sunrise": "05:02", "Dhuhr": "12:09", "Asr": "03:51", "Maghrib": "07:08", "Isha": "08:36" },
+      "Samawah": { "Fajr": "03:25", "Sunrise": "04:59", "Dhuhr": "12:00", "Asr": "03:38", "Maghrib": "06:54", "Isha": "08:20" },
+      "Amarah": { "Fajr": "03:16", "Sunrise": "04:50", "Dhuhr": "11:53", "Asr": "03:32", "Maghrib": "06:48", "Isha": "08:15" },
+      "Fallujah": { "Fajr": "03:23", "Sunrise": "05:00", "Dhuhr": "12:06", "Asr": "03:48", "Maghrib": "07:05", "Isha": "08:34" },
+      "Kut": { "Fajr": "03:19", "Sunrise": "04:54", "Dhuhr": "11:58", "Asr": "03:38", "Maghrib": "06:55", "Isha": "08:22" },
+      "Mosul": { "Fajr": "03:13", "Sunrise": "04:54", "Dhuhr": "12:09", "Asr": "03:57", "Maghrib": "07:17", "Isha": "08:49" },
+      "Nasiriyah": { "Fajr": "03:22", "Sunrise": "04:56", "Dhuhr": "11:57", "Asr": "03:34", "Maghrib": "06:50", "Isha": "08:15" },
+      "Baqubah": { "Fajr": "03:18", "Sunrise": "04:56", "Dhuhr": "12:03", "Asr": "03:46", "Maghrib": "07:03", "Isha": "08:32" },
+      "Tikrit": { "Fajr": "03:19", "Sunrise": "04:57", "Dhuhr": "12:07", "Asr": "03:51", "Maghrib": "07:10", "Isha": "08:39" },
+      "Samarra": { "Fajr": "03:20", "Sunrise": "04:57", "Dhuhr": "12:06", "Asr": "03:50", "Maghrib": "07:08", "Isha": "08:37" },
+      "Kirkuk": { "Fajr": "03:12", "Sunrise": "04:50", "Dhuhr": "12:04", "Asr": "03:50", "Maghrib": "07:11", "Isha": "08:40" }
+    }
+  },
+  {
+    "hijri_date": "15 Rabi' al-Awwal 1447",
+    "gregorian_date": "7 September 2025",
+    "locations": {
+      "Baghdad": { "Fajr": "04:16", "Sunrise": "05:40", "Dhuhr": "12:05", "Asr": "03:38", "Maghrib": "06:23", "Isha": "07:39" },
+      "Basra": { "Fajr": "04:07", "Sunrise": "05:28", "Dhuhr": "11:52", "Asr": "03:22", "Maghrib": "06:07", "Isha": "07:21" },
+      "Hillah": { "Fajr": "04:17", "Sunrise": "05:40", "Dhuhr": "12:05", "Asr": "03:37", "Maghrib": "06:22", "Isha": "07:38" },
+      "Diwaniyah": { "Fajr": "04:16", "Sunrise": "05:39", "Dhuhr": "12:03", "Asr": "03:35", "Maghrib": "06:19", "Isha": "07:35" },
+      "Ramadi": { "Fajr": "04:20", "Sunrise": "05:44", "Dhuhr": "12:10", "Asr": "03:42", "Maghrib": "06:28", "Isha": "07:44" },
+      "Samawah": { "Fajr": "04:16", "Sunrise": "05:38", "Dhuhr": "12:02", "Asr": "03:33", "Maghrib": "06:17", "Isha": "07:33" },
+      "Amarah": { "Fajr": "04:07", "Sunrise": "05:30", "Dhuhr": "11:54", "Asr": "03:26", "Maghrib": "06:10", "Isha": "07:26" },
+      "Fallujah": { "Fajr": "04:18", "Sunrise": "05:42", "Dhuhr": "12:08", "Asr": "03:40", "Maghrib": "06:25", "Isha": "07:42" },
+      "Kut": { "Fajr": "04:11", "Sunrise": "05:35", "Dhuhr": "12:00", "Asr": "03:32", "Maghrib": "06:16", "Isha": "07:32" },
+      "Mosul": { "Fajr": "04:15", "Sunrise": "05:41", "Dhuhr": "12:10", "Asr": "03:44", "Maghrib": "06:31", "Isha": "07:50" },
+      "Nasiriyah": { "Fajr": "04:12", "Sunrise": "05:34", "Dhuhr": "11:58", "Asr": "03:29", "Maghrib": "06:13", "Isha": "07:28" },
+      "Baqubah": { "Fajr": "04:14", "Sunrise": "05:38", "Dhuhr": "12:04", "Asr": "03:37", "Maghrib": "06:22", "Isha": "07:39" },
+      "Tikrit": { "Fajr": "04:16", "Sunrise": "05:41", "Dhuhr": "12:08", "Asr": "03:41", "Maghrib": "06:27", "Isha": "07:44" },
+      "Samarra": { "Fajr": "04:16", "Sunrise": "05:41", "Dhuhr": "12:07", "Asr": "03:40", "Maghrib": "06:26", "Isha": "07:43" },
+      "Kirkuk": { "Fajr": "04:12", "Sunrise": "05:36", "Dhuhr": "12:05", "Asr": "03:39", "Maghrib": "06:26", "Isha": "07:43" }
+    }
+  }
+]

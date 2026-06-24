@@ -95,6 +95,13 @@ GET /api/geo/governorates?country={ISO-2}
   → { governorates: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }
 ```
 
+**Calibration-gov resolution (separate concern).** The prayer-time **Waqf calibration**
+(`prayer/iraq-calibration.ts`, see `PRAYER_ENGINE.md` §4) keeps its **own** nearest-of-15 list (the 15
+govs the official poster covers — incl. Fallujah/Samarra, which aren't in the 18-row quick-pick). Any
+Iraqi GPS point snaps to the nearest of those 15 for its per-prayer offset; the exact-data override
+fires only when the point is **≤45 km** from a capital. This is independent of `governorates()` /
+reverse-geocode — it maps coordinates → calibration profile, not coordinates → display city.
+
 Shape = the same `GeoResult` as forward search. Offline-only (no external call). `country` is a
 required 2-letter code (`GeoGovernoratesQuery`). Surfaced in **both** the city-search panel (the
 default list when the query is empty) and Settings, via the shared `GovernorateList` component;
