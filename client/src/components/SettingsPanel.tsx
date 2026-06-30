@@ -1,11 +1,11 @@
-// Settings slide-over: reminders and language. The location quick-pick lives in
-// the search panel (opened from the location header), so it's not duplicated
-// here. The calculation method is auto-resolved by location and never surfaced.
+// Settings slide-over: reminders + iqama timing. The location quick-pick lives
+// in the search panel (opened from the location header), so it's not duplicated
+// here. The calculation method is auto-resolved by location and never surfaced,
+// and the UI is locked to Arabic (no language picker — see main.tsx).
 
 import { Settings2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { NotificationsOptIn } from "@/components/NotificationsOptIn";
 import { IqamaSettings } from "@/components/IqamaSettings";
 import type { IqamaMinutes, IqamaPrayer } from "@/lib/storage";
@@ -41,12 +41,6 @@ export function SettingsPanel({
 
         {/* Iqama timing */}
         <IqamaSettings iqamaMinutes={iqamaMinutes} onChange={onChangeIqama} />
-
-        {/* Language */}
-        <section className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-ink">{t("settings.language")}</h3>
-          <LanguageToggle />
-        </section>
       </div>
     </SlideOver>
   );

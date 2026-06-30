@@ -149,13 +149,18 @@ scheduler. The core app (everything except push) is independently shippable firs
 
 ## ADR-004 — Localization: bilingual AR/EN, Arabic default, RTL ✅
 
-**Decision.** Bilingual Arabic/English with a toggle. **Arabic is the hard default** — independent of
-the browser's language; a stored choice wins. Layout is **RTL-aware** (switch `dir`/`lang` on the
-root, use CSS logical properties). Choice persisted. Prayer names + place names (city/country/
-governorate) are localized too (`lib/locale.ts`, `Intl.DisplayNames` + dataset `nar`).
+**Decision.** Bilingual Arabic/English, **Arabic-only in the UI as of 2026-06-30** (reversed the
+user-facing toggle). The UI is **locked to Arabic** — `main.tsx` hardcodes `initialLang="ar"`,
+ignoring any stored preference and the browser language; the language picker was removed from
+Settings. Layout is **RTL-aware** (`dir`/`lang` on the root, CSS logical properties). Prayer names +
+place names (city/country/governorate) are localized too (`lib/locale.ts`, `Intl.DisplayNames` +
+dataset `nar`). **English is retained in the codebase** (dictionaries, `Lang` type,
+`setLang`/`toggleLang`, the `LanguageToggle` component, the `language` storage key) for future
+re-enablement — restore the stored-`language` lookup in `main.tsx` + the picker in `SettingsPanel`.
 
-**Why.** The audience is Iraq-centric (via altijwal.com); Arabic-first serves them best while English
-keeps the app broadly usable.
+**Why.** The audience is Iraq-centric (via altijwal.com); Arabic-first serves them best. The toggle
+was dropped so every visitor always lands in Arabic with no way to drift to English (and no stale
+`"en"` choice surviving), while keeping the English layer ready for later.
 
 **Consequences.** A lightweight in-house i18n layer (two flat dictionaries, a `t()` lookup — no heavy
 library) and RTL-safe styling. **Numerals are always Latin** (product decision "keep numbers in

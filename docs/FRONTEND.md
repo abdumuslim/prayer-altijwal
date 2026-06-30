@@ -101,7 +101,11 @@ rows dim with no countdown.
   box crops — **never pair `leading-none` with `truncate`** (`truncate` sets `overflow:hidden`, so the
   glyph bottoms get clipped) on Arabic text. Use `leading-snug`+. The prayer-card titles hit this when
   bumped to `text-base` (clipped at the bottom) and were fixed to `leading-snug` (2026-06-20).
-- Persist `language`; initialize from stored value or `navigator.language`, defaulting to `ar`.
+- **UI is LOCKED to Arabic.** `main.tsx` hardcodes `<I18nProvider initialLang="ar">`, ignoring any
+  stored preference and the browser language — there is **no language picker** in the UI. The English
+  dictionary + the `setLang`/`toggleLang`/`LanguageToggle` machinery are **retained in code** for
+  future re-enablement (restore the stored-`language` lookup in `main.tsx` + the picker in
+  `SettingsPanel`). The `language` storage key still exists but is never written.
 
 ---
 
@@ -189,17 +193,18 @@ unsupported — no UI, called once in `App`).
   the **governorate list** as its default when the query is empty.
 - `GovernorateList` — list of the country's governorate capitals (`/api/geo/governorates`), shown
   **in `CitySearch` only**; selecting one sets the location. **This replaced the manual method/Asr controls.**
-- `SettingsPanel` — the reminders section, the **iqama-timing section** (`IqamaSettings`), and the
-  language toggle. **The location quick-pick is not here** —
-  it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as redundant (the
-  location header already opens the picker). **No method picker and no Asr madhab toggle** (removed —
-  `DECISIONS.md` ADR-002/003).
+- `SettingsPanel` — the reminders section and the **iqama-timing section** (`IqamaSettings`). **No
+  language toggle** (UI locked to Arabic — see §3; removed 2026-06-30). **The location quick-pick is
+  not here** — it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as
+  redundant (the location header already opens the picker). **No method picker and no Asr madhab
+  toggle** (removed — `DECISIONS.md` ADR-002/003).
 - `IqamaSettings` — five per-prayer stepper rows (Minus / value / Plus, clamped 0–60) editing
   `iqamaMinutes` via `useSettings().setIqama`; persisted to localStorage. Sunrise has no row.
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
   non-standalone (`NOTIFICATIONS.md`).
-- `LanguageToggle`.
+- `LanguageToggle` — **retained in code but no longer rendered** (the UI is locked to Arabic, §3).
+  Kept for future re-enablement; not imported anywhere.
 
 No footer credit (the GeoNames-attribution footer + `common.credit` key were removed — attribution
 lives in `GEOCODING.md`).
