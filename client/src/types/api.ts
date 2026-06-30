@@ -85,6 +85,12 @@ export interface NextEvent {
   daysLeft: number;
 }
 
+/** A Sunnah time window as absolute epoch ms (Duha forenoon / last-third-of-night). */
+export interface SunnahWindow {
+  start: number;
+  end: number;
+}
+
 export interface PrayerTimesResponse {
   location: LocationInfo;
   method: MethodInfo;
@@ -98,6 +104,10 @@ export interface PrayerTimesResponse {
   tomorrowFajr: number | null;
   /** Yesterday's Isha — anchors the pre-Fajr ring interval (Isha→Fajr across midnight). */
   yesterdayIsha: number | null;
+  /** Forenoon Duha window (sunrise+15 → dhuhr−15); the soonest one whose end is still future. */
+  duhaWindow: SunnahWindow | null;
+  /** Last third of the night (qiyam) window; the soonest one whose end is still future. */
+  qiyamWindow: SunnahWindow | null;
 }
 
 export interface ReverseGeoResponse {

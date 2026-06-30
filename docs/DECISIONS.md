@@ -122,6 +122,20 @@ never shown; Asr is always Standard in the app — see ADR-002). The governorate
 manual method override as the location-tuning control. Reminders grew from a single per-prayer/lead
 toggle set into the multi-rule model above.
 
+**Added (hero worship-time aids, later revision).** The hero card gained three secondary aids
+(detail + final geometry in `FRONTEND.md` §5; engine math reuses `prayer-engine/sunnah.ts` via
+`PRAYER_TIMES_API.md`'s `duhaWindow`/`qiyamWindow`):
+- **Duha (الضحى) + Qiyam-al-Layl (last third of night) satellites** — two mini rings flanking the
+  main ring (amber / indigo), active during their window with a depleting arc + countdown, dimmed
+  otherwise. Purely informative; not configurable.
+- **Iqama countdown bar** — appears between a prayer's adhan and its iqama; per-prayer adhan→iqama
+  minutes are **user-configurable** in Settings (localStorage `iqamaMinutes`, defaults Fajr 25 /
+  Dhuhr 15 / Asr 15 / Maghrib 5 / Isha 10; sunrise excluded). **Bar colour uses the absolute
+  proximity palette** (15/10/5/1 min to iqama), same as the hero ring — chosen over a
+  progress-relative scheme so "within 5 min = red" holds (Maghrib's 5-min window is red throughout;
+  Isha orange→red; Fajr walks the full palette). The main ring + name + countdown were shrunk one
+  step (224→208, etc.) to make room.
+
 🔭 **Deferred (future, documented hooks only):** Qibla compass, monthly times table.
 
 **Why.** Matches the user's selection. Notifications + city-search are the two features that change

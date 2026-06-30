@@ -87,6 +87,16 @@ export const en = {
   "notify.permissionDenied": "Notifications are blocked. Enable them in browser settings.",
   "notify.saving": "Saving…",
 
+  // Sunnah satellites + iqama
+  "sunnah.duha": "Duha",
+  "sunnah.qiyam": "Qiyam",
+  "iqama.title": "Iqama Timing",
+  "iqama.subtitle": "Minutes from adhan to iqama",
+  "iqama.in": "Iqama in {time}",
+  "iqama.minutes": "{min} min",
+  "iqama.decrease": "Decrease",
+  "iqama.increase": "Increase",
+
   // States / errors
   "error.title": "Something went wrong",
   "error.retry": "Try Again",

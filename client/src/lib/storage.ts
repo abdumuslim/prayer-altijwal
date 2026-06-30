@@ -25,6 +25,22 @@ export interface ReminderPrefs {
   prayers: string[];
 }
 
+/**
+ * Default minutes between each prayer's adhan and its iqama. Keyed by the five
+ * obligatory prayers only — sunrise has no iqama, so it is intentionally absent.
+ */
+export const DEFAULT_IQAMA_MINUTES = {
+  fajr: 25,
+  dhuhr: 15,
+  asr: 15,
+  maghrib: 5,
+  isha: 10,
+} as const;
+
+/** The five prayers that have an iqama (excludes "sunrise"). */
+export type IqamaPrayer = keyof typeof DEFAULT_IQAMA_MINUTES;
+export type IqamaMinutes = Record<IqamaPrayer, number>;
+
 export interface AppState {
   v: typeof CURRENT_VERSION;
   location: StoredLocation | null;
@@ -34,6 +50,8 @@ export interface AppState {
   asr: AsrMadhab | null;
   language: Lang | null;
   reminderPrefs: ReminderPrefs;
+  /** Per-prayer adhan→iqama durations in minutes. */
+  iqamaMinutes: IqamaMinutes;
 }
 
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
@@ -50,7 +68,22 @@ export const DEFAULT_STATE: AppState = {
   asr: null,
   language: null,
   reminderPrefs: DEFAULT_REMINDER_PREFS,
+  iqamaMinutes: { ...DEFAULT_IQAMA_MINUTES },
 };
+
+/** Coerce a stored value to a valid IqamaMinutes, defaulting each key defensively. */
+function coerceIqama(raw: unknown): IqamaMinutes {
+  const src = isRecord(raw) ? raw : {};
+  const out = {} as IqamaMinutes;
+  for (const key of Object.keys(DEFAULT_IQAMA_MINUTES) as IqamaPrayer[]) {
+    const v = src[key];
+    out[key] =
+      typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 60
+        ? Math.round(v)
+        : DEFAULT_IQAMA_MINUTES[key];
+  }
+  return out;
+}
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
@@ -90,6 +123,7 @@ function migrate(raw: unknown): AppState {
         ? reminder.prayers.filter((s): s is string => typeof s === "string")
         : DEFAULT_REMINDER_PREFS.prayers,
     },
+    iqamaMinutes: coerceIqama(raw.iqamaMinutes),
   };
 }
 

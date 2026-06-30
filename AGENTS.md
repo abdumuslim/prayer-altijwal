@@ -28,9 +28,11 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 1. **Backend API** architecture — server reuses the engine, client fetches JSON + ticks the countdown.
 2. **Method auto-detected by location** (country → official method); the calibrated Iraqi
    (`BaghdadYMA`) profile applies to **all of Iraq**. Method/madhab are **not surfaced** in the UI.
-3. **MVP** = core times + countdown + Hijri/events **+ web-push reminders + city search**
-   (Qibla & monthly table deferred). Reminders are **multiple independent alert rules** (per-prayer ×
-   timing), ported from home (`docs/NOTIFICATIONS.md`).
+3. **MVP** = core times + countdown + Hijri/events **+ web-push reminders + city search**, plus the
+   hero's **Duha + Qiyam (last-third) satellites** and a **per-prayer iqama countdown bar** (Qibla &
+   monthly table deferred). Reminders are **multiple independent alert rules** (per-prayer × timing),
+   ported from home (`docs/NOTIFICATIONS.md`). Hero aids detailed in `docs/FRONTEND.md` (§5) +
+   `docs/PRAYER_TIMES_API.md` (`duhaWindow`/`qiyamWindow`).
 4. **Bilingual AR/EN**, Arabic default, RTL-aware.
 
 ## Routing table — read the doc BEFORE working on the topic

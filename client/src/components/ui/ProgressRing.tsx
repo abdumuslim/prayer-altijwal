@@ -25,7 +25,7 @@ export function ProgressRing({
   const dash = circumference * clamped;
 
   return (
-    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
+    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg
         width={size}
         height={size}

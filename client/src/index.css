@@ -24,6 +24,9 @@
   --color-gold-soft: #fbe3a1;
   --color-amber: #f59e0b;
 
+  /* Sunnah-time satellites: Duha = warm amber (--color-amber, above), Qiyam = indigo night */
+  --color-indigo: #818cf8;
+
   /* Text */
   --color-ink: #eafaf6;
   --color-ink-dim: #8fb3ad;
@@ -101,6 +104,12 @@
 
 @keyframes spin-slow {
   to { transform: rotate(360deg); }
+}
+
+/* Iqama bar's final-minute pulse — signals iqama is imminent. */
+@keyframes iqama-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 @layer base {
@@ -209,5 +218,15 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Active satellite glow — tinted by its --sat color, like .breath-glow's --prox. */
+  .satellite-glow {
+    box-shadow: 0 0 12px -3px color-mix(in srgb, var(--sat, var(--color-gold)) 60%, transparent);
+  }
+
+  /* Iqama bar pulse during the final minute. */
+  .iqama-blink {
+    animation: iqama-blink 1s ease-in-out infinite;
   }
 }

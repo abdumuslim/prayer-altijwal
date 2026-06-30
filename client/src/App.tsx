@@ -75,7 +75,14 @@ function App() {
 
     return (
       <>
-        <NextPrayerCountdown next={times.next} now={times.now} />
+        <NextPrayerCountdown
+          next={times.next}
+          now={times.now}
+          duhaWindow={times.data.duhaWindow}
+          qiyamWindow={times.data.qiyamWindow}
+          prayers={times.prayers}
+          iqamaMinutes={settings.iqamaMinutes}
+        />
         <PrayerList prayers={times.prayers} now={times.now} />
         {times.data.nextEvent && (
           <section className="card p-3">
@@ -92,7 +99,7 @@ function App() {
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status]);
+  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes]);
 
   // One breath timeline for the whole screen: the period ramps with the next
   // prayer's countdown, and every breathing element (hero halo + next-prayer
@@ -129,6 +136,8 @@ function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         push={push}
+        iqamaMinutes={settings.iqamaMinutes}
+        onChangeIqama={settings.setIqama}
       />
     </div>
   );

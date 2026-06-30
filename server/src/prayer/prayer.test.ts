@@ -8,6 +8,7 @@ const BAGHDAD = { lat: 33.321502, lon: 44.358335 };
 const MOSUL = { lat: 36.335, lon: 43.118 };
 const MECCA = { lat: 21.4225, lon: 39.8262 };
 const LONDON = { lat: 51.5074, lon: -0.1278 };
+const LONGYEARBYEN = { lat: 78.2232, lon: 15.6267 }; // polar day on the solstice
 
 describe("detectMethod — country → method (Iraqi profile nationwide, ADR-002)", () => {
   it("Baghdad → calibrated Iraqi profile", () => {
@@ -203,5 +204,74 @@ describe("buildPrayerTimesPayload", () => {
     const frac = (p.now - p.yesterdayIsha!) / ((fajr.timestamp as number) - p.yesterdayIsha!);
     expect(frac).toBeGreaterThan(0);
     expect(frac).toBeLessThan(1);
+  });
+});
+
+describe("sunnah windows (Duha + Qiyam)", () => {
+  function baghdad(now: string) {
+    return buildPrayerTimesPayload({
+      lat: BAGHDAD.lat,
+      lon: BAGHDAD.lon,
+      tz: "Asia/Baghdad",
+      lang: "en",
+      method: "BaghdadYMA",
+      methodLabel: "Baghdad",
+      asr: "Standard",
+      auto: true,
+      baghdadCalibrated: true,
+      country: "IQ",
+      date: "2026-02-18",
+      now: new Date(now),
+    });
+  }
+
+  it("Duha is active mid-morning (start ≤ now < end)", () => {
+    const p = baghdad("2026-02-18T06:00:00Z"); // 09:00 Baghdad — inside the forenoon window
+    expect(p.duhaWindow).not.toBeNull();
+    expect(p.duhaWindow!.start).toBeLessThanOrEqual(p.now);
+    expect(p.now).toBeLessThan(p.duhaWindow!.end);
+  });
+
+  it("Duha rolls to tomorrow once the window has ended (start > now)", () => {
+    const p = baghdad("2026-02-18T12:00:00Z"); // 15:00 Baghdad — well after Dhuhr−15
+    expect(p.duhaWindow).not.toBeNull();
+    expect(p.duhaWindow!.start).toBeGreaterThan(p.now);
+  });
+
+  it("Qiyam is active in the pre-Fajr last third, ending at today's Fajr", () => {
+    const p = baghdad("2026-02-18T00:30:00Z"); // 03:30 Baghdad — last third of the night
+    const fajr = p.prayers.find((x) => x.name === "fajr")!;
+    expect(p.qiyamWindow).not.toBeNull();
+    expect(p.qiyamWindow!.start).toBeLessThanOrEqual(p.now);
+    expect(p.now).toBeLessThan(p.qiyamWindow!.end);
+    // Window ends at (≈) today's Fajr instant.
+    expect(Math.abs(p.qiyamWindow!.end - (fajr.timestamp as number))).toBeLessThan(2 * 60_000);
+  });
+
+  it("Qiyam rolls to tonight during the day (start > now, end ≈ tomorrow Fajr)", () => {
+    const p = baghdad("2026-02-18T12:00:00Z"); // 15:00 Baghdad
+    expect(p.qiyamWindow).not.toBeNull();
+    expect(p.qiyamWindow!.start).toBeGreaterThan(p.now);
+    expect(p.tomorrowFajr).not.toBeNull();
+    expect(Math.abs(p.qiyamWindow!.end - p.tomorrowFajr!)).toBeLessThan(2 * 60_000);
+  });
+
+  it("polar day → both windows null (no sunrise/sunset; no Invalid Date leaks)", () => {
+    const p = buildPrayerTimesPayload({
+      lat: LONGYEARBYEN.lat,
+      lon: LONGYEARBYEN.lon,
+      tz: "Arctic/Longyearbyen",
+      lang: "en",
+      method: "MWL",
+      methodLabel: "MWL",
+      asr: "Standard",
+      auto: true,
+      baghdadCalibrated: false,
+      country: "NO",
+      date: "2026-06-21",
+      now: new Date("2026-06-21T08:00:00Z"),
+    });
+    expect(p.duhaWindow).toBeNull();
+    expect(p.qiyamWindow).toBeNull();
   });
 });

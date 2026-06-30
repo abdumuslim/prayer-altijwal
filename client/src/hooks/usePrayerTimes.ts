@@ -80,6 +80,10 @@ export function usePrayerTimes({
   const lastFetchAt = useRef(0);
   const fetchedDayKey = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Soonest Sunnah-window end currently held, and the end we last refetched for —
+  // so we reload the next window the instant the current one lapses (once).
+  const soonestWindowEnd = useRef<number | null>(null);
+  const refetchedWindowEnd = useRef<number | null>(null);
 
   // Stable dependency signature for re-fetch triggers.
   const sig = useMemo(() => {
@@ -146,17 +150,35 @@ export function usePrayerTimes({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
-  // 1s tick drives the live countdown + day-rollover + first-day refetch.
+  // Track the soonest Sunnah-window end so the tick can refetch when it lapses.
+  useEffect(() => {
+    const ends = [data?.duhaWindow?.end, data?.qiyamWindow?.end].filter(
+      (e): e is number => typeof e === "number",
+    );
+    soonestWindowEnd.current = ends.length ? Math.min(...ends) : null;
+  }, [data]);
+
+  // 1s tick drives the live countdown + day-rollover + Sunnah-window refetch.
   useEffect(() => {
     const id = window.setInterval(() => {
       const t = Date.now();
       setNow(t);
-      if (location && fetchedDayKey.current) {
+      if (!location) return;
+      // Day rollover → fetch the new civil day's times.
+      if (fetchedDayKey.current) {
         const today = localDayKey(location.tz, t);
         if (today !== fetchedDayKey.current) {
           fetchedDayKey.current = today; // guard against repeat fires
           void doFetch();
+          return;
         }
+      }
+      // A Duha/Qiyam window just ended → load the next one now (otherwise the
+      // satellite would sit blank until the next civil-midnight refetch).
+      const end = soonestWindowEnd.current;
+      if (end != null && t >= end && refetchedWindowEnd.current !== end) {
+        refetchedWindowEnd.current = end; // fire once per crossing
+        void doFetch();
       }
     }, 1000);
     return () => window.clearInterval(id);

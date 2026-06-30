@@ -90,6 +90,16 @@ export const ar: Record<StringKey, string> = {
   "notify.permissionDenied": "الإشعارات محظورة. فعّلها من إعدادات المتصفح.",
   "notify.saving": "جارٍ الحفظ…",
 
+  // Sunnah satellites + iqama
+  "sunnah.duha": "الضحى",
+  "sunnah.qiyam": "قيام",
+  "iqama.title": "توقيت الإقامة",
+  "iqama.subtitle": "الدقائق بين الأذان والإقامة",
+  "iqama.in": "الإقامة بعد {time}",
+  "iqama.minutes": "{min} دقيقة",
+  "iqama.decrease": "إنقاص",
+  "iqama.increase": "زيادة",
+
   // States / errors
   "error.title": "حدث خطأ ما",
   "error.retry": "أعد المحاولة",

@@ -7,15 +7,25 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NotificationsOptIn } from "@/components/NotificationsOptIn";
+import { IqamaSettings } from "@/components/IqamaSettings";
+import type { IqamaMinutes, IqamaPrayer } from "@/lib/storage";
 import type { UsePushSubscription } from "@/hooks/usePushSubscription";
 
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
   push: UsePushSubscription;
+  iqamaMinutes: IqamaMinutes;
+  onChangeIqama: (prayer: IqamaPrayer, minutes: number) => void;
 }
 
-export function SettingsPanel({ open, onClose, push }: SettingsPanelProps) {
+export function SettingsPanel({
+  open,
+  onClose,
+  push,
+  iqamaMinutes,
+  onChangeIqama,
+}: SettingsPanelProps) {
   const { t } = useI18n();
 
   return (
@@ -28,6 +38,9 @@ export function SettingsPanel({ open, onClose, push }: SettingsPanelProps) {
       <div className="flex flex-col gap-7">
         {/* Notifications */}
         <NotificationsOptIn push={push} />
+
+        {/* Iqama timing */}
+        <IqamaSettings iqamaMinutes={iqamaMinutes} onChange={onChangeIqama} />
 
         {/* Language */}
         <section className="flex items-center justify-between">

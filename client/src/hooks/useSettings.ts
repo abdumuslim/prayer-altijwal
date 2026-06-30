@@ -5,6 +5,7 @@
 
 import { useCallback, useState } from "react";
 import { loadState, patchState } from "@/lib/storage";
+import type { IqamaMinutes, IqamaPrayer } from "@/lib/storage";
 import type { AsrMadhab } from "@/types/api";
 
 export interface SettingsState {
@@ -14,18 +15,21 @@ export interface SettingsState {
   methodAuto: boolean;
   /** User-chosen Asr madhab; null means "method default". */
   asr: AsrMadhab | null;
+  /** Per-prayer adhan→iqama durations in minutes. */
+  iqamaMinutes: IqamaMinutes;
 }
 
 export interface UseSettings extends SettingsState {
   setMethod: (key: string) => void;
   resetMethodToAuto: () => void;
   setAsr: (asr: AsrMadhab) => void;
+  setIqama: (prayer: IqamaPrayer, minutes: number) => void;
 }
 
 export function useSettings(): UseSettings {
   const [state, setState] = useState<SettingsState>(() => {
     const s = loadState();
-    return { method: s.method, methodAuto: s.methodAuto, asr: s.asr };
+    return { method: s.method, methodAuto: s.methodAuto, asr: s.asr, iqamaMinutes: s.iqamaMinutes };
   });
 
   const setMethod = useCallback((key: string) => {
@@ -43,5 +47,14 @@ export function useSettings(): UseSettings {
     patchState({ asr });
   }, []);
 
-  return { ...state, setMethod, resetMethodToAuto, setAsr };
+  const setIqama = useCallback((prayer: IqamaPrayer, minutes: number) => {
+    const clamped = Math.max(0, Math.min(60, Math.round(minutes)));
+    setState((prev) => {
+      const next = { ...prev.iqamaMinutes, [prayer]: clamped };
+      patchState({ iqamaMinutes: next });
+      return { ...prev, iqamaMinutes: next };
+    });
+  }, []);
+
+  return { ...state, setMethod, resetMethodToAuto, setAsr, setIqama };
 }

@@ -46,7 +46,9 @@ GET /api/prayer-times?lat={n}&lon={n}&tz={IANA}&method={name}&asr={Standard|Hana
   "hijriDate": "Dhul-Hijjah 4, 1447 AH",
   "nextEvent": { "name": "Day of Arafah", "isToday": false, "daysLeft": 5 },
   "tomorrowFajr": 1789086600000,
-  "yesterdayIsha": 1788958320000
+  "yesterdayIsha": 1788958320000,
+  "duhaWindow":  { "start": 1789006500000, "end": 1789027500000 },
+  "qiyamWindow": { "start": 1788980000000, "end": 1789000000000 }
 }
 ```
 
@@ -65,6 +67,8 @@ client hook generalizes with minimal change):
 | `nextEvent` | next of the 10 tracked Islamic events (`isToday`, `daysLeft`) |
 | `tomorrowFajr` | epoch ms of tomorrow's Fajr — lets the client count past today's Isha |
 | `yesterdayIsha` | epoch ms of yesterday's Isha — anchors the pre-Fajr countdown **ring** interval (Isha→Fajr across midnight) so it depletes instead of sitting full. Both wraparound anchors are computed from today's solar noon ±24 h (DST-safe). |
+| `duhaWindow` | `{ start, end }` epoch ms (or `null`) — the forenoon Duha window: **sunrise+15 min → dhuhr−15 min**. The server returns the **soonest window whose `end > now`** across today/tomorrow, so the client just compares `now` to `start`/`end` (`now < start` → upcoming; `start ≤ now < end` → active). Uses the engine's `duhaWindow()` helper on the raw formula times (`null` at high latitude when sunrise is absent). |
+| `qiyamWindow` | `{ start, end }` epoch ms (or `null`) — the **last third of the night** (qiyam/tahajjud): `maghrib + ⅔·(nextFajr−maghrib) → nextFajr`. Soonest window with `end > now` across last-night (`[yesterday.maghrib→today.fajr]`, covers the pre-Fajr case) and tonight (`end ≈ tomorrowFajr`). Engine `nightThird(…, "last")`; `null` when maghrib/sunset is absent. |
 
 **Tracked Islamic events** (Hijri): Islamic New Year (1 Muharram), Ashura (10 Muharram), Mawlid
 (12 Rabiʿ I), Isra & Miʿraj (27 Rajab), Change of Qibla (15 Shaʿban), Ramadan (1 Ramadan), Laylat

@@ -3,6 +3,7 @@ import { computePrayerTimes } from "./compute.js";
 import { baghdadInstant, iraqExactTimes } from "./iraq-calibration.js";
 import { dateKey, fmtCountdown, fmtTime, instantForCivilDate, isValidDate } from "./format.js";
 import { hijriDate, nextIslamicEvent } from "./hijri.js";
+import { duhaWindow as computeDuha, nightThird } from "../prayer-engine/sunnah.js";
 import type { Lang } from "./events.js";
 
 const DAY_MS = 86_400_000;
@@ -43,6 +44,12 @@ export interface NextEventInfo {
   daysLeft: number;
 }
 
+/** A Sunnah time window as absolute epoch ms (Duha forenoon / last-third-of-night). */
+export interface SunnahWindow {
+  start: number;
+  end: number;
+}
+
 export interface PrayerTimesPayload {
   location: {
     city: string | null;
@@ -69,6 +76,10 @@ export interface PrayerTimesPayload {
   tomorrowFajr: number | null;
   /** Yesterday's Isha — anchors the pre-Fajr ring interval (Isha→Fajr across midnight). */
   yesterdayIsha: number | null;
+  /** Forenoon Duha window (sunrise+15 → dhuhr−15); the soonest one whose end is still future. */
+  duhaWindow: SunnahWindow | null;
+  /** Last third of the night (qiyam) window; the soonest one whose end is still future. */
+  qiyamWindow: SunnahWindow | null;
 }
 
 export interface BuildPayloadInput {
@@ -92,6 +103,24 @@ export interface BuildPayloadInput {
 
 function tsOrNull(d: Date): number | null {
   return isValidDate(d) ? d.getTime() : null;
+}
+
+/** A window only when both bounds are valid epoch ms and correctly ordered. */
+function makeWindow(start: number | null, end: number | null): SunnahWindow | null {
+  return start != null && end != null && end > start ? { start, end } : null;
+}
+
+/**
+ * Pick the soonest window whose end is still in the future. The currently-active
+ * window (start ≤ now < end) wins because it has the smallest start among those
+ * with a future end; otherwise the next upcoming window is returned.
+ */
+function selectSoonest(cands: (SunnahWindow | null)[], nowMs: number): SunnahWindow | null {
+  return (
+    cands
+      .filter((w): w is SunnahWindow => w != null && w.end > nowMs)
+      .sort((a, b) => a.start - b.start)[0] ?? null
+  );
 }
 
 /**
@@ -207,6 +236,29 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
   // Event scan anchored on the computed day's solar noon.
   const eventAnchor = isValidDate(todayTimes.dhuhr) ? todayTimes.dhuhr : anchor;
 
+  // Sunnah windows from the engine's pure helpers (no extra solar passes — reuse
+  // the raw formula times of the three day-sets already computed; not the iraq
+  // exact overlay, to stay consistent with tomorrowFajr/yesterdayIsha above).
+  const duhaToday = computeDuha(today.sunrise, today.dhuhr);
+  const duhaTomorrow = computeDuha(tomorrow.sunrise, tomorrow.dhuhr);
+  const duha = selectSoonest(
+    [
+      makeWindow(tsOrNull(duhaToday.start), tsOrNull(duhaToday.end)),
+      makeWindow(tsOrNull(duhaTomorrow.start), tsOrNull(duhaTomorrow.end)),
+    ],
+    nowMs,
+  );
+  // Qiyam = last third of the night. Last night's tail ([yesterday.maghrib→today.fajr])
+  // covers the early-morning case before today's Fajr; tonight's window ends at
+  // tomorrow's Fajr (the same instant reported as tomorrowFajr).
+  const qiyam = selectSoonest(
+    [
+      makeWindow(tsOrNull(nightThird(yesterday.maghrib, today.fajr, "last")), tsOrNull(today.fajr)),
+      makeWindow(tsOrNull(nightThird(today.maghrib, tomorrow.fajr, "last")), tsOrNull(tomorrow.fajr)),
+    ],
+    nowMs,
+  );
+
   return {
     location: {
       city: input.city ?? null,
@@ -232,5 +284,7 @@ export function buildPrayerTimesPayload(input: BuildPayloadInput): PrayerTimesPa
     nextEvent: nextIslamicEvent(eventAnchor, input.tz, input.lang),
     tomorrowFajr: tsOrNull(tomorrow.fajr),
     yesterdayIsha: tsOrNull(yesterday.isha),
+    duhaWindow: duha,
+    qiyamWindow: qiyam,
   };
 }

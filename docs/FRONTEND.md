@@ -113,6 +113,7 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 |---|---|
 | `location` | `{ city, cityAr?, country, tz, lat, lon, elevation }` |
 | `language` | `"ar"` \| `"en"` |
+| `iqamaMinutes` | `{ fajr, dhuhr, asr, maghrib, isha }` — minutes from adhan to iqama (defaults 25/15/15/5/10; `migrate()` coerces each key to a finite 0–60, defaulting when absent — no version bump). **No `sunrise`** (no iqama). |
 
 Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
 selections are **server-side** (alert rules) — no `reminderPrefs` key.
@@ -121,7 +122,8 @@ selections are **server-side** (alert rules) — no `reminderPrefs` key.
 
 ## 5. Components & hooks
 
-**Hooks:** `usePrayerTimes`, `useLocation`, `useSettings`, `usePushSubscription` (lifecycle + exposes
+**Hooks:** `usePrayerTimes` (also refetches when a Sunnah window's `end` lapses, to load the next one),
+`useLocation`, `useSettings` (method/asr + `iqamaMinutes`/`setIqama`), `usePushSubscription` (lifecycle + exposes
 the `endpoint`), `usePrayerAlerts(endpoint)` (the reminder rules — `NOTIFICATIONS.md`), `useWakeLock`
 (holds a Screen Wake Lock so the phone screen doesn't sleep while the app is open; feature-detected,
 re-acquires on `visibilitychange` since browsers drop the lock when the tab hides; silent no-op where
@@ -142,7 +144,9 @@ unsupported — no UI, called once in `App`).
   `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
   passed dim).
-- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**224px**): a single header line
+- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**208px**, shrunk one
+  step from 224 to make room for the new aids; name `text-2xl`, countdown `text-[1.85rem]`, the clock
+  time kept at `text-base`): a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
   they breathe without touching the ring. RTL-safe centred glow. The ring depletes across
@@ -151,6 +155,31 @@ unsupported — no UI, called once in `App`).
   so the hook anchors `intervalStart` to **`data.yesterdayIsha`** (Isha→Fajr across midnight) — without
   it the ring sat **full and frozen** in the pre-Fajr window (`intervalProgress` returns 0 → `1 − 0`).
   `null` still falls back to the old soft-fill at extreme latitudes where Isha is undefined.
+  It also hosts the three **secondary worship-time aids** (view-models derived per tick by pure
+  `lib/hero-extras.ts` from the same `now`): two corner **`SatelliteRing`s** + the **`IqamaBar`** below
+  the ring.
+- `SatelliteRing` — a mini ring (reuses `ProgressRing`, **58px / stroke 5 / `size-5` icon**) pinned
+  beside the **upper part** of the main ring: **Duha (الضحى) top-right** (amber `--color-amber`,
+  `SunMedium`), **Qiyam (قيام, last third of the night) top-left** (indigo `--color-indigo`,
+  `MoonStar`). Pinned with **physical** `top-6 right-1`/`left-1` so they **don't flip** under RTL
+  (verified AR + EN) and the (wider) timer caption **clears the ring's curve** (~9px); `gap-1.5`
+  between the ring and its title/timer. Active (`start ≤ now < end`) → coloured depleting arc +
+  `satellite-glow` + countdown to the window **end**; inactive → dimmed (`opacity-50 grayscale`) but
+  readable, counting down to the **next** window's start. The timer uses the **same `formatCountdown`
+  format as the hero/list** (h/m/s units, zero-padded), tinted with the satellite's own colour.
+  Windows come from API `duhaWindow`/`qiyamWindow` (`PRAYER_TIMES_API.md`); `usePrayerTimes` refetches
+  the instant a window's `end` lapses so the next one loads without waiting for civil-midnight. Hidden
+  when its window is `null` (high latitude).
+- `IqamaBar` — a horizontal bar below the ring, visible **only** between a prayer's adhan and its
+  iqama (`deriveIqama` over `prayers[]` × the stored `iqamaMinutes`; **sunrise excluded**). Sizable
+  (`h-2.5` track, `text-[13px]` row, `size-4` icon, `max-w-[320px]`, `mt-2`). **Depletes** adhan→iqama
+  (width = fraction remaining); its colour tracks **time-to-iqama on the absolute proximity palette**
+  (`proximityFromMs`, 15/10/5/1 min — the same thresholds as the hero ring), so **Maghrib (5 min) is
+  red throughout, Isha (10 min) orange→red, Dhuhr/Asr (15 min) yellow→orange→red, Fajr (25 min)
+  green→yellow→orange→red**. Fill is a same-hue `color-mix` gradient of the proximity colour; the
+  caption + icon take the matching `text-*`. **Blinks (`.iqama-blink`) in the final 60 s**, then
+  unmounts at iqama. A 0-minute setting never shows a bar. (Considered & rejected: progress-relative
+  colouring — the user wants absolute "within 5 min = red" semantics, so a short window stays red.)
 - `NextEvent` — next Islamic event (bottom card; only when an event exists), a **3-column grid** so the
   event name is **truly centred**: the label (`event.next`) at the start (**no icon**) · event name
   centred · the event **date over the days-left chip** (centred stacked column) at the end. The date is
@@ -160,10 +189,13 @@ unsupported — no UI, called once in `App`).
   the **governorate list** as its default when the query is empty.
 - `GovernorateList` — list of the country's governorate capitals (`/api/geo/governorates`), shown
   **in `CitySearch` only**; selecting one sets the location. **This replaced the manual method/Asr controls.**
-- `SettingsPanel` — the reminders section and language toggle. **The location quick-pick is not here** —
+- `SettingsPanel` — the reminders section, the **iqama-timing section** (`IqamaSettings`), and the
+  language toggle. **The location quick-pick is not here** —
   it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as redundant (the
   location header already opens the picker). **No method picker and no Asr madhab toggle** (removed —
   `DECISIONS.md` ADR-002/003).
+- `IqamaSettings` — five per-prayer stepper rows (Minus / value / Plus, clamped 0–60) editing
+  `iqamaMinutes` via `useSettings().setIqama`; persisted to localStorage. Sunrise has no row.
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
   non-standalone (`NOTIFICATIONS.md`).
