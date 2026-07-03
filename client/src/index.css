@@ -27,6 +27,9 @@
   /* Sunnah-time satellites: Duha = warm amber (--color-amber, above), Qiyam = indigo night */
   --color-indigo: #818cf8;
 
+  /* Worship tracker corners: rawatib = sky, adhkar = teal (brand, above) */
+  --color-sky: #38bdf8;
+
   /* Text */
   --color-ink: #eafaf6;
   --color-ink-dim: #8fb3ad;

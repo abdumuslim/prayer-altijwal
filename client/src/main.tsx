@@ -1,9 +1,16 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// DEV-only design preview (?design=N) — lazy so it is code-split and the chunk
+// is never even requested in production builds.
+const DesignPreview = lazy(() => import("./design-preview/DesignPreview"));
+const designParam = import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get("design")
+  : null;
 
 // Register the service worker (push + offline shell). Best-effort.
 if ("serviceWorker" in navigator) {
@@ -21,7 +28,13 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <I18nProvider initialLang="ar">
-        <App />
+        {designParam ? (
+          <Suspense fallback={null}>
+            <DesignPreview initial={Number(designParam) || 1} />
+          </Suspense>
+        ) : (
+          <App />
+        )}
       </I18nProvider>
     </ErrorBoundary>
   </StrictMode>,

@@ -18,7 +18,7 @@ export const ar: Record<StringKey, string> = {
 
   // Next-prayer hero
   "next.label": "الصلاة القادمة",
-  "next.header": "الوقت المتبقي للاذان القادم",
+  "next.header": "المتبقي للأذان",
   "next.in": "بعد {time}",
   "next.tomorrow": "غدًا",
   "next.now": "حان وقت الصلاة",
@@ -109,6 +109,55 @@ export const ar: Record<StringKey, string> = {
   "error.boundary": "واجه التطبيق خطأً غير متوقع.",
   "error.reload": "إعادة التحميل",
   "loading.times": "جارٍ حساب أوقات الصلاة…",
+
+  // Worship tracker — check-in
+  "track.q": "أين صلّيت {prayer}؟",
+  "track.masjid": "مسجد",
+  "track.home": "بيت",
+  "track.missed": "فائتة",
+  "track.inMasjid": "في المسجد +3",
+  "track.atHome": "في البيت +2",
+  "track.missedTip": "فائتة −1",
+  "track.logPrayer": "سجّل الصلاة",
+  "track.adhkarChip": "أذكار بعد الصلاة",
+  "track.done": "اكتمل",
+
+  // Worship tracker — rawatib
+  "rawatib.label": "الرواتب",
+  "rawatib.title": "السنن الرواتب",
+  "rawatib.rakaat": "{n} ركعة",
+  "rawatib.footer": "+1 نقطة لكل موضع · تُفتح المواضع بعد أذان صلاتها",
+  "rawatib.beforeFajr": "قبل الفجر",
+  "rawatib.beforeDhuhr": "قبل الظهر",
+  "rawatib.afterDhuhr": "بعد الظهر",
+  "rawatib.afterMaghrib": "بعد المغرب",
+  "rawatib.afterIsha": "بعد العشاء",
+
+  // Worship tracker — adhkar
+  "adhkar.label": "الأذكار",
+  "adhkar.title": "أذكار اليوم",
+  "adhkar.morning": "أذكار الصباح",
+  "adhkar.evening": "أذكار المساء",
+  "adhkar.morningNote": "من الفجر إلى العصر",
+  "adhkar.eveningNote": "من العصر إلى الفجر",
+  "adhkar.afterPrayer": "بعد {prayer}",
+  "adhkar.start": "ابدأ",
+  "adhkar.readerAfter": "أذكار بعد الصلاة · {prayer}",
+  "adhkar.tapHint": "اضغط في أي مكان للعدّ",
+  "adhkar.reward": "+1 نقطة عند إتمام الأذكار",
+  "adhkar.morningNow": "الصباح الآن",
+  "adhkar.eveningNow": "المساء الآن",
+
+  // Worship tracker — stats
+  "stats.title": "سجل العبادة",
+  "stats.of": "من {n}",
+  "stats.streakDays": "{n} أيام متتالية",
+  "stats.best": "أفضل يوم:",
+  "stats.fard": "الفرائض",
+  "stats.rawatib": "الرواتب",
+  "stats.adhkar": "الأذكار",
+  "stats.duhaQiyam": "الضحى والقيام",
+  "stats.today": "اليوم",
 
   // Misc
   "common.cancel": "إلغاء",

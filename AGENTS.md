@@ -32,7 +32,10 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
    hero's **Duha + Qiyam (last-third) satellites** and a **per-prayer iqama countdown bar** (Qibla &
    monthly table deferred). Reminders are **multiple independent alert rules** (per-prayer × timing),
    ported from home (`docs/NOTIFICATIONS.md`). Hero aids detailed in `docs/FRONTEND.md` (§5) +
-   `docs/PRAYER_TIMES_API.md` (`duhaWindow`/`qiyamWindow`).
+   `docs/PRAYER_TIMES_API.md` (`duhaWindow`/`qiyamWindow`). **+ gamified worship tracker**
+   (2026-07-03): fard check-in (masjid +3 / home +2 / missed −1) + rawatib & adhkar corner rings +
+   tap-to-count adhkar reader + score/streak stats — client-only in `prayer.worship.v1`
+   (`docs/FRONTEND.md` §8, `docs/DECISIONS.md` ADR-006).
 4. **Bilingual AR/EN**, Arabic default, RTL-aware.
 
 ## Routing table — read the doc BEFORE working on the topic

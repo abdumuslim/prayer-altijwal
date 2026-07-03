@@ -178,3 +178,40 @@ credentials + routing index, *no architecture knowledge*) → **Tier 3** `docs/*
 **Why.** Keeps the most-needed info in-context and losslessly compressed, with full detail one hop
 away — the user's stated "CPU cache / RAM / SSD" principle. Keeps institutional knowledge across
 sessions. See `MEMORY.md` and the Tier-1 routers.
+
+---
+
+## ADR-006 — Gamified worship tracker (client-only, least-distraction) ✅
+
+**Decision (2026-07-03).** Add a **worship tracker with game mechanics**, entirely client-side in
+localStorage (no server changes, engine untouched). The user picked **design 3 of 8 numbered live
+mockups** (dev preview at `/?design=N`, kept in `client/src/design-preview/`): contextual check-in
+inside the hero + four mini rings around the main ring + bottom sheets for detail.
+
+**Points economy** (perfect day = 29): fard **masjid +3 / home (بيت) +2 / missed −1** — "missed" is
+only ever an explicit tap, unmarked = 0; bonuses **+1 per act**: each of the 5 rawatib slots
+(2+4+2+2+2 = 12 rakaat), each of the 7 adhkar (5 after-prayer + morning + evening), Duha, Qiyam.
+Marks unlock at the parent prayer's **adhan** and lock at local **midnight in the location tz**
+(hard rule 4); morning adhkar window = fajr→asr, evening = asr→fajr (user's mapping).
+
+**Least-distraction interaction** (user's notes, iterated live): icon-only controls everywhere —
+a small icon after the prayer *name* on each card (dashed = unlogged; tap → 3-icon popover;
+transient ~2.5 s tooltip teaches "في المسجد +3"); the hero asks "أين صلّيت X؟" with 3 round icons
+only *after the iqama window passes* (asking before the prayer happened would be premature — and
+the two tall elements would overflow small phones together), then swaps to an "أذكار بعد الصلاة"
+chip, then disappears. Corner rings: **rawatib bottom-right (sky), adhkar bottom-left (teal)** —
+titles on top like the Duha/Qiyam satellites, caption below; **in progress → arc + "x/y" text
+inside** (rawatib rakaat /12; adhkar counts the *daily pair* /2, its arc moving per dhikr item);
+**fully done → solid colour-filled disc + bold white check** (same treatment on the satellites;
+the caption text below never changes). Score pill (⭐ pts · 🔥 streak) on the hero's top corner
+opens the stats sheet. Custom `MosqueIcon` (lucide has none) — deliberately simple silhouette.
+
+**Storage** (`prayer.worship.v1`, its own envelope — NOT `prayer.app.v1`, which `useLocation`
+re-parses every render): raw marks per civil day, **62-day full retention + monthly aggregates**
+(`compact`), streaks survive compaction via `prefixStreak`; dhikr tap counts persist debounced
+(500 ms + pagehide flush). Everything else (score, streak, best, 7-day chart, totals) is always
+recomputed (`worship-stats`). 49 vitest tests cover the pure modules (client's first test suite).
+
+**Why.** Achievement mechanics (points, streak flame, perfect-day ring, fill-and-check completion)
+motivate consistency, but the main screen stays a prayer clock — every tracker element is ambient
+until the moment it's actionable. Detail in `FRONTEND.md` §8.

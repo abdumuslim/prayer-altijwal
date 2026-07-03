@@ -5,18 +5,29 @@
 
 import type { CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { CheckinControl } from "@/components/CheckinControl";
 import { proximityStyle } from "@/components/ui/proximity";
 import { formatCountdown, localizeTimeString, proximityFromMs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
+import type { FardState } from "@/lib/worship-log";
 import type { StringKey } from "@/i18n/strings.en";
+
+export interface CardCheckin {
+  state: FardState;
+  /** The mark window is open (adhan passed, still today). */
+  enabled: boolean;
+  onMark: (state: FardState) => void;
+}
 
 interface PrayerCardProps {
   prayer: DerivedPrayer;
   now: number;
+  /** Worship check-in control (fard prayers only). */
+  checkin?: CardCheckin | null;
 }
 
-export function PrayerCard({ prayer, now }: PrayerCardProps) {
+export function PrayerCard({ prayer, now, checkin }: PrayerCardProps) {
   const { t, lang } = useI18n();
   const isNext = prayer.isNext;
   const isUpcoming = prayer.msUntil > 0;
@@ -36,8 +47,8 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
       )}
       style={isNext ? ({ "--prox": style.ring } as CSSProperties) : undefined}
     >
-      {/* start: prayer name */}
-      <div className="flex min-w-0 items-center">
+      {/* start: prayer name, with the check-in icon right after it */}
+      <div className="flex min-w-0 items-center gap-1.5">
         <span
           className={cn(
             "truncate text-lg font-semibold leading-snug",
@@ -46,6 +57,9 @@ export function PrayerCard({ prayer, now }: PrayerCardProps) {
         >
           {t(`prayer.${prayer.name}` as StringKey)}
         </span>
+        {checkin && (
+          <CheckinControl state={checkin.state} enabled={checkin.enabled} onMark={checkin.onMark} />
+        )}
       </div>
 
       {/* end: clock time over remaining countdown — centred stacked column */}

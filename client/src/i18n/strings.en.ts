@@ -15,7 +15,7 @@ export const en = {
 
   // Next-prayer hero
   "next.label": "Next Prayer",
-  "next.header": "Time until the next prayer",
+  "next.header": "Until the adhan",
   "next.in": "in {time}",
   "next.tomorrow": "Tomorrow",
   "next.now": "It's time",
@@ -106,6 +106,55 @@ export const en = {
   "error.boundary": "The app hit an unexpected error.",
   "error.reload": "Reload",
   "loading.times": "Calculating prayer times…",
+
+  // Worship tracker — check-in
+  "track.q": "Where did you pray {prayer}?",
+  "track.masjid": "Masjid",
+  "track.home": "Home",
+  "track.missed": "Missed",
+  "track.inMasjid": "In the masjid +3",
+  "track.atHome": "At home +2",
+  "track.missedTip": "Missed −1",
+  "track.logPrayer": "Log this prayer",
+  "track.adhkarChip": "Post-prayer adhkar",
+  "track.done": "Done",
+
+  // Worship tracker — rawatib
+  "rawatib.label": "Rawatib",
+  "rawatib.title": "Rawatib Sunnah",
+  "rawatib.rakaat": "{n} rak'ah",
+  "rawatib.footer": "+1 point per slot · a slot opens after its prayer's adhan",
+  "rawatib.beforeFajr": "Before Fajr",
+  "rawatib.beforeDhuhr": "Before Dhuhr",
+  "rawatib.afterDhuhr": "After Dhuhr",
+  "rawatib.afterMaghrib": "After Maghrib",
+  "rawatib.afterIsha": "After Isha",
+
+  // Worship tracker — adhkar
+  "adhkar.label": "Adhkar",
+  "adhkar.title": "Today's Adhkar",
+  "adhkar.morning": "Morning adhkar",
+  "adhkar.evening": "Evening adhkar",
+  "adhkar.morningNote": "From Fajr to Asr",
+  "adhkar.eveningNote": "From Asr to Fajr",
+  "adhkar.afterPrayer": "After {prayer}",
+  "adhkar.start": "Start",
+  "adhkar.readerAfter": "Post-prayer adhkar · {prayer}",
+  "adhkar.tapHint": "Tap anywhere to count",
+  "adhkar.reward": "+1 point on completing the adhkar",
+  "adhkar.morningNow": "Morning now",
+  "adhkar.eveningNow": "Evening now",
+
+  // Worship tracker — stats
+  "stats.title": "Worship Record",
+  "stats.of": "of {n}",
+  "stats.streakDays": "{n} consecutive days",
+  "stats.best": "Best day:",
+  "stats.fard": "Obligatory",
+  "stats.rawatib": "Rawatib",
+  "stats.adhkar": "Adhkar",
+  "stats.duhaQiyam": "Duha & Qiyam",
+  "stats.today": "Today",
 
   // Misc
   "common.cancel": "Cancel",

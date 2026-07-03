@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiRequestError, fetchPrayerTimes } from "@/lib/api";
+import { localDayKey } from "@/lib/civil-day";
 import { proximityFromMs, type Proximity } from "@/lib/format";
 import type {
   AsrMadhab,
@@ -54,15 +55,6 @@ interface Params {
   methodAuto: boolean;
   asr: AsrMadhab | null;
   lang: Lang;
-}
-
-/** Local civil-day key in a given IANA tz (YYYY-MM-DD). */
-function localDayKey(tz: string, at: number = Date.now()): string {
-  try {
-    return new Date(at).toLocaleDateString("en-CA", { timeZone: tz });
-  } catch {
-    return new Date(at).toLocaleDateString("en-CA");
-  }
 }
 
 export function usePrayerTimes({

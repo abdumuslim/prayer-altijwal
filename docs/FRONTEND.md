@@ -232,3 +232,43 @@ to **see layouts live and iterate** over rounds of description — expect to run
 ring size before adding height. **True-centre** a row's middle element with a 3-column grid
 (`grid-cols-[1fr_auto_1fr]`) so a start-side icon never shifts it off-centre. Keep ticking numbers from
 jittering: **tabular figures + fixed digit width** (the countdown zero-pads to 2 digits — see §2).
+
+---
+
+## 8. Worship tracker (gamified, client-only — ADR-006)
+
+All state in **`prayer.worship.v1`** (own versioned envelope, `lib/worship-storage.ts` — isolated
+from `prayer.app.v1` on purpose). Pure logic in `lib/`: `civil-day.ts` (DayKey = civil date in the
+**location tz**; `localDayKey` extracted from `usePrayerTimes`), `worship-log.ts` (types, 29-point
+rubric, immutable `applyMark`), `worship-windows.ts` (adhan-gate + midnight lock; null timestamps
+degrade to markable), `worship-stats.ts` (score/streak/best/last7/totals — always derived),
+`worship-vm.ts` (corner-ring + check-in view-models), `adhkar-data.ts` (dhikr texts from the user's
+posters + `slotComplete`/`listProgress`). One stateful hook: `useWorshipLog` (rollover via the
+existing 1 s tick; 62-day compaction with `prefixStreak`; dhikr counts debounced 500 ms + pagehide
+flush). **Tested**: `npm --prefix client test` (vitest, node env, pure modules only).
+
+**UI (design 3 of the numbered preview — `/?design=N` in dev, number keys 1–8):**
+- `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → `StatsSheet` (today ring /29, category
+  bars, streak/best, 7-day chart, today gold).
+- **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[166px]` so they don't
+  move when rows below appear): rawatib bottom-right (**sky**, "x/12" rakaat), adhkar bottom-left
+  (**teal**, "x/2" = the daily pair; arc moves per dhikr item). Titles on TOP, caption below
+  (next slot / "الصباح|المساء الآن"). **Complete → solid disc + bold white check** — the same
+  fill-and-check applies to the Duha/Qiyam satellites via `SatelliteRing`'s `done` prop (tap toggles;
+  caption time stays and is dimmed whenever the window is inactive).
+- **Check-in**: on each fard card an icon after the *name* (`CheckinControl`: dashed circle →
+  3-icon popover; marked icon tap → transient tooltip + popover to correct; picking the current
+  state again undoes it). In the hero, `HeroCheckinRow` asks "أين صلّيت X؟" (icon trio) for the
+  latest passed fard — **suppressed while the iqama bar runs** (prayer hasn't happened yet), swaps
+  to the "أذكار بعد الصلاة" chip once marked, gone when those adhkar are done.
+- **Sheets** (`ui/BottomSheet` — bottom-anchored dialog; `SlideOver` stays for Settings/Search):
+  `RawatibSheet` (5 slots, lock → dashed open → check +1), `AdhkarSheet` (daily pair + 5
+  after-prayer rows → reader), `AdhkarReader` (tap-to-count: whole current-dhikr card is the tap
+  target, counter ring, done/upcoming lists, auto-award +1 via `slotComplete`), `StatsSheet`.
+- `ui/MosqueIcon` — custom simple mosque glyph (lucide has none); masjid=gold, home=teal,
+  missed=red everywhere.
+
+**Layout budget:** main ring shrunk 208→192; satellites nudged down 24 px (score pill owns the top
+corner); iqama bar narrows to `max-w-[200px]` beside the corner rings; hero header shortened to
+"المتبقي للأذان". Verified no-scroll at 390×844 **and** 360×740 in every state (the iqama bar and
+the check-in row never coexist by design).
