@@ -117,7 +117,12 @@ export function NextPrayerCountdown({
           they keep their corners under both LTR and RTL. Nudged down 24px so the
           score pill owns the top corner and they align with the ring's upper arc.
           Tapping toggles the done state (filled disc + check). */}
-      <div className="pointer-events-none absolute inset-0 translate-y-6">
+      {/* z-10 is REQUIRED here: translate-y-6 creates a stacking context, so the
+          buttons' own z-10 is local to it — without lifting the wrapper, the
+          DOM-later content column hit-tests above the satellites and swallows
+          real clicks (elementFromPoint-verified). pointer-events-none keeps the
+          rest of the overlay click-through. */}
+      <div className="pointer-events-none absolute inset-0 z-10 translate-y-6">
         {duhaState && (
           <SatelliteRing
             icon={SunMedium}
