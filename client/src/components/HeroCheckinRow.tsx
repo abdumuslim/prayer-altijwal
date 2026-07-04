@@ -11,8 +11,8 @@ import {
   useTransientText,
 } from "@/components/CheckinControl";
 import { useI18n } from "@/i18n/I18nProvider";
+import { prayerNameKey } from "@/lib/prayer-names";
 import type { FardPrayer, FardState } from "@/lib/worship-log";
-import type { StringKey } from "@/i18n/strings.en";
 
 interface HeroCheckinRowProps {
   prayer: FardPrayer;
@@ -21,9 +21,11 @@ interface HeroCheckinRowProps {
   adhkarDone: boolean;
   onMark: (state: FardState) => void;
   onOpenAdhkar: () => void;
+  /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
+  isFriday?: boolean;
 }
 
-export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar }: HeroCheckinRowProps) {
+export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar, isFriday }: HeroCheckinRowProps) {
   const { t } = useI18n();
   const [tip, showTip] = useTransientText();
 
@@ -31,7 +33,7 @@ export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar
     return (
       <div className="relative w-full max-w-[280px] rounded-xl border border-border-soft bg-white/[0.03] px-2.5 py-2">
         <p className="mb-2 text-center text-[12px] font-semibold leading-none text-ink-dim">
-          {t("track.q", { prayer: t(`prayer.${prayer}` as StringKey) })}
+          {t("track.q", { prayer: t(prayerNameKey(prayer, !!isFriday)) })}
         </p>
         <CheckinIconTrio
           size="md"

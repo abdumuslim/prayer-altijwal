@@ -9,13 +9,15 @@ interface PrayerListProps {
   now: number;
   /** Worship check-in control per fard prayer (null for sunrise/none). */
   checkinFor?: (name: PrayerName) => CardCheckin | null;
+  /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
+  isFriday?: boolean;
 }
 
-export function PrayerList({ prayers, now, checkinFor }: PrayerListProps) {
+export function PrayerList({ prayers, now, checkinFor, isFriday }: PrayerListProps) {
   return (
     <section className="card animate-rise-in grid grid-cols-2 gap-2 p-3 sm:p-4">
       {prayers.map((p) => (
-        <PrayerCard key={p.name} prayer={p} now={now} checkin={checkinFor?.(p.name) ?? null} />
+        <PrayerCard key={p.name} prayer={p} now={now} checkin={checkinFor?.(p.name) ?? null} isFriday={isFriday} />
       ))}
     </section>
   );

@@ -6,16 +6,18 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { PRAYER_ICONS } from "@/components/ui/icons";
 import { formatCountdown, proximityFromMs } from "@/lib/format";
 import { proximityStyle } from "@/components/ui/proximity";
+import { prayerNameKey } from "@/lib/prayer-names";
 import { cn } from "@/lib/utils";
 import type { IqamaState } from "@/lib/hero-extras";
-import type { StringKey } from "@/i18n/strings.en";
 
 interface IqamaBarProps {
   state: IqamaState;
   now: number;
+  /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
+  isFriday?: boolean;
 }
 
-export function IqamaBar({ state, now }: IqamaBarProps) {
+export function IqamaBar({ state, now, isFriday }: IqamaBarProps) {
   const { t, lang } = useI18n();
   const Icon = PRAYER_ICONS[state.prayer];
   // Absolute proximity palette (green→yellow→orange→red at 15/10/5/1 min to
@@ -29,7 +31,7 @@ export function IqamaBar({ state, now }: IqamaBarProps) {
       <div className="mb-1.5 flex items-center justify-between text-[13px] font-semibold leading-none">
         <span className="flex items-center gap-1.5 text-ink-dim">
           <Icon className={cn("size-4", style.text)} />
-          {t(`prayer.${state.prayer}` as StringKey)}
+          {t(prayerNameKey(state.prayer, !!isFriday))}
         </span>
         <span className={cn("tnum", style.text)}>
           {t("iqama.in", { time: formatCountdown(state.iqamaTs, now, lang) })}

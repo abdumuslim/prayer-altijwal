@@ -8,10 +8,10 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { CheckinControl } from "@/components/CheckinControl";
 import { proximityStyle } from "@/components/ui/proximity";
 import { formatCountdown, localizeTimeString, proximityFromMs } from "@/lib/format";
+import { prayerNameKey } from "@/lib/prayer-names";
 import { cn } from "@/lib/utils";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
 import type { FardState } from "@/lib/worship-log";
-import type { StringKey } from "@/i18n/strings.en";
 
 export interface CardCheckin {
   state: FardState;
@@ -25,9 +25,11 @@ interface PrayerCardProps {
   now: number;
   /** Worship check-in control (fard prayers only). */
   checkin?: CardCheckin | null;
+  /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
+  isFriday?: boolean;
 }
 
-export function PrayerCard({ prayer, now, checkin }: PrayerCardProps) {
+export function PrayerCard({ prayer, now, checkin, isFriday }: PrayerCardProps) {
   const { t, lang } = useI18n();
   const isNext = prayer.isNext;
   const isUpcoming = prayer.msUntil > 0;
@@ -55,7 +57,7 @@ export function PrayerCard({ prayer, now, checkin }: PrayerCardProps) {
             isNext ? "text-ink" : "text-ink/90",
           )}
         >
-          {t(`prayer.${prayer.name}` as StringKey)}
+          {t(prayerNameKey(prayer.name, !!isFriday))}
         </span>
         {checkin && (
           <CheckinControl state={checkin.state} enabled={checkin.enabled} onMark={checkin.onMark} />

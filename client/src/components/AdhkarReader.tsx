@@ -8,8 +8,9 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ADHKAR_LISTS, listProgress } from "@/lib/adhkar-data";
+import { prayerNameKey } from "@/lib/prayer-names";
 import type { AdhkarSlot } from "@/lib/worship-log";
-import type { StringKey } from "@/i18n/strings.en";
+import type { PrayerName } from "@/types/api";
 
 interface AdhkarReaderProps {
   open: boolean;
@@ -18,17 +19,19 @@ interface AdhkarReaderProps {
   /** Today's tap counts for this slot (empty when untouched). */
   counts: number[];
   onCount: (itemIndex: number, count: number) => void;
+  /** Location-tz civil day is a Friday → "بعد الظهر" reads "بعد الجمعة". */
+  isFriday?: boolean;
 }
 
-const AFTER_PRAYER: Record<string, string> = {
-  afterFajr: "prayer.fajr",
-  afterDhuhr: "prayer.dhuhr",
-  afterAsr: "prayer.asr",
-  afterMaghrib: "prayer.maghrib",
-  afterIsha: "prayer.isha",
+const AFTER_PRAYER: Record<string, PrayerName> = {
+  afterFajr: "fajr",
+  afterDhuhr: "dhuhr",
+  afterAsr: "asr",
+  afterMaghrib: "maghrib",
+  afterIsha: "isha",
 };
 
-export function AdhkarReader({ open, onClose, slot, counts, onCount }: AdhkarReaderProps) {
+export function AdhkarReader({ open, onClose, slot, counts, onCount, isFriday }: AdhkarReaderProps) {
   const { t } = useI18n();
   const items = ADHKAR_LISTS[slot];
   const currentIdx = items.findIndex((item, i) => (counts[i] ?? 0) < item.repeat);
@@ -40,7 +43,7 @@ export function AdhkarReader({ open, onClose, slot, counts, onCount }: AdhkarRea
       ? t("adhkar.morning")
       : slot === "evening"
         ? t("adhkar.evening")
-        : t("adhkar.readerAfter", { prayer: t(AFTER_PRAYER[slot] as StringKey) });
+        : t("adhkar.readerAfter", { prayer: t(prayerNameKey(AFTER_PRAYER[slot], !!isFriday)) });
 
   return (
     <BottomSheet

@@ -21,11 +21,12 @@ import {
   localizeTimeString,
 } from "@/lib/format";
 import { deriveIqama, deriveSatellite } from "@/lib/hero-extras";
+import { prayerNameKey } from "@/lib/prayer-names";
 import { cn } from "@/lib/utils";
 import type { DerivedNext, DerivedPrayer } from "@/hooks/usePrayerTimes";
 import type { CornerVM } from "@/lib/worship-vm";
 import type { FardPrayer, FardState } from "@/lib/worship-log";
-import type { SunnahWindow } from "@/types/api";
+import type { PrayerName, SunnahWindow } from "@/types/api";
 import type { IqamaMinutes } from "@/lib/storage";
 import type { StringKey } from "@/i18n/strings.en";
 
@@ -55,6 +56,8 @@ interface NextPrayerCountdownProps {
   prayers: DerivedPrayer[];
   iqamaMinutes: IqamaMinutes;
   worship: HeroWorship | null;
+  /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
+  isFriday?: boolean;
 }
 
 export function NextPrayerCountdown({
@@ -65,6 +68,7 @@ export function NextPrayerCountdown({
   prayers,
   iqamaMinutes,
   worship,
+  isFriday,
 }: NextPrayerCountdownProps) {
   const { t, lang } = useI18n();
 
@@ -165,6 +169,7 @@ export function NextPrayerCountdown({
             complete={worship.rawatib.complete}
             onClick={worship.rawatib.onOpen}
             posClass="top-[166px]"
+            dimWhenIdle={false}
           >
             <span className="tnum text-[13px] font-extrabold leading-none text-sky">
               {worship.rawatib.centerText}
@@ -210,7 +215,7 @@ export function NextPrayerCountdown({
               while staying inside the ring's inscribed area — never touching it. */}
           <div className="flex h-[58%] flex-col items-center justify-between text-center">
             <span className="text-2xl font-bold leading-none text-gold">
-              {t(`prayer.${next.name}` as StringKey)}
+              {t(prayerNameKey(next.name as PrayerName, !!isFriday))}
             </span>
             <span
               className={cn(
@@ -230,7 +235,7 @@ export function NextPrayerCountdown({
             Narrowed so the corner rings' captions never collide with it. */}
         {iqamaState && (
           <div className={cn("flex w-full justify-center", worship && "max-w-[200px] self-center")}>
-            <IqamaBar state={iqamaState} now={now} />
+            <IqamaBar state={iqamaState} now={now} isFriday={isFriday} />
           </div>
         )}
 
@@ -245,6 +250,7 @@ export function NextPrayerCountdown({
             adhkarDone={worship.checkin.adhkarDone}
             onMark={worship.checkin.onMark}
             onOpenAdhkar={worship.checkin.onOpenAdhkar}
+            isFriday={isFriday}
           />
         )}
       </div>
