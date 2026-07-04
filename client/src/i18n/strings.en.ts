@@ -164,6 +164,15 @@ export const en = {
   "stats.month": "Month",
   "stats.months": "Months",
 
+  // Worship features (Settings opt-in — all off by default)
+  "worship.settings.title": "Worship Features",
+  "worship.settings.subtitle": "Choose what to show",
+  "worship.feature.duha": "Duha Prayer",
+  "worship.feature.qiyam": "Qiyam (Night Prayer)",
+  "worship.feature.rawatib": "Rawatib",
+  "worship.feature.adhkar": "Adhkar",
+  "worship.feature.record": "Worship Record & Points",
+
   // Misc
   "common.cancel": "Cancel",
   "common.close": "Close",

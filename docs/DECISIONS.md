@@ -127,7 +127,8 @@ toggle set into the multi-rule model above.
 `PRAYER_TIMES_API.md`'s `duhaWindow`/`qiyamWindow`):
 - **Duha (الضحى) + Qiyam-al-Layl (last third of night) satellites** — two mini rings flanking the
   main ring (amber / indigo), active during their window with a depleting arc + countdown, dimmed
-  otherwise. Purely informative; not configurable.
+  otherwise. Purely informative. **Now opt-in and off by default** (ADR-007, 2026-07-04) — each has
+  its own Settings switch (`features.duha`/`features.qiyam`).
 - **Iqama countdown bar** — appears between a prayer's adhan and its iqama; per-prayer adhan→iqama
   minutes are **user-configurable** in Settings (localStorage `iqamaMinutes`, defaults Fajr 25 /
   Dhuhr 15 / Asr 15 / Maghrib 5 / Isha 10; sunrise excluded). **Bar colour uses the absolute
@@ -215,3 +216,30 @@ recomputed (`worship-stats`). 49 vitest tests cover the pure modules (client's f
 **Why.** Achievement mechanics (points, streak flame, perfect-day ring, fill-and-check completion)
 motivate consistency, but the main screen stays a prayer clock — every tracker element is ambient
 until the moment it's actionable. Detail in `FRONTEND.md` §8.
+
+---
+
+## ADR-007 — Worship features are opt-in (off by default) ✅
+
+**Decision (2026-07-04).** The hero worship-time aids and the gamified tracker (ADR-003 satellites +
+ADR-006 tracker) are **all opt-in and off by default.** Settings gains a **"مزايا العبادة" (Worship
+Features)** section with **five independent on/off switches** — صلاة الضحى, قيام الليل, الرواتب,
+الأذكار, and سجل العبادة والنقاط (the last gates the fard check-in + score pill + stats/history as one
+unit). A fresh user sees only the core prayer-times screen; they enable exactly the aids they want.
+
+**How.** A persisted `features: { duha, qiyam, rawatib, adhkar, record }` object (all `false`) on the
+`prayer.app.v1` envelope, plumbed exactly like `iqamaMinutes` (`useSettings().setFeature`,
+`coerceFeatures` in `migrate` — missing/legacy → all off). Gating is at the render sites only
+(`NextPrayerCountdown` takes a `features` prop; `App` gates the per-card check-in); `useWorshipLog`
+still runs so tracking data and `isFriday` keep working. Toggling off **hides** UI without touching
+the `prayer.worship.v1` log, so history returns intact when re-enabled. New reusable `ui/Toggle`
+switch (`role="switch"`, RTL-aware, emerald-on). Detail in `FRONTEND.md` §4/§5/§8.
+
+**Why.** The app had accumulated many worship features (Duha, Qiyam, rawatib, adhkar, points, history)
+that rendered unconditionally, crowding the core prayer clock for users who don't want them. Making
+them opt-in keeps the default screen clean while preserving every feature for those who do —
+reversing ADR-003's "not configurable" note for the satellites.
+
+**Consequences.** The `record` switch bundles check-in + points + history (they're one gamification
+unit); rawatib/adhkar completions still feed the internal score even when the `record` pill is hidden
+(invisible until enabled). Regression covered by `client/src/lib/storage.test.ts`.

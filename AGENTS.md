@@ -35,7 +35,9 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
    `docs/PRAYER_TIMES_API.md` (`duhaWindow`/`qiyamWindow`). **+ gamified worship tracker**
    (2026-07-03): fard check-in (masjid +3 / home +2 / missed −1) + rawatib & adhkar corner rings +
    tap-to-count adhkar reader + score/streak stats — client-only in `prayer.worship.v1`
-   (`docs/FRONTEND.md` §8, `docs/DECISIONS.md` ADR-006).
+   (`docs/FRONTEND.md` §8, `docs/DECISIONS.md` ADR-006). **All worship features (Duha, Qiyam,
+   rawatib, adhkar, record+points/history) are opt-in and OFF by default** — five Settings switches,
+   persisted as `features` on `prayer.app.v1` (2026-07-04, ADR-007).
 4. **Bilingual AR/EN**, Arabic default, RTL-aware.
 
 ## Routing table — read the doc BEFORE working on the topic

@@ -5,7 +5,12 @@
 
 import { useCallback, useState } from "react";
 import { loadState, patchState } from "@/lib/storage";
-import type { IqamaMinutes, IqamaPrayer } from "@/lib/storage";
+import type {
+  IqamaMinutes,
+  IqamaPrayer,
+  WorshipFeatures,
+  WorshipFeatureKey,
+} from "@/lib/storage";
 import type { AsrMadhab } from "@/types/api";
 
 export interface SettingsState {
@@ -17,6 +22,8 @@ export interface SettingsState {
   asr: AsrMadhab | null;
   /** Per-prayer adhan→iqama durations in minutes. */
   iqamaMinutes: IqamaMinutes;
+  /** Opt-in worship features (all off by default). */
+  features: WorshipFeatures;
 }
 
 export interface UseSettings extends SettingsState {
@@ -24,12 +31,19 @@ export interface UseSettings extends SettingsState {
   resetMethodToAuto: () => void;
   setAsr: (asr: AsrMadhab) => void;
   setIqama: (prayer: IqamaPrayer, minutes: number) => void;
+  setFeature: (key: WorshipFeatureKey, on: boolean) => void;
 }
 
 export function useSettings(): UseSettings {
   const [state, setState] = useState<SettingsState>(() => {
     const s = loadState();
-    return { method: s.method, methodAuto: s.methodAuto, asr: s.asr, iqamaMinutes: s.iqamaMinutes };
+    return {
+      method: s.method,
+      methodAuto: s.methodAuto,
+      asr: s.asr,
+      iqamaMinutes: s.iqamaMinutes,
+      features: s.features,
+    };
   });
 
   const setMethod = useCallback((key: string) => {
@@ -56,5 +70,13 @@ export function useSettings(): UseSettings {
     });
   }, []);
 
-  return { ...state, setMethod, resetMethodToAuto, setAsr, setIqama };
+  const setFeature = useCallback((key: WorshipFeatureKey, on: boolean) => {
+    setState((prev) => {
+      const next = { ...prev.features, [key]: on };
+      patchState({ features: next });
+      return { ...prev, features: next };
+    });
+  }, []);
+
+  return { ...state, setMethod, resetMethodToAuto, setAsr, setIqama, setFeature };
 }

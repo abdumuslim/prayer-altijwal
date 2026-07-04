@@ -167,6 +167,15 @@ export const ar: Record<StringKey, string> = {
   "stats.month": "شهر",
   "stats.months": "أشهر",
 
+  // Worship features (Settings opt-in — all off by default)
+  "worship.settings.title": "مزايا العبادة",
+  "worship.settings.subtitle": "اختر ما تريد إظهاره",
+  "worship.feature.duha": "صلاة الضحى",
+  "worship.feature.qiyam": "قيام الليل",
+  "worship.feature.rawatib": "الرواتب",
+  "worship.feature.adhkar": "الأذكار",
+  "worship.feature.record": "سجل العبادة والنقاط",
+
   // Misc
   "common.cancel": "إلغاء",
   "common.close": "إغلاق",

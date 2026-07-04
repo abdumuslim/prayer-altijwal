@@ -130,10 +130,12 @@ function App() {
   }, [times.data, times.prayers, times.now, worship]);
 
   // Per-card check-in control (fard only; icon appears once the adhan passes).
+  // Gated by the opt-in "record" feature — off by default.
+  const recordOn = settings.features.record;
   const checkinFor = useMemo(
     () =>
       (name: PrayerName): CardCheckin | null => {
-        if (name === "sunrise") return null;
+        if (!recordOn || name === "sunrise") return null;
         const prayer = name as FardPrayer;
         const enabled = worship.canMark({ kind: "fard", prayer, state: "masjid" });
         const state = worship.today.fard[prayer];
@@ -144,7 +146,7 @@ function App() {
           onMark: (s) => worship.mark({ kind: "fard", prayer, state: s }),
         };
       },
-    [worship],
+    [worship, recordOn],
   );
 
   const readerSlot = typeof sheet === "object" && sheet !== null ? sheet.reader : null;
@@ -175,6 +177,7 @@ function App() {
           prayers={times.prayers}
           iqamaMinutes={settings.iqamaMinutes}
           worship={heroWorship}
+          features={settings.features}
           isFriday={isFriday}
         />
         <PrayerList prayers={times.prayers} now={times.now} checkinFor={checkinFor} isFriday={isFriday} />
@@ -193,7 +196,7 @@ function App() {
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes, heroWorship, checkinFor, isFriday]);
+  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes, settings.features, heroWorship, checkinFor, isFriday]);
 
   // One breath timeline for the whole screen: the period ramps with the next
   // prayer's countdown, and every breathing element (hero halo + next-prayer
@@ -232,6 +235,8 @@ function App() {
         push={push}
         iqamaMinutes={settings.iqamaMinutes}
         onChangeIqama={settings.setIqama}
+        features={settings.features}
+        onChangeFeature={settings.setFeature}
       />
 
       {/* Worship tracker sheets */}

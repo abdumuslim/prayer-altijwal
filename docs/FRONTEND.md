@@ -118,9 +118,12 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 | `location` | `{ city, cityAr?, country, tz, lat, lon, elevation }` |
 | `language` | `"ar"` \| `"en"` |
 | `iqamaMinutes` | `{ fajr, dhuhr, asr, maghrib, isha }` — minutes from adhan to iqama (defaults 25/15/15/5/10; `migrate()` coerces each key to a finite 0–60, defaulting when absent — no version bump). **No `sunrise`** (no iqama). |
+| `features` | `{ duha, qiyam, rawatib, adhkar, record }` — **opt-in worship features, all `false` by default** (§5/§8). `migrate()`/`coerceFeatures` treats each key as `false` unless a real `true` (missing → off), so a fresh or legacy user gets a clean core-only screen. Set via `useSettings().setFeature`. |
 
 Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
-selections are **server-side** (alert rules) — no `reminderPrefs` key.
+selections are **server-side** (alert rules) — no `reminderPrefs` key. Note `features` (the worship
+opt-ins) lives in `prayer.app.v1`; the tracker's *log/history* is a separate envelope
+(`prayer.worship.v1`, §8) — toggling a feature off only hides its UI and never touches that log.
 
 ---
 
@@ -173,7 +176,9 @@ unsupported — no UI, called once in `App`).
   format as the hero/list** (h/m/s units, zero-padded), tinted with the satellite's own colour.
   Windows come from API `duhaWindow`/`qiyamWindow` (`PRAYER_TIMES_API.md`); `usePrayerTimes` refetches
   the instant a window's `end` lapses so the next one loads without waiting for civil-midnight. Hidden
-  when its window is `null` (high latitude).
+  when its window is `null` (high latitude) **or when its feature toggle is off** — each satellite is
+  **opt-in** (`features.duha`/`features.qiyam`, off by default; the whole pinned overlay is skipped
+  when both are off).
 - `IqamaBar` — a horizontal bar below the ring, visible **only** between a prayer's adhan and its
   iqama (`deriveIqama` over `prayers[]` × the stored `iqamaMinutes`; **sunrise excluded**). Sizable
   (`h-2.5` track, `text-[13px]` row, `size-4` icon, `max-w-[320px]`, `mt-2`). **Depletes** adhan→iqama
@@ -193,13 +198,19 @@ unsupported — no UI, called once in `App`).
   the **governorate list** as its default when the query is empty.
 - `GovernorateList` — list of the country's governorate capitals (`/api/geo/governorates`), shown
   **in `CitySearch` only**; selecting one sets the location. **This replaced the manual method/Asr controls.**
-- `SettingsPanel` — the reminders section and the **iqama-timing section** (`IqamaSettings`). **No
+- `SettingsPanel` — a **worship-features section** (`WorshipSettings`, rendered **first**), the
+  reminders section, and the **iqama-timing section** (`IqamaSettings`). **No
   language toggle** (UI locked to Arabic — see §3; removed 2026-06-30). **The location quick-pick is
   not here** — it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as
   redundant (the location header already opens the picker). **No method picker and no Asr madhab
   toggle** (removed — `DECISIONS.md` ADR-002/003).
 - `IqamaSettings` — five per-prayer stepper rows (Minus / value / Plus, clamped 0–60) editing
   `iqamaMinutes` via `useSettings().setIqama`; persisted to localStorage. Sunrise has no row.
+- `WorshipSettings` — five **on/off switches** for the opt-in worship features (`features.{duha,
+  qiyam,rawatib,adhkar,record}`, all off by default) via `useSettings().setFeature`. Rows: صلاة الضحى,
+  قيام الليل, الرواتب, الأذكار, سجل العبادة والنقاط (`record` = fard check-in + score pill + stats/
+  history, as one unit). Each row uses the reusable `ui/Toggle` switch (`role="switch"`, RTL-aware knob,
+  emerald when on). Toggling off only **hides** the widget — `prayer.worship.v1` is untouched.
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
   non-standalone (`NOTIFICATIONS.md`).
@@ -236,6 +247,13 @@ jittering: **tabular figures + fixed digit width** (the countdown zero-pads to 2
 ---
 
 ## 8. Worship tracker (gamified, client-only — ADR-006)
+
+**Opt-in (ADR-007, 2026-07-04):** every hero widget below is **off by default** and gated by a
+per-feature switch in Settings → `features.{duha,qiyam,rawatib,adhkar,record}` (§4/§5). `record` gates
+the whole gamification unit (per-card + hero check-in, score pill, stats/history sheet); the other four
+gate their own widget. The `useWorshipLog` hook still runs unconditionally (it can't be conditionally
+called, and `isFriday` derives from `worship.todayKey`) — only the render is gated, so a disabled
+feature is invisible but its history in `prayer.worship.v1` survives and returns when re-enabled.
 
 All state in **`prayer.worship.v1`** (own versioned envelope, `lib/worship-storage.ts` — isolated
 from `prayer.app.v1` on purpose). Pure logic in `lib/`: `civil-day.ts` (DayKey = civil date in the

@@ -41,6 +41,31 @@ export const DEFAULT_IQAMA_MINUTES = {
 export type IqamaPrayer = keyof typeof DEFAULT_IQAMA_MINUTES;
 export type IqamaMinutes = Record<IqamaPrayer, number>;
 
+/**
+ * Opt-in worship features. All off by default — a fresh user sees only the core
+ * prayer times, and turns on exactly what they want in Settings. `record` gates
+ * the whole gamification unit (fard check-in + score pill + stats/history);
+ * the other four gate their own hero widget. Toggling off only hides the UI —
+ * the underlying `prayer.worship.v1` log is untouched, so history survives.
+ */
+export interface WorshipFeatures {
+  duha: boolean;
+  qiyam: boolean;
+  rawatib: boolean;
+  adhkar: boolean;
+  record: boolean;
+}
+
+export type WorshipFeatureKey = keyof WorshipFeatures;
+
+export const DEFAULT_WORSHIP_FEATURES: WorshipFeatures = {
+  duha: false,
+  qiyam: false,
+  rawatib: false,
+  adhkar: false,
+  record: false,
+};
+
 export interface AppState {
   v: typeof CURRENT_VERSION;
   location: StoredLocation | null;
@@ -52,6 +77,8 @@ export interface AppState {
   reminderPrefs: ReminderPrefs;
   /** Per-prayer adhan→iqama durations in minutes. */
   iqamaMinutes: IqamaMinutes;
+  /** Opt-in worship features (all off by default). */
+  features: WorshipFeatures;
 }
 
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
@@ -69,6 +96,7 @@ export const DEFAULT_STATE: AppState = {
   language: null,
   reminderPrefs: DEFAULT_REMINDER_PREFS,
   iqamaMinutes: { ...DEFAULT_IQAMA_MINUTES },
+  features: { ...DEFAULT_WORSHIP_FEATURES },
 };
 
 /** Coerce a stored value to a valid IqamaMinutes, defaulting each key defensively. */
@@ -81,6 +109,16 @@ function coerceIqama(raw: unknown): IqamaMinutes {
       typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 60
         ? Math.round(v)
         : DEFAULT_IQAMA_MINUTES[key];
+  }
+  return out;
+}
+
+/** Coerce a stored value to valid WorshipFeatures — each key off unless a real `true`. */
+function coerceFeatures(raw: unknown): WorshipFeatures {
+  const src = isRecord(raw) ? raw : {};
+  const out = {} as WorshipFeatures;
+  for (const key of Object.keys(DEFAULT_WORSHIP_FEATURES) as WorshipFeatureKey[]) {
+    out[key] = src[key] === true;
   }
   return out;
 }
@@ -124,6 +162,7 @@ function migrate(raw: unknown): AppState {
         : DEFAULT_REMINDER_PREFS.prayers,
     },
     iqamaMinutes: coerceIqama(raw.iqamaMinutes),
+    features: coerceFeatures(raw.features),
   };
 }
 

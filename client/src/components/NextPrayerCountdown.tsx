@@ -27,7 +27,7 @@ import type { DerivedNext, DerivedPrayer } from "@/hooks/usePrayerTimes";
 import type { CornerVM } from "@/lib/worship-vm";
 import type { FardPrayer, FardState } from "@/lib/worship-log";
 import type { PrayerName, SunnahWindow } from "@/types/api";
-import type { IqamaMinutes } from "@/lib/storage";
+import type { IqamaMinutes, WorshipFeatures } from "@/lib/storage";
 import type { StringKey } from "@/i18n/strings.en";
 
 /** Everything the hero needs from the worship tracker (built in App). */
@@ -56,6 +56,8 @@ interface NextPrayerCountdownProps {
   prayers: DerivedPrayer[];
   iqamaMinutes: IqamaMinutes;
   worship: HeroWorship | null;
+  /** Opt-in worship features — each hero widget renders only when enabled. */
+  features: WorshipFeatures;
   /** Location-tz civil day is a Friday → dhuhr renders as الجمعة. */
   isFriday?: boolean;
 }
@@ -68,6 +70,7 @@ export function NextPrayerCountdown({
   prayers,
   iqamaMinutes,
   worship,
+  features,
   isFriday,
 }: NextPrayerCountdownProps) {
   const { t, lang } = useI18n();
@@ -108,7 +111,7 @@ export function NextPrayerCountdown({
         aria-hidden="true"
       />
 
-      {worship && (
+      {features.record && worship && (
         <ScorePill
           points={worship.pill.points}
           streak={worship.pill.streak}
@@ -126,71 +129,73 @@ export function NextPrayerCountdown({
           DOM-later content column hit-tests above the satellites and swallows
           real clicks (elementFromPoint-verified). pointer-events-none keeps the
           rest of the overlay click-through. */}
-      <div className="pointer-events-none absolute inset-0 z-10 translate-y-6">
-        {duhaState && (
-          <SatelliteRing
-            icon={SunMedium}
-            label={t("sunnah.duha")}
-            state={duhaState}
-            color="var(--color-amber)"
-            side="right"
-            now={now}
-            lang={lang}
-            done={worship?.duhaDone}
-            onClick={worship?.onToggleDuha}
-          />
-        )}
-        {qiyamState && (
-          <SatelliteRing
-            icon={MoonStar}
-            label={t("sunnah.qiyam")}
-            state={qiyamState}
-            color="var(--color-indigo)"
-            side="left"
-            now={now}
-            lang={lang}
-            done={worship?.qiyamDone}
-            onClick={worship?.onToggleQiyam}
-          />
-        )}
-      </div>
+      {(features.duha || features.qiyam) && (
+        <div className="pointer-events-none absolute inset-0 z-10 translate-y-6">
+          {features.duha && duhaState && (
+            <SatelliteRing
+              icon={SunMedium}
+              label={t("sunnah.duha")}
+              state={duhaState}
+              color="var(--color-amber)"
+              side="right"
+              now={now}
+              lang={lang}
+              done={worship?.duhaDone}
+              onClick={worship?.onToggleDuha}
+            />
+          )}
+          {features.qiyam && qiyamState && (
+            <SatelliteRing
+              icon={MoonStar}
+              label={t("sunnah.qiyam")}
+              state={qiyamState}
+              color="var(--color-indigo)"
+              side="left"
+              now={now}
+              lang={lang}
+              done={worship?.qiyamDone}
+              onClick={worship?.onToggleQiyam}
+            />
+          )}
+        </div>
+      )}
 
       {/* Worship corner rings — flank the main ring's lower arc (top-anchored so
           they don't move when the check-in row appears/disappears below). */}
-      {worship && (
-        <>
-          <CornerRing
-            label={t("rawatib.label")}
-            caption={t(worship.rawatib.captionKey as StringKey)}
-            color="var(--color-sky)"
-            side="right"
-            progress={worship.rawatib.progress}
-            active={worship.rawatib.active}
-            complete={worship.rawatib.complete}
-            onClick={worship.rawatib.onOpen}
-            posClass="top-[166px]"
-            dimWhenIdle={false}
-          >
-            <span className="tnum text-[13px] font-extrabold leading-none text-sky">
-              {worship.rawatib.centerText}
-            </span>
-          </CornerRing>
-          <CornerRing
-            label={t("adhkar.label")}
-            caption={t(worship.adhkar.captionKey as StringKey)}
-            color="var(--color-teal)"
-            side="left"
-            progress={worship.adhkar.progress}
-            active={worship.adhkar.active}
-            complete={worship.adhkar.complete}
-            onClick={worship.adhkar.onOpen}
-            posClass="top-[166px]"
-          >
-            <span className="tnum text-[13px] font-extrabold leading-none text-teal">
-              {worship.adhkar.centerText}
-            </span>
-          </CornerRing>
-        </>
+      {features.rawatib && worship && (
+        <CornerRing
+          label={t("rawatib.label")}
+          caption={t(worship.rawatib.captionKey as StringKey)}
+          color="var(--color-sky)"
+          side="right"
+          progress={worship.rawatib.progress}
+          active={worship.rawatib.active}
+          complete={worship.rawatib.complete}
+          onClick={worship.rawatib.onOpen}
+          posClass="top-[166px]"
+          dimWhenIdle={false}
+        >
+          <span className="tnum text-[13px] font-extrabold leading-none text-sky">
+            {worship.rawatib.centerText}
+          </span>
+        </CornerRing>
+      )}
+      {features.adhkar && worship && (
+        <CornerRing
+          label={t("adhkar.label")}
+          caption={t(worship.adhkar.captionKey as StringKey)}
+          color="var(--color-teal)"
+          side="left"
+          progress={worship.adhkar.progress}
+          active={worship.adhkar.active}
+          complete={worship.adhkar.complete}
+          onClick={worship.adhkar.onOpen}
+          posClass="top-[166px]"
+        >
+          <span className="tnum text-[13px] font-extrabold leading-none text-teal">
+            {worship.adhkar.centerText}
+          </span>
+        </CornerRing>
       )}
 
       <div className="relative flex flex-col items-center gap-2">
@@ -234,7 +239,12 @@ export function NextPrayerCountdown({
         {/* Iqama countdown bar — only between a prayer's adhan and its iqama.
             Narrowed so the corner rings' captions never collide with it. */}
         {iqamaState && (
-          <div className={cn("flex w-full justify-center", worship && "max-w-[200px] self-center")}>
+          <div
+            className={cn(
+              "flex w-full justify-center",
+              (features.rawatib || features.adhkar) && "max-w-[200px] self-center",
+            )}
+          >
             <IqamaBar state={iqamaState} now={now} isFriday={isFriday} />
           </div>
         )}
@@ -243,7 +253,7 @@ export function NextPrayerCountdown({
             Suppressed while the iqama bar runs — the prayer hasn't happened yet,
             so asking "where did you pray" would be premature (and the two tall
             elements would overflow small phones together). */}
-        {worship?.checkin && !iqamaState && (
+        {features.record && worship?.checkin && !iqamaState && (
           <HeroCheckinRow
             prayer={worship.checkin.prayer}
             state={worship.checkin.state}
