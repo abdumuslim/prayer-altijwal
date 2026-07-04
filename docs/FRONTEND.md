@@ -207,9 +207,9 @@ unsupported — no UI, called once in `App`).
 - `IqamaSettings` — five per-prayer stepper rows (Minus / value / Plus, clamped 0–60) editing
   `iqamaMinutes` via `useSettings().setIqama`; persisted to localStorage. Sunrise has no row.
 - `WorshipSettings` — five **on/off switches** for the opt-in worship features (`features.{duha,
-  qiyam,rawatib,adhkar,record}`, all off by default) via `useSettings().setFeature`. Rows: صلاة الضحى,
-  قيام الليل, الرواتب, الأذكار, سجل العبادة والنقاط (`record` = fard check-in + score pill + stats/
-  history, as one unit). Each row uses the reusable `ui/Toggle` switch (`role="switch"`, RTL-aware knob,
+  qiyam,rawatib,adhkar,record}`, all off by default) via `useSettings().setFeature`. Section title
+  **المزايا الاضافية**. Rows: صلاة الضحى, قيام الليل, الرواتب, الأذكار, السجل (`record` = fard check-in
+  + score pill + stats/history, as one unit). Each row uses the reusable `ui/Toggle` switch (`role="switch"`, RTL-aware knob,
   emerald when on). Toggling off only **hides** the widget — `prayer.worship.v1` is untouched.
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when

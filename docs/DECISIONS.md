@@ -222,9 +222,9 @@ until the moment it's actionable. Detail in `FRONTEND.md` §8.
 ## ADR-007 — Worship features are opt-in (off by default) ✅
 
 **Decision (2026-07-04).** The hero worship-time aids and the gamified tracker (ADR-003 satellites +
-ADR-006 tracker) are **all opt-in and off by default.** Settings gains a **"مزايا العبادة" (Worship
-Features)** section with **five independent on/off switches** — صلاة الضحى, قيام الليل, الرواتب,
-الأذكار, and سجل العبادة والنقاط (the last gates the fard check-in + score pill + stats/history as one
+ADR-006 tracker) are **all opt-in and off by default.** Settings gains a **"المزايا الاضافية"
+(Additional Features)** section with **five independent on/off switches** — صلاة الضحى, قيام الليل,
+الرواتب, الأذكار, and السجل (the last gates the fard check-in + score pill + stats/history as one
 unit). A fresh user sees only the core prayer-times screen; they enable exactly the aids they want.
 
 **How.** A persisted `features: { duha, qiyam, rawatib, adhkar, record }` object (all `false`) on the
