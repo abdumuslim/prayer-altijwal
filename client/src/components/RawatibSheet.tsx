@@ -59,7 +59,7 @@ export function RawatibSheet({ open, onClose, today, canMark, mark }: RawatibShe
                 "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start",
                 state === "done" && "border-transparent bg-white/[0.05]",
                 state === "open" && "border-dashed border-warning/50 bg-white/[0.02]",
-                state === "locked" && "border-border-soft/50 bg-white/[0.01] opacity-45",
+                state === "locked" && "border-border-soft/50 bg-white/[0.01]",
               )}
             >
               {state === "done" ? (

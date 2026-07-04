@@ -2,9 +2,10 @@
 // pair (morning/evening, the corner's 2) on top, then the five after-prayer
 // lists. Each open row starts the tap-to-count reader; done rows show the +1.
 
-import { Check, ChevronLeft, Circle, Lock } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, Circle, Lock } from "lucide-react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useI18n } from "@/i18n/I18nProvider";
+import { prayerNameKey } from "@/lib/prayer-names";
 import { cn } from "@/lib/utils";
 import {
   ADHKAR_SLOTS,
@@ -12,7 +13,7 @@ import {
   type DayLog,
   type WorshipMark,
 } from "@/lib/worship-log";
-import type { StringKey } from "@/i18n/strings.en";
+import type { PrayerName } from "@/types/api";
 
 interface AdhkarSheetProps {
   open: boolean;
@@ -20,17 +21,20 @@ interface AdhkarSheetProps {
   today: DayLog;
   canMark: (mark: WorshipMark) => boolean;
   onOpenReader: (slot: AdhkarSlot) => void;
+  mark: (mark: WorshipMark) => void;
+  /** Location-tz civil day is a Friday → "بعد الظهر" reads "بعد الجمعة". */
+  isFriday?: boolean;
 }
 
-const AFTER_PRAYER: Record<string, string> = {
-  afterFajr: "prayer.fajr",
-  afterDhuhr: "prayer.dhuhr",
-  afterAsr: "prayer.asr",
-  afterMaghrib: "prayer.maghrib",
-  afterIsha: "prayer.isha",
+const AFTER_PRAYER: Record<string, PrayerName> = {
+  afterFajr: "fajr",
+  afterDhuhr: "dhuhr",
+  afterAsr: "asr",
+  afterMaghrib: "maghrib",
+  afterIsha: "isha",
 };
 
-export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader }: AdhkarSheetProps) {
+export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader, mark, isFriday }: AdhkarSheetProps) {
   const { t } = useI18n();
   const doneCount = ADHKAR_SLOTS.filter((s) => today.adhkar[s]).length;
 
@@ -44,7 +48,7 @@ export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader }: Adh
       ? t("adhkar.morning")
       : slot === "evening"
         ? t("adhkar.evening")
-        : t("adhkar.afterPrayer", { prayer: t(AFTER_PRAYER[slot] as StringKey) });
+        : t("adhkar.afterPrayer", { prayer: t(prayerNameKey(AFTER_PRAYER[slot], !!isFriday)) });
 
   const note = (slot: AdhkarSlot): string | null =>
     slot === "morning" ? t("adhkar.morningNote") : slot === "evening" ? t("adhkar.eveningNote") : null;
@@ -64,43 +68,63 @@ export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader }: Adh
         {ADHKAR_SLOTS.map((slot, i) => {
           const state = rowState(slot);
           const rowNote = note(slot);
+          const done = today.adhkar[slot];
           return (
-            <button
+            <div
               key={slot}
-              type="button"
-              disabled={state === "locked"}
-              onClick={() => state !== "locked" && onOpenReader(slot)}
               className={cn(
-                "flex items-center gap-2.5 rounded-xl border px-3 py-2 text-start",
+                "flex items-center gap-2 rounded-xl border px-3 py-2",
                 // group break between the daily pair and the after-prayer five
                 i === 2 && "mt-1.5",
                 state === "done" && "border-transparent bg-white/[0.05]",
                 state === "open" && "border-teal/40 bg-teal/[0.04]",
-                state === "locked" && "border-border-soft/50 bg-white/[0.01] opacity-45",
+                state === "locked" && "border-border-soft/50 bg-white/[0.01]",
               )}
             >
-              {state === "done" ? (
-                <Check className="size-5 shrink-0 text-teal" />
-              ) : state === "open" ? (
-                <Circle className="size-5 shrink-0 text-teal/70" />
-              ) : (
-                <Lock className="size-4 shrink-0 text-ink-faint" />
+              {/* Row body opens the tap-to-count reader (locked before adhan). */}
+              <button
+                type="button"
+                disabled={state === "locked"}
+                onClick={() => state !== "locked" && onOpenReader(slot)}
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-start"
+              >
+                {state === "done" ? (
+                  <Check className="size-5 shrink-0 text-teal" />
+                ) : state === "open" ? (
+                  <Circle className="size-5 shrink-0 text-teal/70" />
+                ) : (
+                  <Lock className="size-4 shrink-0 text-ink-faint" />
+                )}
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                  <span className={cn("text-[15px] font-semibold leading-none", state === "done" ? "text-ink" : "text-ink-dim")}>
+                    {label(slot)}
+                  </span>
+                  {rowNote && <span className="text-[10.5px] leading-none text-ink-faint">{rowNote}</span>}
+                </span>
+                {state === "open" && (
+                  <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-bold text-teal">
+                    {t("adhkar.start")}
+                    <ChevronLeft className="size-3.5" />
+                  </span>
+                )}
+              </button>
+              {/* Manual check-off — for adhkar recited outside the app. Tapping a
+                  done row's toggle undoes it (mirrors the Duha/Qiyam satellites). */}
+              {state !== "locked" && (
+                <button
+                  type="button"
+                  aria-label={label(slot)}
+                  aria-pressed={done}
+                  onClick={() => mark({ kind: "adhkar", slot, done: !done })}
+                  className={cn(
+                    "grid size-8 shrink-0 place-items-center rounded-full border transition-transform active:scale-90",
+                    done ? "border-teal/60 bg-teal/10 text-teal" : "border-border text-ink-faint",
+                  )}
+                >
+                  <CheckCircle2 className="size-5" />
+                </button>
               )}
-              <span className="flex flex-1 flex-col items-start gap-0.5">
-                <span className={cn("text-[15px] font-semibold leading-none", state === "done" ? "text-ink" : "text-ink-dim")}>
-                  {label(slot)}
-                </span>
-                {rowNote && <span className="text-[10.5px] leading-none text-ink-faint">{rowNote}</span>}
-              </span>
-              {state === "done" ? (
-                <span className="tnum text-[11px] font-bold text-teal">+1</span>
-              ) : state === "open" ? (
-                <span className="flex items-center gap-0.5 text-[11px] font-bold text-teal">
-                  {t("adhkar.start")}
-                  <ChevronLeft className="size-3.5" />
-                </span>
-              ) : null}
-            </button>
+            </div>
           );
         })}
       </div>

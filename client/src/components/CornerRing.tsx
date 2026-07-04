@@ -26,6 +26,9 @@ interface CornerRingProps {
   /** Vertical pin class — top-anchored so it flanks the ring's lower arc
       regardless of what appears below the iqama bar. */
   posClass?: string;
+  /** Dim (and grey the stroke) while idle. Default true; pass false to keep
+      the ring at full presence even when nothing is actionable yet. */
+  dimWhenIdle?: boolean;
   children: ReactNode;
 }
 
@@ -39,6 +42,7 @@ export function CornerRing({
   complete,
   onClick,
   posClass = "bottom-9",
+  dimWhenIdle = true,
   children,
 }: CornerRingProps) {
   return (
@@ -50,7 +54,7 @@ export function CornerRing({
         "absolute z-10 flex w-20 flex-col items-center gap-1.5",
         posClass,
         side === "right" ? "right-1" : "left-1",
-        !active && !complete && "opacity-60",
+        !active && !complete && dimWhenIdle && "opacity-60",
       )}
     >
       <span className="text-[11px] font-bold leading-none" style={{ color }}>
@@ -68,7 +72,7 @@ export function CornerRing({
           className={cn("grid place-items-center rounded-full", active && "satellite-glow")}
           style={active ? ({ "--sat": color } as CSSProperties) : undefined}
         >
-          <ProgressRing progress={progress} size={58} stroke={5} color={active ? color : "rgba(255,255,255,0.2)"}>
+          <ProgressRing progress={progress} size={58} stroke={5} color={active || !dimWhenIdle ? color : "rgba(255,255,255,0.2)"}>
             {children}
           </ProgressRing>
         </div>
