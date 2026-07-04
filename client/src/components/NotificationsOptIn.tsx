@@ -9,8 +9,8 @@ import { localizeNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { usePrayerAlerts } from "@/hooks/usePrayerAlerts";
 import { AlertForm, type AlertDraft } from "@/components/AlertForm";
+import { ALERT_TARGET_LABEL, EXTRA_TARGETS, coversAllFard } from "@/lib/alert-targets";
 import type { PrayerAlert } from "@/types/api";
-import type { StringKey } from "@/i18n/strings.en";
 import type { UsePushSubscription } from "@/hooks/usePushSubscription";
 import type { TFunction } from "@/i18n/I18nProvider";
 import type { Lang } from "@/types/api";
@@ -19,18 +19,20 @@ interface NotificationsOptInProps {
   push: UsePushSubscription;
 }
 
-const ALL_PRAYERS = 5;
-
 /** Human description of a rule, e.g. "Fajr, Dhuhr — 10 min before". */
 function describeRule(a: PrayerAlert, t: TFunction, lang: Lang): string {
-  const names =
-    a.prayers.length === ALL_PRAYERS
-      ? t("notify.allPrayers")
-      : a.prayers.map((p) => t(`prayer.${p}` as StringKey)).join(t("notify.listSep"));
+  const extras = a.prayers.filter((p) => EXTRA_TARGETS.includes(p));
+  // "All prayers" collapses the five fard; any selected extras are appended.
+  const parts = coversAllFard(a.prayers)
+    ? [t("notify.allPrayers"), ...extras.map((p) => t(ALERT_TARGET_LABEL[p]))]
+    : a.prayers.map((p) => t(ALERT_TARGET_LABEL[p]));
+  const names = parts.join(t("notify.listSep"));
   const timing =
     a.timing === "at_time"
       ? t("notify.atTime")
-      : t("notify.minBefore", { min: localizeNumber(a.minutes ?? 0, lang) });
+      : a.timing === "before"
+        ? t("notify.minBefore", { min: localizeNumber(a.minutes ?? 0, lang) })
+        : t("notify.minAfter", { min: localizeNumber(a.minutes ?? 0, lang) });
   return `${names} — ${timing}`;
 }
 

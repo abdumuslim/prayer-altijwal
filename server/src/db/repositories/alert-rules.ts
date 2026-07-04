@@ -3,13 +3,13 @@ import { childLogger } from "../../logger.js";
 
 const log = childLogger("db/alert-rules");
 
-/** When a reminder fires: at the prayer time, or N minutes before it. */
-export type AlertTiming = "at_time" | "before";
+/** When a reminder fires: at the prayer time, or N minutes before / after it. */
+export type AlertTiming = "at_time" | "before" | "after";
 
 /**
- * One reminder rule for a device: fire `prayers` at `timing` (`minutes` before
- * when timing is "before"; null/ignored when "at_time"). A device can own many
- * independent rules — this is the multi-alert model ported from the home project.
+ * One reminder rule for a device: fire `prayers` at `timing` (`minutes` before or
+ * after when timing is "before"/"after"; null/ignored when "at_time"). A device
+ * can own many independent rules — the multi-alert model ported from home.
  */
 export interface AlertRule {
   id: number;

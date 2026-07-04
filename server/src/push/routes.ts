@@ -124,7 +124,7 @@ export function createPushRouter(deps: PushRouterDeps): Router {
       return;
     }
     const { endpoint, timing, prayers } = parsed.data;
-    const minutes = timing === "before" ? (parsed.data.minutes ?? null) : null;
+    const minutes = timing === "at_time" ? null : (parsed.data.minutes ?? null);
     try {
       const alert = await deps.alertRulesRepo.create({ endpoint, timing, minutes, prayers });
       res.status(201).json({ alert });
@@ -146,7 +146,7 @@ export function createPushRouter(deps: PushRouterDeps): Router {
       return;
     }
     const { endpoint, timing, prayers } = parsed.data;
-    const minutes = timing === "before" ? (parsed.data.minutes ?? null) : null;
+    const minutes = timing === "at_time" ? null : (parsed.data.minutes ?? null);
     try {
       const alert = await deps.alertRulesRepo.update(id, endpoint, { timing, minutes, prayers });
       if (!alert) {

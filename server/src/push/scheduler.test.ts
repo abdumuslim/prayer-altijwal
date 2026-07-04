@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PrayerScheduler } from "./scheduler.js";
+import { PrayerScheduler, qiyamAnchorForDay } from "./scheduler.js";
+import { dateKey } from "../prayer/format.js";
 import type {
   SubscriptionsRepo,
   Subscription,
@@ -121,8 +122,37 @@ function fixedTable(): Record<string, Date> {
     asr: new Date("2026-06-19T12:00:00.000Z"),
     maghrib: new Date("2026-06-19T16:00:00.000Z"),
     isha: new Date(NaN), // invalid — must be skipped
+    // Sunnah / adhkar anchors — duha is "due" (== NOW); the rest are far away.
+    duha: DHUHR,
+    qiyam: new Date("2026-06-19T00:30:00.000Z"),
+    adhkar_morning: new Date("2026-06-19T01:00:00.000Z"),
+    adhkar_evening: new Date("2026-06-19T12:00:00.000Z"),
   };
 }
+
+describe("qiyamAnchorForDay", () => {
+  const tz = "Asia/Baghdad";
+  // Baghdad-ish: maghrib ~18:40 local (15:40Z), fajr ~03:00 local (00:00Z).
+  const prevMaghrib = new Date("2026-06-18T15:40:00.000Z");
+  const fajr = new Date("2026-06-19T00:00:00.000Z");
+  const maghrib = new Date("2026-06-19T15:40:00.000Z");
+  const nextFajr = new Date("2026-06-20T00:00:00.000Z");
+
+  it("returns the last-third instant that falls on the requested civil day", () => {
+    const anchor = qiyamAnchorForDay(prevMaghrib, fajr, maghrib, nextFajr, "2026-06-19", tz);
+    expect(anchor).not.toBeNull();
+    expect(dateKey(anchor as Date, tz)).toBe("2026-06-19");
+  });
+
+  it("returns null when neither candidate lands on the day", () => {
+    expect(qiyamAnchorForDay(prevMaghrib, fajr, maghrib, nextFajr, "2030-01-01", tz)).toBeNull();
+  });
+
+  it("returns null on invalid (high-latitude NaN) inputs", () => {
+    const nan = new Date(NaN);
+    expect(qiyamAnchorForDay(nan, nan, nan, nan, "2026-06-19", tz)).toBeNull();
+  });
+});
 
 describe("PrayerScheduler", () => {
   let send: ReturnType<typeof vi.fn<SendFn>>;
@@ -264,6 +294,79 @@ describe("PrayerScheduler", () => {
     // Their dedup keys are distinct (different local dates may apply, but
     // endpoints differ regardless), proving independent schedules.
     expect(logRepo.seen.size).toBe(2);
+  });
+
+  it("fires a duha rule when duha is due", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ prayers: ["duha"] })]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ prayer: "duha", lead: 0 }),
+    );
+  });
+
+  it("an 'after' rule fires N minutes after the prayer, not at it", async () => {
+    // A rule "adhkar_morning, 30 min after". adhkar_morning is at 01:00Z; it must
+    // fire at 01:30Z (lead −30 in window) and NOT at 01:00Z.
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([
+      makeRule({ timing: "after", minutes: 30, prayers: ["adhkar_morning"] }),
+    ]);
+    const logRepo = new FakePushLogRepo();
+
+    // At the prayer time exactly → not yet due for an "after" alert.
+    const atPrayer = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo,
+      now: () => new Date("2026-06-19T01:00:00.000Z"),
+      computeTimes: () => fixedTable(),
+      send,
+    });
+    await atPrayer.tick();
+    expect(send).not.toHaveBeenCalled();
+
+    // 30 min later → in the arming window.
+    const after = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo,
+      now: () => new Date("2026-06-19T01:30:00.000Z"),
+      computeTimes: () => fixedTable(),
+      send,
+    });
+    await after.tick();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ prayer: "adhkar_morning", lead: -30 }),
+    );
+  });
+
+  it("silently skips an unknown target that slipped past validation", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ prayers: ["not_a_prayer"] })]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+    await scheduler.tick();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("fires across multiple rules for the same prayer", async () => {

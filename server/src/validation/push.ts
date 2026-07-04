@@ -9,8 +9,24 @@ export const PushSubscriptionSchema = z.object({
   }),
 });
 
-/** Prayers that may be selected for reminders (sunrise is informational only). */
+/** Prayers stored on the legacy subscription columns (sunrise is informational only). */
 const PrayerName = z.enum(["fajr", "dhuhr", "asr", "maghrib", "isha"]);
+/**
+ * Targets an alert rule may fire on: the five fard plus the sunnah/adhkar anchors
+ * (duha = window start, qiyam = last-third start, morning/evening adhkar). Kept
+ * separate from PrayerName so the legacy subscription columns stay fard-only.
+ */
+const AlertTarget = z.enum([
+  "fajr",
+  "dhuhr",
+  "asr",
+  "maghrib",
+  "isha",
+  "duha",
+  "qiyam",
+  "adhkar_morning",
+  "adhkar_evening",
+]);
 const Lang = z.enum(["ar", "en"]);
 
 /** POST /api/push/subscribe body. Reminders live in alert rules now, so prayers/
@@ -34,12 +50,12 @@ export type SubscribeInput = z.infer<typeof SubscribeBody>;
 export const AlertRuleBody = z
   .object({
     endpoint: z.string().url(),
-    timing: z.enum(["at_time", "before"]),
+    timing: z.enum(["at_time", "before", "after"]),
     minutes: z.number().int().min(1).max(180).nullable().optional(),
-    prayers: z.array(PrayerName).min(1),
+    prayers: z.array(AlertTarget).min(1),
   })
   .refine((b) => b.timing === "at_time" || (b.minutes != null && b.minutes >= 1), {
-    message: "minutes (1–180) is required when timing is 'before'",
+    message: "minutes (1–180) is required when timing is 'before' or 'after'",
     path: ["minutes"],
   });
 

@@ -160,8 +160,24 @@ export interface PushSubscribeBody {
   lang: Lang;
 }
 
-/** When a reminder fires: at the prayer time, or N minutes before. */
-export type AlertTiming = "at_time" | "before";
+/** When a reminder fires: at the prayer time, or N minutes before / after. */
+export type AlertTiming = "at_time" | "before" | "after";
+
+/**
+ * What a reminder rule can fire on: the five fard plus the sunnah/adhkar anchors
+ * (duha = window start, qiyam = last-third start, morning/evening adhkar). Kept
+ * separate from PrayerName so sunrise stays out and the display code is explicit.
+ */
+export type AlertTarget =
+  | "fajr"
+  | "dhuhr"
+  | "asr"
+  | "maghrib"
+  | "isha"
+  | "duha"
+  | "qiyam"
+  | "adhkar_morning"
+  | "adhkar_evening";
 
 /** A single reminder rule belonging to a device (push endpoint). */
 export interface PrayerAlert {
@@ -169,7 +185,7 @@ export interface PrayerAlert {
   endpoint: string;
   timing: AlertTiming;
   minutes: number | null;
-  prayers: PrayerName[];
+  prayers: AlertTarget[];
 }
 
 /** Body for creating/updating a reminder rule. */
@@ -177,7 +193,7 @@ export interface AlertInput {
   endpoint: string;
   timing: AlertTiming;
   minutes: number | null;
-  prayers: PrayerName[];
+  prayers: AlertTarget[];
 }
 
 export interface AlertsResponse {

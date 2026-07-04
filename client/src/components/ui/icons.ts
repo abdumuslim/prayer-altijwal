@@ -5,13 +5,16 @@
 import {
   Sunrise,
   Sun,
+  SunMedium,
   CloudSun,
+  CloudMoon,
   Sunset,
   MoonStar,
   Moon,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import type { PrayerName } from "@/types/api";
+import type { AlertTarget, PrayerName } from "@/types/api";
 
 export const PRAYER_ICONS: Record<PrayerName, LucideIcon> = {
   fajr: MoonStar, // pre-dawn — crescent + star
@@ -20,4 +23,19 @@ export const PRAYER_ICONS: Record<PrayerName, LucideIcon> = {
   asr: CloudSun, // softening afternoon
   maghrib: Sunset, // sun setting
   isha: Moon, // night
+};
+
+// Icon per reminder target: the five fard reuse PRAYER_ICONS; the sunnah/adhkar
+// targets get their own distinct glyphs (duha matches the hero Duha satellite;
+// qiyam avoids fajr's MoonStar; morning/evening adhkar read as sunrise/night).
+export const ALERT_TARGET_ICONS: Record<AlertTarget, LucideIcon> = {
+  fajr: PRAYER_ICONS.fajr,
+  dhuhr: PRAYER_ICONS.dhuhr,
+  asr: PRAYER_ICONS.asr,
+  maghrib: PRAYER_ICONS.maghrib,
+  isha: PRAYER_ICONS.isha,
+  duha: SunMedium,
+  qiyam: Sparkles,
+  adhkar_morning: Sunrise,
+  adhkar_evening: CloudMoon,
 };

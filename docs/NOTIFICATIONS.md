@@ -61,19 +61,28 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 );
 
 -- Multiple independent reminders per device (ported from home). Each rule fires
--- its `prayers` at `timing` ('at_time' | N minutes 'before'). A device owns many.
--- This REPLACES the single lead_minutes/prayers arrays above (those columns stay
--- for back-compat but the scheduler reads only this table).
+-- its `prayers` at `timing` ('at_time' | N minutes 'before' | N minutes 'after').
+-- A device owns many. This REPLACES the single lead_minutes/prayers arrays above
+-- (those columns stay for back-compat but the scheduler reads only this table).
 CREATE TABLE IF NOT EXISTS prayer_alert_rules (
   id          SERIAL PRIMARY KEY,
   endpoint    TEXT NOT NULL REFERENCES push_subscriptions(endpoint) ON DELETE CASCADE,
-  timing      TEXT NOT NULL CHECK (timing IN ('at_time','before')),
-  minutes     INTEGER,                          -- minutes-before when timing='before'; null at_time
-  prayers     TEXT[] NOT NULL,                  -- subset of {fajr,dhuhr,asr,maghrib,isha}
+  timing      TEXT NOT NULL CHECK (timing IN ('at_time','before','after')),
+  minutes     INTEGER,                          -- minutes before/after; null when at_time
+  prayers     TEXT[] NOT NULL,                  -- AlertTarget[]: the five fard + duha/qiyam/
+                                                --   adhkar_morning/adhkar_evening (no value CHECK;
+                                                --   zod is the only gate)
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_prayer_alert_rules_endpoint ON prayer_alert_rules (endpoint);
+
+-- 2026-07 migration: widen the timing CHECK to include 'after' on already-deployed
+-- tables (CREATE TABLE IF NOT EXISTS never alters an existing table). Idempotent pair;
+-- verify the auto-name once on the VPS via pg_constraint.
+ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_timing_check;
+ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_timing_check
+  CHECK (timing IN ('at_time','before','after'));
 
 -- Persistent dedup ledger — survives restarts (the fix for home's in-memory Set).
 CREATE TABLE IF NOT EXISTS push_log (
@@ -94,12 +103,18 @@ A daily prune deletes `push_log` rows older than ~48h. Repo: `db/repositories/al
 
 Replacing the old single "per-prayer toggles + lead chips" panel: the user builds a **list of rules**,
 each `{ timing, minutes?, prayers[] }` (e.g. *all prayers, 10 min before* and *Fajr, at time*). On
-first enable, one **default rule** is seeded (all prayers, 10 min before). Client pieces:
+first enable, one **default rule** is seeded (5 fard, 10 min before). Client pieces:
 
 - `usePushSubscription(endpoint)` — manages the subscription lifecycle only (subscribe/unsubscribe,
   re-subscribe on location/method/lang change) and exposes the `endpoint`.
 - `usePrayerAlerts(endpoint)` — loads + mutates the rules via `/api/push/alerts`.
 - `NotificationsOptIn` (enable/disable + the rule list with add/edit/delete) + `AlertForm` (one rule).
+- **Targets & timing (2026-07):** `AlertForm` offers two chip groups — the five fard, then the
+  sunnah/adhkar group `duha`/`qiyam`/`adhkar_morning`/`adhkar_evening` (`lib/alert-targets.ts` +
+  `ui/icons.ts ALERT_TARGET_ICONS`; labels reuse `sunnah.*`/`adhkar.*`). Timing is a 3-way radio:
+  at-time / **before** / **after** (N min). "Select all" governs only the fard subset, and a rule
+  reads "all prayers" only when it contains every fard (extras appended). `client/src/types/api.ts`
+  `AlertTarget` is the union; `PrayerName` stays fard+sunrise only.
 
 `localStorage` no longer needs `reminderPrefs` — reminders are server-side.
 
@@ -126,18 +141,35 @@ subs, rules = listAll(subscriptions), listAll(alert_rules)
 rulesByEndpoint = group rules by endpoint
 for each sub in subs:
   subRules = rulesByEndpoint[sub.endpoint]; if none → skip   // no reminders configured
-  table = cachedTimesFor(sub)                 // cache per (endpoint, localDateKey); recompute at local midnight
+  table = cachedTimesFor(sub)                 // extended table (below); recompute at local midnight
   for rule in subRules:
-    lead = rule.timing == 'at_time' ? 0 : max(0, rule.minutes)
-    for prayer in rule.prayers:               // sunrise excluded (informational)
-      t = table[prayer]; if invalid → continue
-      minutesLeft = (t - now) / 60000
-      if minutesLeft <= lead and minutesLeft > lead - 1.5:    // arming window > tick interval
-        fireKey = `${localDateKey}-r${rule.id}-${prayer}`     // PER-RULE dedup
-        won = INSERT push_log(endpoint, fireKey) ON CONFLICT DO NOTHING RETURNING 1
-        if won: sendPush(sub.subscription, buildPushPayload(prayer, lead, sub.lang))
+    lead = rule.timing=='at_time' ? 0 : rule.timing=='before' ? +min : -min    // signed
+    days = [today] + (rule.timing=='after' ? [yesterday] : [])   // after may cross local midnight
+    for (dayKey, table) in days:
+      for target in rule.prayers:             // sunrise excluded (informational)
+        t = table[target]; if invalid → continue
+        minutesLeft = (t - now) / 60000
+        if minutesLeft <= lead and minutesLeft > lead - 1.5:    // arming window > tick interval
+          fireKey = `${dayKey}-r${rule.id}-${target}`           // PER-RULE, PER-DAY dedup
+          won = INSERT push_log(endpoint, fireKey) ON CONFLICT DO NOTHING RETURNING 1
+          if won: sendPush(sub, buildPushPayload(target, lead, sub.lang, {friday}))
 ```
-- **Per-rule `fireKey`** (`…-r${ruleId}-…`) so two rules covering the same prayer fire independently
+- **Extended per-day table (`computeDefaultTable`)**: the five fard PLUS `duha` (=`duhaWindow(sunrise,
+  dhuhr).start`, sunrise+15), `qiyam` (=the last-third-of-night start that lands on this civil day —
+  `qiyamAnchorForDay` picks between last-night's and tonight's third), and `adhkar_morning`/
+  `adhkar_evening` (= fajr / asr). Three day-sets are computed (yesterday/today/tomorrow, DST-safe from
+  solar noon, the same pattern as `payload.ts`) so qiyam resolves to the right side of midnight;
+  invalid (high-lat NaN) anchors are omitted. `SCHEDULABLE` gates the target set.
+- **Signed lead / "after":** `before` = +minutes (fire early), `after` = −minutes (fire late); the
+  arming-window check works unchanged for negative leads. `buildPushPayload` bodies: `lead>0` "in N
+  min", `lead==0` a per-target at-time phrase, `lead<0` "N min ago".
+- **After crosses midnight:** an `after` fire can land on the next civil day (e.g. isha+180). The
+  cache retains the **previous** day's table (`prevTable`) so `after` rules also evaluate yesterday's
+  anchor; the `fireKey` carries the anchor's own `dayKey` so dedup stays per-day-correct. (Cold start
+  inside that window can miss it — rare, accepted.)
+- **Friday title:** `fire()` computes the weekday of the target instant in the sub's tz; on Fridays
+  `buildPushPayload` renders dhuhr's title as «الجمعة»/"Jumu'ah" (see FRONTEND §8's client mirror).
+- **Per-rule `fireKey`** (`…-r${ruleId}-…`) so two rules covering the same target fire independently
   and dedup separately. Everything else from home's hardening is **kept**: the restart-safe `push_log`
   ledger (no regression to an in-memory Set) and the per-`(endpoint, localDateKey)` table cache.
 
@@ -150,9 +182,9 @@ for each sub in subs:
 - **Caching:** in-memory `Map<endpoint, {dateKey, table}>` avoids recomputing the ephemeris every
   tick; invalidate when the subscriber's `localDateKey` rolls. Cold start recomputes — fine.
 - **Payload built server-side** (`push/notification-text.ts` `buildPushPayload`): the scheduler has
-  the subscriber's `lang`, so it sends `{ title, body }` already localized (prayer name + "It's time" /
-  "in N minutes"; **Latin numerals**). This fixes a latent bug where the SW received no body and showed
-  an empty notification — the SW now just renders the given `title`/`body`.
+  the subscriber's `lang`, so it sends `{ title, body }` already localized (target name + at-time /
+  "in N min" / "N min ago"; **Latin numerals**; Friday dhuhr → الجمعة). This fixes a latent bug where
+  the SW received no body and showed an empty notification — the SW now just renders `title`/`body`.
 
 ---
 
@@ -161,7 +193,8 @@ for each sub in subs:
 `GET /api/push/vapid-key` · `POST /api/push/subscribe` · `POST /api/push/unsubscribe` ·
 `POST /api/push/prefs` · and the reminder-rule CRUD `GET/POST /api/push/alerts`,
 `PUT/DELETE /api/push/alerts/:id` (ownership scoped to the `endpoint`; `AlertRuleBody` requires
-`minutes` 1–180 when `timing='before'`). All zod-validated at the boundary.
+`minutes` 1–180 when `timing='before'|'after'`; `prayers` is the `AlertTarget` enum). All
+zod-validated at the boundary.
 
 ---
 

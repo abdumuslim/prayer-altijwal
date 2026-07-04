@@ -124,7 +124,11 @@ DELETE /api/push/alerts/:id?endpoint={url}                              → { ok
   "prayers": ["fajr","dhuhr",          "minutes": 10,
               "asr","maghrib","isha"]  "prayers": ["fajr","dhuhr","asr","maghrib","isha"] }
 }
-// timing ∈ {"at_time","before"}; minutes (1–180) is REQUIRED when timing="before", else null/ignored.
+// timing ∈ {"at_time","before","after"}; minutes (1–180) is REQUIRED when timing="before"|"after",
+// else null/ignored.
+// prayers ∈ the AlertTarget enum: the five fard PLUS "duha", "qiyam", "adhkar_morning",
+// "adhkar_evening" (sunnah/adhkar anchors — see NOTIFICATIONS.md §4). Kept as a plain TEXT[] in the
+// DB; the zod AlertTarget enum is the only gate. Legacy subscribe/prefs `prayers` stay fard-only.
 ```
 
 ---

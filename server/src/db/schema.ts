@@ -35,13 +35,15 @@ CREATE TABLE IF NOT EXISTS push_log (
 CREATE INDEX IF NOT EXISTS idx_push_log_fired_at ON push_log (fired_at);
 
 -- Multiple independent reminders per device (ported from the home project):
--- each rule fires its chosen prayers at a chosen timing (at the time, or N
--- minutes before). Replaces the single lead_minutes/prayers arrays on
--- push_subscriptions (those columns are kept but unused for back-compat).
+-- each rule fires its chosen targets at a chosen timing (at the time, or N
+-- minutes before / after). The prayers column is a plain TEXT[] (no value CHECK)
+-- so the fard + sunnah/adhkar targets are gated only by the zod schema at the
+-- boundary. Replaces the single lead_minutes/prayers arrays on push_subscriptions
+-- (those columns are kept but unused for back-compat).
 CREATE TABLE IF NOT EXISTS prayer_alert_rules (
   id          SERIAL PRIMARY KEY,
   endpoint    TEXT NOT NULL REFERENCES push_subscriptions(endpoint) ON DELETE CASCADE,
-  timing      TEXT NOT NULL CHECK (timing IN ('at_time','before')),
+  timing      TEXT NOT NULL CHECK (timing IN ('at_time','before','after')),
   minutes     INTEGER,
   prayers     TEXT[] NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -49,6 +51,15 @@ CREATE TABLE IF NOT EXISTS prayer_alert_rules (
 );
 
 CREATE INDEX IF NOT EXISTS idx_prayer_alert_rules_endpoint ON prayer_alert_rules (endpoint);
+
+-- 2026-07 migration: widen the timing CHECK to include 'after'. CREATE TABLE
+-- IF NOT EXISTS never alters an already-deployed table, so drop and re-add the
+-- constraint explicitly. Idempotent as a pair; existing rows all satisfy it.
+-- (prayer_alert_rules_timing_check is Postgres's deterministic auto-name for the
+-- inline column CHECK — verify on the VPS via pg_constraint after deploy.)
+ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_timing_check;
+ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_timing_check
+  CHECK (timing IN ('at_time','before','after'));
 `;
 
 /** Apply the idempotent schema. Run once at startup, after createPool. */
