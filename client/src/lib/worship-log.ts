@@ -53,6 +53,10 @@ export const PERFECT_DAY_SCORE = 29;
 export type DayKey = string;
 export type MonthKey = string;
 
+/** The four worship sections that each get their own completion streak. */
+export const WORSHIP_SECTIONS = ["fard", "rawatib", "adhkar", "sunan"] as const;
+export type WorshipSection = (typeof WORSHIP_SECTIONS)[number];
+
 export interface DayLog {
   fard: Record<FardPrayer, FardState>;
   rawatib: Record<RawatibSlot, boolean>;
@@ -84,6 +88,10 @@ export interface DhikrProgress {
   counts: number[];
 }
 
+/** Per-section compacted streak run ending exactly at the newest folded day. */
+export type PrefixStreak = { end: DayKey; length: number } | null;
+export type PrefixStreaks = Record<WorshipSection, PrefixStreak>;
+
 /** The `prayer.worship.v1` localStorage envelope (see worship-storage.ts). */
 export interface WorshipState {
   v: 1;
@@ -91,19 +99,24 @@ export interface WorshipState {
   days: Record<DayKey, DayLog>;
   /** Everything older, folded per month — kept forever. */
   months: Record<MonthKey, MonthAggregate>;
-  /** Consecutive score>0 run ending exactly at the newest compacted day. */
-  prefixStreak: { end: DayKey; length: number } | null;
+  /** Per-section consecutive-completion run ending at the newest folded day. */
+  prefixStreaks: PrefixStreaks;
   /** Entries with a stale dayKey are dropped on load/rollover. */
   dhikrProgress: Partial<Record<AdhkarSlot, DhikrProgress>>;
 }
 
 export const RETAIN_DAYS = 62;
 
+/** A fresh, all-null per-section prefix map. */
+export function emptyPrefixStreaks(): PrefixStreaks {
+  return { fard: null, rawatib: null, adhkar: null, sunan: null };
+}
+
 export const DEFAULT_WORSHIP_STATE: WorshipState = {
   v: 1,
   days: {},
   months: {},
-  prefixStreak: null,
+  prefixStreaks: emptyPrefixStreaks(),
   dhikrProgress: {},
 };
 
@@ -158,4 +171,24 @@ export function scoreDay(log: DayLog): number {
 
 export function isPerfectDay(log: DayLog): boolean {
   return scoreDay(log) === PERFECT_DAY_SCORE;
+}
+
+/**
+ * Whether a section counts as fully done for the day (drives its streak):
+ * - fard: all five prayed (masjid or home) — any missed OR unmarked breaks it;
+ * - rawatib: all five sunnah slots;
+ * - adhkar: the daily pair (morning + evening) — the after-prayer slots don't count;
+ * - sunan: both Duha and Qiyam.
+ */
+export function sectionComplete(log: DayLog, section: WorshipSection): boolean {
+  switch (section) {
+    case "fard":
+      return FARD_PRAYERS.every((p) => log.fard[p] === "masjid" || log.fard[p] === "home");
+    case "rawatib":
+      return RAWATIB_SLOTS.every((s) => log.rawatib[s]);
+    case "adhkar":
+      return log.adhkar.morning && log.adhkar.evening;
+    case "sunan":
+      return log.duha && log.qiyam;
+  }
 }

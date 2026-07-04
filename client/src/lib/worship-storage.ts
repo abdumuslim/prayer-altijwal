@@ -14,10 +14,14 @@ import {
   FARD_PRAYERS,
   RAWATIB_SLOTS,
   RETAIN_DAYS,
-  scoreDay,
+  WORSHIP_SECTIONS,
+  emptyPrefixStreaks,
+  sectionComplete,
   type DayKey,
   type DayLog,
   type MonthAggregate,
+  type PrefixStreak,
+  type PrefixStreaks,
   type WorshipState,
 } from "@/lib/worship-log";
 
@@ -105,16 +109,24 @@ export function migrate(raw: unknown): WorshipState {
     }
   }
 
-  const ps = raw.prefixStreak;
-  const prefixStreak =
-    isRecord(ps) &&
-    typeof ps.end === "string" &&
-    DAY_KEY_RE.test(ps.end) &&
-    typeof ps.length === "number" &&
-    Number.isInteger(ps.length) &&
-    ps.length >= 0
-      ? { end: ps.end, length: ps.length }
+  // Per-section compacted-streak carries. (The old single `prefixStreak` field
+  // from before per-section streaks is simply ignored — there is no data older
+  // than the feature to migrate.)
+  const coercePrefix = (v: unknown): PrefixStreak =>
+    isRecord(v) &&
+    typeof v.end === "string" &&
+    DAY_KEY_RE.test(v.end) &&
+    typeof v.length === "number" &&
+    Number.isInteger(v.length) &&
+    v.length >= 0
+      ? { end: v.end, length: v.length }
       : null;
+
+  const psRaw = isRecord(raw.prefixStreaks) ? raw.prefixStreaks : {};
+  const prefixStreaks = emptyPrefixStreaks();
+  for (const section of WORSHIP_SECTIONS) {
+    prefixStreaks[section] = coercePrefix(psRaw[section]);
+  }
 
   const dhikrProgress: WorshipState["dhikrProgress"] = {};
   if (isRecord(raw.dhikrProgress)) {
@@ -135,7 +147,7 @@ export function migrate(raw: unknown): WorshipState {
     }
   }
 
-  return { v: 1, days, months, prefixStreak, dhikrProgress };
+  return { v: 1, days, months, prefixStreaks, dhikrProgress };
 }
 
 export function loadWorshipState(): WorshipState {
@@ -172,7 +184,7 @@ export function compact(state: WorshipState, todayKey: DayKey): WorshipState {
 
   const days = { ...state.days };
   const months = { ...state.months };
-  let prefixStreak = state.prefixStreak;
+  const prefixStreaks: PrefixStreaks = { ...state.prefixStreaks };
 
   for (const key of foldKeys) {
     const log = days[key];
@@ -197,16 +209,19 @@ export function compact(state: WorshipState, todayKey: DayKey): WorshipState {
         }
       : c;
 
-    // Advance the compacted streak run: a positive day extends it only when
-    // calendar-contiguous with the previous fold; otherwise it restarts (or
-    // zeroes on a non-positive day).
-    if (scoreDay(log) > 0) {
-      prefixStreak =
-        prefixStreak && prefixStreak.end === prevDayKey(key)
-          ? { end: key, length: prefixStreak.length + 1 }
-          : { end: key, length: 1 };
-    } else {
-      prefixStreak = { end: key, length: 0 };
+    // Advance each section's compacted run independently: a complete day extends
+    // it only when calendar-contiguous with the previous fold; otherwise it
+    // restarts (or zeroes on an incomplete day).
+    for (const section of WORSHIP_SECTIONS) {
+      const prevRun = prefixStreaks[section];
+      if (sectionComplete(log, section)) {
+        prefixStreaks[section] =
+          prevRun && prevRun.end === prevDayKey(key)
+            ? { end: key, length: prevRun.length + 1 }
+            : { end: key, length: 1 };
+      } else {
+        prefixStreaks[section] = { end: key, length: 0 };
+      }
     }
   }
 
@@ -215,5 +230,5 @@ export function compact(state: WorshipState, todayKey: DayKey): WorshipState {
     Object.entries(state.dhikrProgress).filter(([, v]) => v && v.dayKey === todayKey),
   ) as WorshipState["dhikrProgress"];
 
-  return { v: 1, days, months, prefixStreak, dhikrProgress };
+  return { v: 1, days, months, prefixStreaks, dhikrProgress };
 }

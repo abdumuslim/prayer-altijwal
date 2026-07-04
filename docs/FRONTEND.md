@@ -240,12 +240,40 @@ jittering: **tabular figures + fixed digit width** (the countdown zero-pads to 2
 All state in **`prayer.worship.v1`** (own versioned envelope, `lib/worship-storage.ts` — isolated
 from `prayer.app.v1` on purpose). Pure logic in `lib/`: `civil-day.ts` (DayKey = civil date in the
 **location tz**; `localDayKey` extracted from `usePrayerTimes`), `worship-log.ts` (types, 29-point
-rubric, immutable `applyMark`), `worship-windows.ts` (adhan-gate + midnight lock; null timestamps
-degrade to markable), `worship-stats.ts` (score/streak/best/last7/totals — always derived),
+rubric, immutable `applyMark`, `sectionComplete` + `WORSHIP_SECTIONS`), `worship-windows.ts`
+(adhan-gate + midnight lock; null timestamps degrade to markable), `worship-stats.ts`
+(score / **per-section streaks** / best / last7 / **last30** / **monthly** / totals — always derived),
 `worship-vm.ts` (corner-ring + check-in view-models), `adhkar-data.ts` (dhikr texts from the user's
-posters + `slotComplete`/`listProgress`). One stateful hook: `useWorshipLog` (rollover via the
-existing 1 s tick; 62-day compaction with `prefixStreak`; dhikr counts debounced 500 ms + pagehide
-flush). **Tested**: `npm --prefix client test` (vitest, node env, pure modules only).
+posters + `slotComplete`/`listProgress`), `prayer-names.ts` (`isFridayKey` + `prayerNameKey` — the
+Friday الجمعة swap). One stateful hook: `useWorshipLog` (rollover via the existing 1 s tick; 62-day
+compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms + pagehide flush).
+**Tested**: `npm --prefix client test` (vitest, node env, pure modules only).
+
+**Follow-ups (2026-07-03, second pass):**
+- **Friday → الجمعة.** On a Friday civil day the Dhuhr label reads «الجمعة» everywhere a *today*
+  prayer name shows (card, hero ring, check-in question, iqama bar, "بعد الجمعة" after-prayer adhkar)
+  — `App` computes `isFriday = isFridayKey(worship.todayKey)` and threads one boolean down. Config
+  surfaces (alert chips, rule descriptions, iqama settings) keep «الظهر». Server push mirrors this
+  (NOTIFICATIONS §4). Points/rawatib semantics unchanged.
+- **Rawatib ring never dims.** `CornerRing` gained `dimWhenIdle` (default true); the rawatib instance
+  passes `false`, so it keeps full opacity + its sky stroke even when idle. Locked `RawatibSheet` rows
+  dropped `opacity-45` (lock icon + flat border still distinguish them). Adhkar ring unchanged.
+- **Manual adhkar check-off.** Each `AdhkarSheet` row is now a `div` = body button (opens the reader)
+  + a trailing `CheckCircle2` toggle wired to `mark({kind:"adhkar",slot,done})` (mirrors the
+  Duha/Qiyam satellite toggles), gated by the existing `canMark`. Lets a user record adhkar read
+  outside the app without tap-counting.
+- **Check-in popover.** `CheckinControl` now **portals** the 3-icon trio to `<body>` (the prayer-list
+  `.card` sets `backdrop-filter` + a retained `animate-rise-in` transform, both of which trap
+  `position:fixed` and cap z-index). On open it measures the trigger rect, dims the page with a
+  `bg-black/60` backdrop, and renders a **pixel-identical clone** of the trigger (above the backdrop,
+  pointer-events-none) so the source icon stays lit; the trio is centred on the icon and clamped
+  on-screen. Body scroll locks; resize/Escape/backdrop close.
+- **Stats: per-section streaks + history views.** `deriveStats.streaks` is a `Record<WorshipSection,
+  number>` (fard = all 5 prayed; rawatib = all 5 slots; adhkar = the morning+evening pair; sunan =
+  duha AND qiyam), carried past compaction by per-section `prefixStreaks`. `StatsSheet` shows each
+  category's 🔥 streak inline and a 3-chip switcher — **أسبوع** (7-day), **شهر** (`last30`, day-of-month
+  labels every 5th), **أشهر** (`monthly`: month folds + retained days grouped by month, ≤12, current
+  gold). The hero `ScorePill` flame is now the **fard** streak.
 
 **UI (design 3 of the numbered preview — `/?design=N` in dev, number keys 1–8):**
 - `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → `StatsSheet` (today ring /29, category

@@ -2,9 +2,13 @@ import { describe, expect, test } from "vitest";
 import { dayContribution, deriveStats } from "./worship-stats";
 import {
   DEFAULT_WORSHIP_STATE,
+  FARD_PRAYERS,
+  RAWATIB_SLOTS,
   applyMark,
   emptyDayLog,
+  emptyPrefixStreaks,
   type DayLog,
+  type PrefixStreaks,
   type WorshipMark,
   type WorshipState,
 } from "./worship-log";
@@ -15,10 +19,25 @@ const TODAY = "2026-07-03";
 const dayWith = (marks: WorshipMark[]): DayLog =>
   marks.reduce((acc, m) => applyMark(acc, m), emptyDayLog(TZ));
 
-/** A simple positive day: fajr in masjid (+3). */
-const positiveDay = (): DayLog => dayWith([{ kind: "fard", prayer: "fajr", state: "masjid" }]);
-/** A negative day: one missed prayer, nothing else (−1). */
-const negativeDay = (): DayLog => dayWith([{ kind: "fard", prayer: "dhuhr", state: "missed" }]);
+/** A day complete in every section (all fard, all rawatib, both adhkar, both sunan). */
+const completeAll = (): DayLog =>
+  dayWith([
+    ...FARD_PRAYERS.map((p) => ({ kind: "fard", prayer: p, state: "masjid" }) as WorshipMark),
+    ...RAWATIB_SLOTS.map((s) => ({ kind: "rawatib", slot: s, done: true }) as WorshipMark),
+    { kind: "adhkar", slot: "morning", done: true },
+    { kind: "adhkar", slot: "evening", done: true },
+    { kind: "duha", done: true },
+    { kind: "qiyam", done: true },
+  ]);
+
+/** All five fard prayed (masjid) — fard-complete, nothing else. */
+const completeFard = (): DayLog =>
+  dayWith(FARD_PRAYERS.map((p) => ({ kind: "fard", prayer: p, state: "masjid" }) as WorshipMark));
+
+const withPrefix = (section: keyof PrefixStreaks, end: string, length: number): PrefixStreaks => ({
+  ...emptyPrefixStreaks(),
+  [section]: { end, length },
+});
 
 const stateWith = (days: Record<string, DayLog>, extra?: Partial<WorshipState>): WorshipState => ({
   ...DEFAULT_WORSHIP_STATE,
@@ -52,62 +71,99 @@ describe("dayContribution", () => {
   });
 });
 
-describe("deriveStats — streak", () => {
-  test("includes today when today is already positive", () => {
+describe("deriveStats — per-section streaks", () => {
+  test("fard streak includes today when today is already complete", () => {
     const s = stateWith({
-      [TODAY]: positiveDay(),
-      "2026-07-02": positiveDay(),
-      "2026-07-01": positiveDay(),
+      [TODAY]: completeFard(),
+      "2026-07-02": completeFard(),
+      "2026-07-01": completeFard(),
     });
-    expect(deriveStats(s, TODAY).streak).toBe(3);
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(3);
   });
 
-  test("anchors at yesterday while today is still zero", () => {
+  test("fard streak anchors at yesterday while today is still incomplete", () => {
     const s = stateWith({
-      "2026-07-02": positiveDay(),
-      "2026-07-01": positiveDay(),
+      "2026-07-02": completeFard(),
+      "2026-07-01": completeFard(),
     });
-    const stats = deriveStats(s, TODAY);
-    expect(stats.todayScore).toBe(0);
-    expect(stats.streak).toBe(2);
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(2);
   });
 
-  test("is broken by a missing day", () => {
+  test("fard streak is broken by a missed prayer", () => {
     const s = stateWith({
-      [TODAY]: positiveDay(),
-      // 07-02 absent
-      "2026-07-01": positiveDay(),
+      [TODAY]: completeFard(),
+      "2026-07-02": dayWith([
+        { kind: "fard", prayer: "fajr", state: "masjid" },
+        { kind: "fard", prayer: "dhuhr", state: "masjid" },
+        { kind: "fard", prayer: "asr", state: "masjid" },
+        { kind: "fard", prayer: "maghrib", state: "masjid" },
+        { kind: "fard", prayer: "isha", state: "missed" },
+      ]),
+      "2026-07-01": completeFard(),
     });
-    expect(deriveStats(s, TODAY).streak).toBe(1);
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(1);
   });
 
-  test("is broken by a negative day", () => {
+  test("fard streak is broken by an unmarked prayer (not just missed)", () => {
     const s = stateWith({
-      [TODAY]: positiveDay(),
-      "2026-07-02": negativeDay(),
-      "2026-07-01": positiveDay(),
+      [TODAY]: completeFard(),
+      "2026-07-02": dayWith([
+        { kind: "fard", prayer: "fajr", state: "masjid" },
+        { kind: "fard", prayer: "dhuhr", state: "masjid" },
+        { kind: "fard", prayer: "asr", state: "masjid" },
+        { kind: "fard", prayer: "maghrib", state: "masjid" },
+        // isha left unmarked
+      ]),
+      "2026-07-01": completeFard(),
     });
-    expect(deriveStats(s, TODAY).streak).toBe(1);
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(1);
   });
 
-  test("continues through the compaction horizon via prefixStreak", () => {
-    const s = stateWith(
-      { [TODAY]: positiveDay(), "2026-07-02": positiveDay() },
-      { prefixStreak: { end: "2026-07-01", length: 40 } },
+  test("rawatib streak requires all five slots", () => {
+    const fourSlots = dayWith(
+      RAWATIB_SLOTS.slice(0, 4).map((slot) => ({ kind: "rawatib", slot, done: true }) as WorshipMark),
     );
-    expect(deriveStats(s, TODAY).streak).toBe(42);
+    const s = stateWith({ [TODAY]: completeAll(), "2026-07-02": fourSlots });
+    expect(deriveStats(s, TODAY).streaks.rawatib).toBe(1);
   });
 
-  test("ignores a non-contiguous prefixStreak", () => {
+  test("adhkar streak counts the daily pair, not after-prayer slots", () => {
+    const onlyAfter = dayWith([
+      { kind: "adhkar", slot: "afterFajr", done: true },
+      { kind: "adhkar", slot: "afterDhuhr", done: true },
+      { kind: "adhkar", slot: "morning", done: true },
+      // evening missing → pair incomplete
+    ]);
+    const s = stateWith({ [TODAY]: onlyAfter });
+    expect(deriveStats(s, TODAY).streaks.adhkar).toBe(0);
+  });
+
+  test("sunan streak requires both duha and qiyam", () => {
+    const onlyDuha = dayWith([{ kind: "duha", done: true }]);
+    const s = stateWith({ [TODAY]: onlyDuha });
+    expect(deriveStats(s, TODAY).streaks.sunan).toBe(0);
+  });
+
+  test("per-section prefix carry joins only when contiguous", () => {
     const s = stateWith(
-      { [TODAY]: positiveDay() },
-      { prefixStreak: { end: "2026-06-20", length: 40 } },
+      { [TODAY]: completeFard(), "2026-07-02": completeFard() },
+      { prefixStreaks: withPrefix("fard", "2026-07-01", 40) },
     );
-    expect(deriveStats(s, TODAY).streak).toBe(1);
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(42);
+  });
+
+  test("ignores a non-contiguous prefix", () => {
+    const s = stateWith(
+      { [TODAY]: completeFard() },
+      { prefixStreaks: withPrefix("fard", "2026-06-20", 40) },
+    );
+    expect(deriveStats(s, TODAY).streaks.fard).toBe(1);
   });
 });
 
 describe("deriveStats — series and totals", () => {
+  const positiveDay = (): DayLog => dayWith([{ kind: "fard", prayer: "fajr", state: "masjid" }]);
+
   test("last7 zero-fills missing days, oldest → newest, today last", () => {
     const s = stateWith({ [TODAY]: positiveDay(), "2026-07-01": positiveDay() });
     const { last7 } = deriveStats(s, TODAY);
@@ -116,6 +172,43 @@ describe("deriveStats — series and totals", () => {
     expect(last7[6]).toEqual({ dayKey: TODAY, score: 3 });
     expect(last7[4]).toEqual({ dayKey: "2026-07-01", score: 3 });
     expect(last7[5]).toEqual({ dayKey: "2026-07-02", score: 0 });
+  });
+
+  test("last30 spans 30 days, oldest → newest, today last", () => {
+    const s = stateWith({ [TODAY]: positiveDay() });
+    const { last30 } = deriveStats(s, TODAY);
+    expect(last30).toHaveLength(30);
+    expect(last30[0].dayKey).toBe("2026-06-04");
+    expect(last30[29]).toEqual({ dayKey: TODAY, score: 3 });
+  });
+
+  test("monthly merges a month split across the fold and retained days, oldest → newest", () => {
+    const s = stateWith(
+      { [TODAY]: positiveDay(), "2026-07-01": positiveDay() }, // July retained: 6 pts
+      {
+        months: {
+          "2026-06": { daysLogged: 30, totalPoints: 100, perfectDays: 0, bestDayScore: 20, masjid: 0, home: 0, missed: 0, rawatib: 0, adhkar: 0, duha: 0, qiyam: 0 },
+          "2026-07": { daysLogged: 2, totalPoints: 10, perfectDays: 0, bestDayScore: 8, masjid: 0, home: 0, missed: 0, rawatib: 0, adhkar: 0, duha: 0, qiyam: 0 },
+        },
+      },
+    );
+    const { monthly } = deriveStats(s, TODAY);
+    expect(monthly.map((m) => m.monthKey)).toEqual(["2026-06", "2026-07"]);
+    // July fold (10) + two retained July days (3 + 3) = 16.
+    expect(monthly[1]).toEqual({ monthKey: "2026-07", points: 16, daysLogged: 4 });
+  });
+
+  test("monthly keeps only the 12 most-recent months", () => {
+    const months: WorshipState["months"] = {};
+    for (let i = 1; i <= 14; i++) {
+      const mk = `2025-${String(i).padStart(2, "0")}`;
+      if (i <= 12) months[mk] = { daysLogged: 1, totalPoints: i, perfectDays: 0, bestDayScore: i, masjid: 0, home: 0, missed: 0, rawatib: 0, adhkar: 0, duha: 0, qiyam: 0 };
+    }
+    // 12 months 2025-01..2025-12
+    const { monthly } = deriveStats(stateWith({}, { months }), TODAY);
+    expect(monthly).toHaveLength(12);
+    expect(monthly[0].monthKey).toBe("2025-01");
+    expect(monthly[11].monthKey).toBe("2025-12");
   });
 
   test("bestDay and totals merge month folds with retained days", () => {

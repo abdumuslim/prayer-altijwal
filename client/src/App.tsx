@@ -13,6 +13,7 @@ import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { glowBreathPeriod } from "@/lib/format";
+import { isFridayKey } from "@/lib/prayer-names";
 import {
   deriveAdhkarCorner,
   deriveCheckinPrayer,
@@ -70,6 +71,11 @@ function App() {
     now: times.now,
   });
 
+  // On Fridays the ظهر congregation is Jumu'ah — the label swaps to الجمعة
+  // everywhere a today prayer name is shown. Keyed on the location-tz civil day
+  // so it flips at local midnight.
+  const isFriday = isFridayKey(worship.todayKey);
+
   // Effective method/asr for the push payload (prefer the server's resolved
   // values, fall back to user settings).
   const effectiveMethod =
@@ -96,7 +102,7 @@ function App() {
     return {
       pill: {
         points: worship.stats.todayScore,
-        streak: worship.stats.streak,
+        streak: worship.stats.streaks.fard,
         onOpen: () => setSheet("stats"),
       },
       rawatib: {
@@ -169,8 +175,9 @@ function App() {
           prayers={times.prayers}
           iqamaMinutes={settings.iqamaMinutes}
           worship={heroWorship}
+          isFriday={isFriday}
         />
-        <PrayerList prayers={times.prayers} now={times.now} checkinFor={checkinFor} />
+        <PrayerList prayers={times.prayers} now={times.now} checkinFor={checkinFor} isFriday={isFriday} />
         {times.data.nextEvent && (
           <section className="card p-2.5">
             <NextEvent
@@ -186,7 +193,7 @@ function App() {
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes, heroWorship, checkinFor]);
+  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes, heroWorship, checkinFor, isFriday]);
 
   // One breath timeline for the whole screen: the period ramps with the next
   // prayer's countdown, and every breathing element (hero halo + next-prayer
@@ -241,6 +248,8 @@ function App() {
         today={worship.today}
         canMark={worship.canMark}
         onOpenReader={(slot) => setSheet({ reader: slot })}
+        mark={worship.mark}
+        isFriday={isFriday}
       />
       {readerSlot && (
         <AdhkarReader
@@ -253,6 +262,7 @@ function App() {
               : []
           }
           onCount={(i, c) => worship.setDhikrCount(readerSlot, i, c)}
+          isFriday={isFriday}
         />
       )}
       <StatsSheet

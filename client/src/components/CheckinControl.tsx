@@ -1,11 +1,16 @@
 // The fard check-in control: a small icon after the prayer name on each card.
 // Unmarked-passed = subtle dashed circle; marked = the state's coloured icon.
-// Tapping opens a 3-icon popover (masjid/home/missed); tapping a marked icon
-// also shows a transient tooltip naming the state and its points. Selecting
-// the current state again undoes it (back to unmarked). Least-distraction by
-// design: icons only, meaning taught by the tooltip.
+// Tapping opens a 3-icon popover (masjid/home/missed) centred on the icon, with
+// the page dimmed behind it — the icon and popover stay lit. Selecting the
+// current state again undoes it. Least-distraction by design: icons only,
+// meaning taught by the transient tooltip shown after a pick.
+//
+// The popover is PORTALED to <body>: the prayer-list card sets backdrop-filter
+// and a retained rise-in transform, both of which trap `position: fixed` and cap
+// z-index — so an in-card overlay could never dim the whole page or sit above it.
 
 import { useEffect, useRef, useState, type ElementType } from "react";
+import { createPortal } from "react-dom";
 import { Home, X } from "lucide-react";
 import { MosqueIcon } from "@/components/ui/MosqueIcon";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -28,6 +33,10 @@ export const CHECKIN_TONES: Record<Exclude<FardState, "unmarked">, CheckinTone> 
 };
 
 export const CHECKIN_ORDER = ["masjid", "home", "missed"] as const;
+
+/** Fixed size of the trio popover (3× size-8 buttons + gaps + padding + border). */
+const POP_W = 122;
+const POP_H = 46;
 
 /** Transient text that auto-hides (tooltip semantics). */
 export function useTransientText(ms = 2500): [string | null, (t: string) => void] {
@@ -103,6 +112,45 @@ export function CheckinIconTrio({
   );
 }
 
+/** The small round trigger icon — state's coloured icon, or a dashed placeholder. */
+function TriggerButton({
+  tone,
+  onClick,
+}: {
+  tone: CheckinTone | null;
+  onClick?: () => void;
+}) {
+  const { t } = useI18n();
+  const Icon = tone?.icon;
+  if (tone && Icon) {
+    return (
+      <button
+        type="button"
+        aria-label={t(tone.tipKey)}
+        onClick={onClick}
+        className={cn("grid size-6 place-items-center rounded-full border", tone.cls)}
+      >
+        <Icon className="size-3.5" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-label={t("track.logPrayer")}
+      onClick={onClick}
+      className="size-6 rounded-full border-2 border-dashed border-warning/60 transition-colors hover:border-warning"
+    />
+  );
+}
+
+interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 interface CheckinControlProps {
   state: FardState;
   /** The mark window is open (adhan passed, still today). */
@@ -113,30 +161,42 @@ interface CheckinControlProps {
 export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<Rect | null>(null);
   const [tip, showTip] = useTransientText();
   const rootRef = useRef<HTMLSpanElement>(null);
 
-  // Close the popover on outside tap / Escape.
+  // While open: Escape closes; lock body scroll and close on resize — the popover
+  // is positioned from a rect measured once at open time, so a scroll/resize
+  // would otherwise detach it from the icon.
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    document.addEventListener("pointerdown", onDown);
+    const onResize = () => setOpen(false);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      document.body.style.overflow = prevOverflow;
     };
   }, [open]);
 
   if (state === "unmarked" && !enabled) return null;
 
   const tone = state !== "unmarked" ? CHECKIN_TONES[state] : null;
-  const Icon = tone?.icon;
+
+  const openPopover = () => {
+    if (!enabled) return;
+    const r = rootRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    setOpen(true);
+  };
 
   const pick = (k: Exclude<FardState, "unmarked">) => {
     if (k === state) {
@@ -149,34 +209,53 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
     setOpen(false);
   };
 
+  // Popover placement: horizontally centred on the icon, clamped to the viewport,
+  // flipped below when the icon sits too close to the top.
+  const pos = rect
+    ? {
+        left: Math.min(
+          Math.max(8, rect.left + rect.width / 2 - POP_W / 2),
+          window.innerWidth - POP_W - 8,
+        ),
+        top: rect.top >= POP_H + 16 ? rect.top - POP_H - 8 : rect.top + rect.height + 8,
+      }
+    : null;
+
   return (
     <span ref={rootRef} className="relative inline-flex shrink-0">
-      {tone && Icon ? (
-        <button
-          type="button"
-          aria-label={t(tone.tipKey)}
-          onClick={() => {
-            showTip(t(tone.tipKey));
-            if (enabled) setOpen((o) => !o);
-          }}
-          className={cn("grid size-6 place-items-center rounded-full border", tone.cls)}
-        >
-          <Icon className="size-3.5" />
-        </button>
-      ) : (
-        <button
-          type="button"
-          aria-label={t("track.logPrayer")}
-          onClick={() => setOpen((o) => !o)}
-          className="size-6 rounded-full border-2 border-dashed border-warning/60 transition-colors hover:border-warning"
-        />
-      )}
-      {tip && <TransientTip text={tip} className="-top-9 left-1/2 -translate-x-1/2" />}
-      {open && (
-        <span className="card absolute -top-12 left-0 z-30 flex items-center rounded-xl px-1.5 py-1.5">
-          <CheckinIconTrio size="sm" current={state} onPick={pick} />
-        </span>
-      )}
+      <TriggerButton tone={tone} onClick={() => (open ? setOpen(false) : openPopover())} />
+      {tip && !open && <TransientTip text={tip} className="-top-9 left-1/2 -translate-x-1/2" />}
+      {open &&
+        rect &&
+        pos &&
+        createPortal(
+          <div className="fixed inset-0 z-40">
+            {/* Dim the whole page; a tap anywhere closes. */}
+            <div
+              className="animate-overlay-in absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+              onPointerDown={() => setOpen(false)}
+              aria-hidden="true"
+            />
+            {/* Pixel-identical clone of the trigger, above the backdrop so the
+                source icon reads as "still lit". pointer-events-none → a tap on it
+                falls through to the backdrop and closes. */}
+            <div
+              className="pointer-events-none fixed"
+              style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
+              aria-hidden="true"
+            >
+              <TriggerButton tone={tone} />
+            </div>
+            {/* The 3-icon trio, centred on the icon and clamped on-screen. */}
+            <span
+              className="card fixed z-10 flex items-center rounded-xl px-1.5 py-1.5"
+              style={{ top: pos.top, left: pos.left }}
+            >
+              <CheckinIconTrio size="sm" current={state} onPick={pick} />
+            </span>
+          </div>,
+          document.body,
+        )}
     </span>
   );
 }

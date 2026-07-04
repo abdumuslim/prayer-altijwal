@@ -1,15 +1,20 @@
 // Derived records over the worship state, pure: today's live score, the
-// streak (consecutive score>0 days), best day, the 7-day chart series and
+// per-section completion streaks, best day, the day/month chart series and
 // lifetime totals. Nothing here is persisted — always recomputed from raw
 // marks so edits to today can never leave a stale cache behind.
 
-import { addDays, prevDayKey } from "@/lib/civil-day";
+import { addDays, monthKeyOf, prevDayKey } from "@/lib/civil-day";
 import {
+  WORSHIP_SECTIONS,
   isPerfectDay,
   scoreDay,
+  sectionComplete,
   type DayKey,
   type DayLog,
   type MonthAggregate,
+  type MonthKey,
+  type PrefixStreak,
+  type WorshipSection,
   type WorshipState,
 } from "@/lib/worship-log";
 
@@ -26,15 +31,32 @@ export interface WorshipTotals {
   qiyam: number;
 }
 
+/** One day's bar in a daily chart series. */
+export interface DayScore {
+  dayKey: DayKey;
+  score: number;
+}
+
+/** One month's bar in the months chart series. */
+export interface MonthScore {
+  monthKey: MonthKey;
+  points: number;
+  daysLogged: number;
+}
+
 export interface WorshipStats {
   todayScore: number;
-  /** Consecutive score>0 days ending today (if positive) or yesterday. */
-  streak: number;
+  /** Per-section consecutive-completion streak ending today or yesterday. */
+  streaks: Record<WorshipSection, number>;
   bestDayScore: number;
   /** Key of the best retained day; null when the best lives in a month fold. */
   bestDayKey: DayKey | null;
   /** Exactly 7 entries, oldest → newest (today last), zero-filled. */
-  last7: { dayKey: DayKey; score: number }[];
+  last7: DayScore[];
+  /** Exactly 30 entries, oldest → newest (today last), zero-filled. */
+  last30: DayScore[];
+  /** Up to 12 most-recent months, oldest → newest (folds + retained days). */
+  monthly: MonthScore[];
   totals: WorshipTotals;
 }
 
@@ -62,24 +84,38 @@ export function dayContribution(log: DayLog): MonthAggregate {
   };
 }
 
+/**
+ * A section's consecutive-completion streak: walk backwards from today (if that
+ * section is already complete today) or yesterday while the section stays
+ * complete, then extend through the compacted prefix run when it ends exactly
+ * where the walk stopped.
+ */
+function chainStreak(
+  state: WorshipState,
+  todayKey: DayKey,
+  section: WorshipSection,
+  prefix: PrefixStreak,
+): number {
+  const today = state.days[todayKey];
+  let k = today && sectionComplete(today, section) ? todayKey : prevDayKey(todayKey);
+  let streak = 0;
+  for (let log = state.days[k]; log && sectionComplete(log, section); ) {
+    streak++;
+    k = prevDayKey(k);
+    log = state.days[k];
+  }
+  if (prefix && prefix.end === k) streak += prefix.length;
+  return streak;
+}
+
 /** One pass over ≤RETAIN_DAYS retained days + the month folds. */
 export function deriveStats(state: WorshipState, todayKey: DayKey): WorshipStats {
   const today = state.days[todayKey];
   const todayScore = today ? scoreDay(today) : 0;
 
-  // Streak: walk backwards through retained days from today (if already
-  // positive) or yesterday, then extend through the compacted prefix run
-  // when it ends exactly where the walk stopped.
-  let k = todayScore > 0 ? todayKey : prevDayKey(todayKey);
-  let streak = 0;
-  for (let log = state.days[k]; log && scoreDay(log) > 0; ) {
-    streak++;
-    k = prevDayKey(k);
-    log = state.days[k];
-  }
-  if (state.prefixStreak && state.prefixStreak.end === k) {
-    streak += state.prefixStreak.length;
-  }
+  const streaks = Object.fromEntries(
+    WORSHIP_SECTIONS.map((s) => [s, chainStreak(state, todayKey, s, state.prefixStreaks[s])]),
+  ) as Record<WorshipSection, number>;
 
   // Totals + best day: month folds first, then every retained day.
   const totals: WorshipTotals = {
@@ -131,11 +167,29 @@ export function deriveStats(state: WorshipState, todayKey: DayKey): WorshipStats
     }
   }
 
-  const last7 = Array.from({ length: 7 }, (_, i) => {
-    const dayKey = addDays(todayKey, i - 6);
+  const dayScore = (dayKey: DayKey): DayScore => {
     const log = state.days[dayKey];
     return { dayKey, score: log ? scoreDay(log) : 0 };
-  });
+  };
+  const last7 = Array.from({ length: 7 }, (_, i) => dayScore(addDays(todayKey, i - 6)));
+  const last30 = Array.from({ length: 30 }, (_, i) => dayScore(addDays(todayKey, i - 29)));
 
-  return { todayScore, streak, bestDayScore, bestDayKey, last7, totals };
+  // Monthly series: month folds plus retained days grouped by month (a month can
+  // straddle the compaction horizon), the 12 most recent, oldest → newest.
+  const monthMap = new Map<MonthKey, { points: number; daysLogged: number }>();
+  for (const [mk, m] of Object.entries(state.months)) {
+    monthMap.set(mk, { points: m.totalPoints, daysLogged: m.daysLogged });
+  }
+  for (const [dayKey, log] of Object.entries(state.days)) {
+    const mk = monthKeyOf(dayKey);
+    const c = dayContribution(log);
+    const prev = monthMap.get(mk) ?? { points: 0, daysLogged: 0 };
+    monthMap.set(mk, { points: prev.points + c.totalPoints, daysLogged: prev.daysLogged + c.daysLogged });
+  }
+  const monthly: MonthScore[] = [...monthMap.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .slice(-12)
+    .map(([monthKey, v]) => ({ monthKey, points: v.points, daysLogged: v.daysLogged }));
+
+  return { todayScore, streaks, bestDayScore, bestDayKey, last7, last30, monthly, totals };
 }

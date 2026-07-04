@@ -9,8 +9,10 @@ import {
 import { deriveStats } from "./worship-stats";
 import {
   DEFAULT_WORSHIP_STATE,
+  FARD_PRAYERS,
   applyMark,
   emptyDayLog,
+  emptyPrefixStreaks,
   type DayLog,
   type WorshipMark,
   type WorshipState,
@@ -23,6 +25,9 @@ const dayWith = (marks: WorshipMark[]): DayLog =>
   marks.reduce((acc, m) => applyMark(acc, m), emptyDayLog(TZ));
 const masjidDay = (): DayLog => dayWith([{ kind: "fard", prayer: "fajr", state: "masjid" }]);
 const missedDay = (): DayLog => dayWith([{ kind: "fard", prayer: "dhuhr", state: "missed" }]);
+/** All five fard prayed → fard-complete. */
+const completeFard = (): DayLog =>
+  dayWith(FARD_PRAYERS.map((p) => ({ kind: "fard", prayer: p, state: "masjid" }) as WorshipMark));
 
 /* ── in-memory localStorage stub ────────────────────────────────────────── */
 
@@ -57,14 +62,24 @@ describe("migrate", () => {
       v: 1,
       days: { "2026-07-01": masjidDay(), "2026-07-02": "garbage" },
       months: { "2026-04": { daysLogged: "x" } },
-      prefixStreak: { end: "2026-05-01", length: 3 },
+      prefixStreaks: { fard: { end: "2026-05-01", length: 3 }, rawatib: null, adhkar: null, sunan: null },
       dhikrProgress: { morning: { dayKey: "2026-07-01", counts: [3, 1] } },
     });
     expect(state.days["2026-07-01"].fard.fajr).toBe("masjid");
     expect(state.days["2026-07-02"]).toBeUndefined();
     expect(state.months["2026-04"]).toBeUndefined();
-    expect(state.prefixStreak).toEqual({ end: "2026-05-01", length: 3 });
+    expect(state.prefixStreaks.fard).toEqual({ end: "2026-05-01", length: 3 });
+    expect(state.prefixStreaks.rawatib).toBeNull();
     expect(state.dhikrProgress.morning).toEqual({ dayKey: "2026-07-01", counts: [3, 1] });
+  });
+
+  test("defaults prefixStreaks to all-null and ignores the legacy prefixStreak field", () => {
+    const state = migrate({
+      v: 1,
+      days: {},
+      prefixStreak: { end: "2026-05-01", length: 9 }, // pre-per-section field
+    });
+    expect(state.prefixStreaks).toEqual(emptyPrefixStreaks());
   });
 });
 
@@ -102,7 +117,7 @@ describe("save → load", () => {
     const state: WorshipState = {
       ...DEFAULT_WORSHIP_STATE,
       days: { [TODAY]: masjidDay() },
-      prefixStreak: { end: "2026-05-01", length: 7 },
+      prefixStreaks: { fard: { end: "2026-05-01", length: 7 }, rawatib: null, adhkar: null, sunan: null },
     };
     saveWorshipState(state);
     const loaded = loadWorshipState();
@@ -160,10 +175,20 @@ describe("compact", () => {
     expect(after.todayScore).toBe(before.todayScore);
   });
 
-  test("prefixStreak restarts on non-positive days and extends when contiguous", () => {
-    const out = compact(makeState(), TODAY);
-    // 04-28(+),04-29(+) → run 2; 04-30(−) → 0; 05-01(+) contiguous → run 1.
-    expect(out.prefixStreak).toEqual({ end: "2026-05-01", length: 1 });
+  test("advances each section's prefix independently across the fold", () => {
+    // Fard-complete on 04-28/04-29 (run 2), incomplete 04-30 (→0), complete
+    // 05-01 (contiguous → run 1). Rawatib is never completed among the folds.
+    const days: Record<string, DayLog> = {
+      "2026-04-28": completeFard(),
+      "2026-04-29": completeFard(),
+      "2026-04-30": masjidDay(), // fard-incomplete (only fajr)
+      "2026-05-01": completeFard(),
+      "2026-06-01": masjidDay(),
+      [TODAY]: masjidDay(),
+    };
+    const out = compact({ ...DEFAULT_WORSHIP_STATE, days }, TODAY);
+    expect(out.prefixStreaks.fard).toEqual({ end: "2026-05-01", length: 1 });
+    expect(out.prefixStreaks.rawatib).toEqual({ end: "2026-05-01", length: 0 });
   });
 
   test("merges into pre-existing month aggregates", () => {
