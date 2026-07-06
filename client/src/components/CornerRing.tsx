@@ -77,7 +77,7 @@ export function CornerRing({
           </ProgressRing>
         </div>
       )}
-      <span className="max-w-20 truncate whitespace-nowrap text-[10px] font-bold leading-none" style={{ color }}>
+      <span className="max-w-20 truncate whitespace-nowrap pb-1 text-[10px] font-bold leading-normal" style={{ color }}>
         {caption}
       </span>
     </button>
