@@ -296,7 +296,7 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
 **UI (design 3 of the numbered preview — `/?design=N` in dev, number keys 1–8):**
 - `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → `StatsSheet` (today ring /29, category
   bars, streak/best, 7-day chart, today gold).
-- **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[166px]` so they don't
+- **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[157px]` so they don't
   move when rows below appear): rawatib bottom-right (**sky**, "x/12" rakaat), adhkar bottom-left
   (**teal**, "x/2" = the daily pair; arc moves per dhikr item). Titles on TOP, caption below
   (next slot / "الصباح|المساء الآن"). **Complete → solid disc + bold white check** — the same
