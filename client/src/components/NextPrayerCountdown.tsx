@@ -121,16 +121,17 @@ export function NextPrayerCountdown({
       )}
 
       {/* Sunnah satellites — physically pinned (Duha top-right, Qiyam top-left) so
-          they keep their corners under both LTR and RTL. Nudged down 24px so the
-          score pill owns the top corner and they align with the ring's upper arc.
-          Tapping toggles the done state (filled disc + check). */}
-      {/* z-10 is REQUIRED here: translate-y-6 creates a stacking context, so the
+          they keep their corners under both LTR and RTL. Nudged down 15px so the
+          score pill owns the top corner while the 4-ring cluster stays centered on
+          the big ring's vertical midline. Tapping toggles the done state (filled
+          disc + check). */}
+      {/* z-10 is REQUIRED here: the translate-y creates a stacking context, so the
           buttons' own z-10 is local to it — without lifting the wrapper, the
           DOM-later content column hit-tests above the satellites and swallows
           real clicks (elementFromPoint-verified). pointer-events-none keeps the
           rest of the overlay click-through. */}
       {(features.duha || features.qiyam) && (
-        <div className="pointer-events-none absolute inset-0 z-10 translate-y-6">
+        <div className="pointer-events-none absolute inset-0 z-10 translate-y-[15px]">
           {features.duha && duhaState && (
             <SatelliteRing
               icon={SunMedium}
@@ -172,7 +173,7 @@ export function NextPrayerCountdown({
           active={worship.rawatib.active}
           complete={worship.rawatib.complete}
           onClick={worship.rawatib.onOpen}
-          posClass="top-[166px]"
+          posClass="top-[157px]"
           dimWhenIdle={false}
         >
           <span className="tnum text-[13px] font-extrabold leading-none text-sky">
@@ -190,7 +191,7 @@ export function NextPrayerCountdown({
           active={worship.adhkar.active}
           complete={worship.adhkar.complete}
           onClick={worship.adhkar.onOpen}
-          posClass="top-[166px]"
+          posClass="top-[157px]"
         >
           <span className="tnum text-[13px] font-extrabold leading-none text-teal">
             {worship.adhkar.centerText}
