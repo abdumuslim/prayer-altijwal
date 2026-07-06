@@ -237,6 +237,12 @@ export function NextPrayerCountdown({
           </div>
         </ProgressRing>
 
+        {/* Breathing room below the ring: the corner rings' captions hang past
+            the ring's lower arc, so without this they touch the card's bottom
+            edge (when nothing follows) or the row below (iqama bar / check-in
+            "أين صليت"). Only reserved when a corner ring is actually shown. */}
+        {(features.rawatib || features.adhkar) && <div aria-hidden className="h-3" />}
+
         {/* Iqama countdown bar — only between a prayer's adhan and its iqama.
             Narrowed so the corner rings' captions never collide with it. */}
         {iqamaState && (
