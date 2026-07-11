@@ -94,11 +94,22 @@ public class AlarmService extends Service {
                 .setContentIntent(fullPi)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPi);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(FGS_ID, b.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        // shortService (API 34+): the ring is hard-capped at 2 min, well inside the
+        // ~3-min shortService window — and unlike mediaPlayback it needs no
+        // type permission and no Play Console FGS declaration/demo video
+        // (docs/PLAY_RELEASE.md). Pre-34 devices don't enforce FGS types.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(FGS_ID, b.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
         } else {
             startForeground(FGS_ID, b.build());
         }
+    }
+
+    @Override
+    public void onTimeout(int startId) {
+        // shortService timeout (~3 min) — must stop promptly or the system ANRs
+        // the app. The 2-min auto-stop normally fires first; this is the backstop.
+        stopEverything();
     }
 
     private void startTone(String toneId) {

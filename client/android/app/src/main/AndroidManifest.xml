@@ -31,11 +31,13 @@
             android:theme="@style/AlarmTheme"
         />
 
-        <!-- Rings the tone + hosts the full-screen intent (mediaPlayback FGS). -->
+        <!-- Rings the tone + hosts the full-screen intent. shortService: the ring
+             self-stops at 2 min (< the ~3-min cap) and, unlike mediaPlayback,
+             needs no type permission and no Play Console FGS declaration. -->
         <service
             android:name="com.altijwal.prayer.alarm.AlarmService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback"
+            android:foregroundServiceType="shortService"
         />
 
         <!-- Fires at each alarm instant (set via AlarmManager). -->
@@ -70,7 +72,6 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
