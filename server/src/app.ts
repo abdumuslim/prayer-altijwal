@@ -5,6 +5,7 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
+import cors from "cors";
 import path from "node:path";
 import { childLogger } from "./logger.js";
 
@@ -28,6 +29,13 @@ export function createApp(router: Router, staticDir: string): Express {
     }
     next();
   });
+
+  // CORS for the public API only — the native (Capacitor) app runs on a
+  // `https://localhost` origin and fetches the geo endpoints cross-origin
+  // (docs/NATIVE_ALARM_SPEC.md §3a). `origin: true` reflects the caller's origin;
+  // the API is public + no-auth so this exposes nothing new. The SPA (same-origin)
+  // is unaffected.
+  app.use("/api", cors({ origin: true }));
 
   app.use(express.json({ limit: "16kb" }));
 
