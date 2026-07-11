@@ -3,10 +3,12 @@
 // here. The calculation method is auto-resolved by location and never surfaced,
 // and the UI is locked to Arabic (no language picker — see main.tsx).
 
-import { Settings2 } from "lucide-react";
+import { BellRing, Settings2, Sparkles, Timer } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { SlideOver } from "@/components/ui/SlideOver";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { NotificationsOptIn } from "@/components/NotificationsOptIn";
+import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { IqamaSettings } from "@/components/IqamaSettings";
 import { WorshipSettings } from "@/components/WorshipSettings";
 import type {
@@ -25,6 +27,8 @@ interface SettingsPanelProps {
   onChangeIqama: (prayer: IqamaPrayer, minutes: number) => void;
   features: WorshipFeatures;
   onChangeFeature: (key: WorshipFeatureKey, on: boolean) => void;
+  alarmSound: string;
+  onChangeAlarmSound: (id: string) => void;
 }
 
 export function SettingsPanel({
@@ -35,6 +39,8 @@ export function SettingsPanel({
   onChangeIqama,
   features,
   onChangeFeature,
+  alarmSound,
+  onChangeAlarmSound,
 }: SettingsPanelProps) {
   const { t } = useI18n();
 
@@ -45,15 +51,37 @@ export function SettingsPanel({
       title={t("settings.title")}
       icon={<Settings2 className="size-5" />}
     >
-      <div className="flex flex-col gap-7">
-        {/* Worship features (opt-in) — first, so the hidden widgets are findable */}
-        <WorshipSettings features={features} onChange={onChangeFeature} />
+      <div className="flex flex-col gap-3">
+        {/* Collapsible sections — all collapsed by default so the panel opens as a
+            compact list of headers. Worship features first (entry to the hidden
+            widgets), then reminders, then iqama timing. */}
+        <CollapsibleSection
+          icon={<Sparkles className="size-4.5" />}
+          iconClass="bg-emerald/10 text-emerald"
+          title={t("worship.settings.title")}
+          subtitle={t("worship.settings.subtitle")}
+        >
+          <WorshipSettings features={features} onChange={onChangeFeature} />
+        </CollapsibleSection>
 
-        {/* Notifications */}
-        <NotificationsOptIn push={push} />
+        <CollapsibleSection
+          icon={<BellRing className="size-4.5" />}
+          iconClass="bg-gold/10 text-gold"
+          title={t("notify.title")}
+          subtitle={t("notify.subtitle")}
+        >
+          <NotificationsOptIn push={push} />
+          <AlarmSoundPicker selected={alarmSound} onSelect={onChangeAlarmSound} />
+        </CollapsibleSection>
 
-        {/* Iqama timing */}
-        <IqamaSettings iqamaMinutes={iqamaMinutes} onChange={onChangeIqama} />
+        <CollapsibleSection
+          icon={<Timer className="size-4.5" />}
+          iconClass="bg-teal/10 text-teal"
+          title={t("iqama.title")}
+          subtitle={t("iqama.subtitle")}
+        >
+          <IqamaSettings iqamaMinutes={iqamaMinutes} onChange={onChangeIqama} />
+        </CollapsibleSection>
       </div>
     </SlideOver>
   );

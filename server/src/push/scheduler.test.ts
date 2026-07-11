@@ -12,9 +12,13 @@ import type {
   AlertRulesRepo,
 } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
-import type { SendResult } from "./webpush.js";
+import type { SendResult, PushSendOptions } from "./webpush.js";
 
-type SendFn = (subscription: unknown, payload: object) => Promise<SendResult>;
+type SendFn = (
+  subscription: unknown,
+  payload: object,
+  options?: PushSendOptions,
+) => Promise<SendResult>;
 
 // ---- In-memory fakes (no DB, no clock, no network) ------------------------
 
@@ -67,7 +71,7 @@ class FakeAlertRulesRepo implements AlertRulesRepo {
   async update(
     id: number,
     endpoint: string,
-    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers">,
+    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers" | "kind">,
   ): Promise<AlertRule | null> {
     const rule = this.rules.find((r) => r.id === id && r.endpoint === endpoint);
     if (!rule) return null;
@@ -105,6 +109,7 @@ function makeRule(overrides: Partial<AlertRule> = {}): AlertRule {
     timing: "at_time",
     minutes: null,
     prayers: ALL_PRAYERS,
+    kind: "notification",
     ...overrides,
   };
 }
@@ -184,6 +189,51 @@ describe("PrayerScheduler", () => {
     expect(send).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ prayer: "dhuhr", lead: 0, lang: "ar" }),
+      undefined,
+    );
+  });
+
+  // Alarm rules carry kind:"alarm" in the payload and high-urgency/short-TTL opts.
+  it("sends an alarm rule with kind:'alarm' and high-urgency, short-TTL options", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ kind: "alarm" })]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ prayer: "dhuhr", kind: "alarm" }),
+      { urgency: "high", TTL: 600 },
+    );
+  });
+
+  // Plain notification rules carry kind:"notification" and NO send options.
+  it("sends a notification rule with kind:'notification' and no send options", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ kind: "notification" })]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ prayer: "dhuhr", kind: "notification" }),
+      undefined,
     );
   });
 
@@ -313,6 +363,7 @@ describe("PrayerScheduler", () => {
     expect(send).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ prayer: "duha", lead: 0 }),
+      undefined,
     );
   });
 
@@ -351,6 +402,7 @@ describe("PrayerScheduler", () => {
     expect(send).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ prayer: "adhkar_morning", lead: -30 }),
+      undefined,
     );
   });
 

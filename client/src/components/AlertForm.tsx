@@ -3,21 +3,29 @@
 // the home project's AlertForm, restyled for this app.
 
 import { useState } from "react";
-import { Check, Clock } from "lucide-react";
+import { AlarmClock, Bell, Check, Clock, Minus, Plus } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ALERT_TARGET_ICONS } from "@/components/ui/icons";
 import { ALERT_TARGET_LABEL, EXTRA_TARGETS, FARD_TARGETS } from "@/lib/alert-targets";
 import { localizeNumber } from "@/lib/format";
+import { unlockAlarmAudio } from "@/lib/alarm-sound";
 import { cn } from "@/lib/utils";
-import type { AlertTarget, AlertTiming, PrayerAlert } from "@/types/api";
+import type { AlertKind, AlertTarget, AlertTiming, PrayerAlert } from "@/types/api";
 
 const MINUTE_PRESETS = [5, 10, 15, 30];
+const MIN_CUSTOM = 1;
+const MAX_CUSTOM = 180;
+const CUSTOM_STEP = 5;
 const ALL_TARGETS: AlertTarget[] = [...FARD_TARGETS, ...EXTRA_TARGETS];
+
+const clampMinutes = (n: number): number =>
+  Math.max(MIN_CUSTOM, Math.min(MAX_CUSTOM, Math.round(n)));
 
 export interface AlertDraft {
   timing: AlertTiming;
   minutes: number | null;
   prayers: AlertTarget[];
+  kind: AlertKind;
 }
 
 interface AlertFormProps {
@@ -29,11 +37,23 @@ interface AlertFormProps {
 
 export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
   const { t, lang } = useI18n();
+  const [kind, setKind] = useState<AlertKind>(initial?.kind ?? "notification");
   const [timing, setTiming] = useState<AlertTiming>(initial?.timing ?? "before");
   const [minutes, setMinutes] = useState<number>(initial?.minutes ?? 10);
+  // Custom minutes: on when editing a rule whose minutes aren't one of the presets.
+  const [isCustom, setIsCustom] = useState<boolean>(
+    () => initial?.minutes != null && !MINUTE_PRESETS.includes(initial.minutes),
+  );
   const [prayers, setPrayers] = useState<Set<AlertTarget>>(
     new Set(initial?.prayers ?? FARD_TARGETS),
   );
+
+  // Pre-warm the audio pipeline from this tap so a later push-driven alarm can
+  // play without its own user gesture.
+  const chooseKind = (k: AlertKind) => {
+    setKind(k);
+    if (k === "alarm") unlockAlarmAudio();
+  };
 
   const toggleTarget = (name: AlertTarget) => {
     setPrayers((prev) => {
@@ -55,13 +75,16 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
     });
 
   const canSave = prayers.size > 0 && !busy;
-  const save = () =>
-    canSave &&
+  const save = () => {
+    if (!canSave) return;
+    if (kind === "alarm") unlockAlarmAudio();
     onSave({
       timing,
       minutes: timing === "at_time" ? null : minutes,
       prayers: ALL_TARGETS.filter((p) => prayers.has(p)),
+      kind,
     });
+  };
 
   const renderTarget = (name: AlertTarget) => {
     const Icon = ALERT_TARGET_ICONS[name];
@@ -86,6 +109,39 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-teal/30 bg-white/[0.03] p-3.5">
+      {/* Kind — notification vs full-screen alarm */}
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          {t("notify.kind")}
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { value: "notification", icon: Bell, labelKey: "notify.kindNotification" },
+              { value: "alarm", icon: AlarmClock, labelKey: "notify.kindAlarm" },
+            ] as const
+          ).map(({ value, icon: Icon, labelKey }) => {
+            const active = kind === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => chooseKind(value)}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors",
+                  active
+                    ? "border-gold/50 bg-gold/10 text-gold"
+                    : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                )}
+              >
+                <Icon className="size-3.5" />
+                {t(labelKey)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Timing */}
       <div className="flex flex-col gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -126,12 +182,15 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
           </span>
           <div className="flex flex-wrap gap-1.5">
             {MINUTE_PRESETS.map((m) => {
-              const active = minutes === m;
+              const active = !isCustom && minutes === m;
               return (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setMinutes(m)}
+                  onClick={() => {
+                    setIsCustom(false);
+                    setMinutes(m);
+                  }}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     active
@@ -145,7 +204,52 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => setIsCustom(true)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                isCustom
+                  ? "border-gold/50 bg-gold/10 text-gold"
+                  : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+              )}
+            >
+              {t("notify.customMinutes")}
+            </button>
           </div>
+
+          {isCustom && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                aria-label={t("iqama.decrease")}
+                onClick={() => setMinutes((v) => clampMinutes(v - CUSTOM_STEP))}
+                disabled={minutes <= MIN_CUSTOM}
+                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+              >
+                <Minus className="size-3.5" />
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={localizeNumber(minutes, lang)}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
+                  if (Number.isFinite(n)) setMinutes(clampMinutes(n));
+                }}
+                className="tnum w-16 rounded-lg border border-border-soft bg-white/[0.03] py-1.5 text-center text-sm font-semibold text-ink outline-none focus:border-gold/50"
+              />
+              <button
+                type="button"
+                aria-label={t("iqama.increase")}
+                onClick={() => setMinutes((v) => clampMinutes(v + CUSTOM_STEP))}
+                disabled={minutes >= MAX_CUSTOM}
+                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

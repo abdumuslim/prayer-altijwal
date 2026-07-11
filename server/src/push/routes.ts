@@ -123,10 +123,10 @@ export function createPushRouter(deps: PushRouterDeps): Router {
       res.status(400).json({ error: "Invalid request body", issues: parsed.error.issues });
       return;
     }
-    const { endpoint, timing, prayers } = parsed.data;
+    const { endpoint, timing, prayers, kind } = parsed.data;
     const minutes = timing === "at_time" ? null : (parsed.data.minutes ?? null);
     try {
-      const alert = await deps.alertRulesRepo.create({ endpoint, timing, minutes, prayers });
+      const alert = await deps.alertRulesRepo.create({ endpoint, timing, minutes, prayers, kind });
       res.status(201).json({ alert });
     } catch (error: unknown) {
       log.error("Create alert failed", error instanceof Error ? error : { error });
@@ -145,10 +145,10 @@ export function createPushRouter(deps: PushRouterDeps): Router {
       res.status(400).json({ error: "Invalid request body", issues: parsed.error.issues });
       return;
     }
-    const { endpoint, timing, prayers } = parsed.data;
+    const { endpoint, timing, prayers, kind } = parsed.data;
     const minutes = timing === "at_time" ? null : (parsed.data.minutes ?? null);
     try {
-      const alert = await deps.alertRulesRepo.update(id, endpoint, { timing, minutes, prayers });
+      const alert = await deps.alertRulesRepo.update(id, endpoint, { timing, minutes, prayers, kind });
       if (!alert) {
         res.status(404).json({ error: "Reminder not found" });
         return;

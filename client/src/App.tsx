@@ -4,7 +4,7 @@
 // the worship tracker: useWorshipLog + the four bottom sheets (rawatib,
 // adhkar checklist, tap-to-count reader, stats).
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
@@ -12,6 +12,8 @@ import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
+import { useAlarm } from "@/hooks/useAlarm";
+import { unlockAlarmAudio } from "@/lib/alarm-sound";
 import { glowBreathPeriod } from "@/lib/format";
 import { isFridayKey } from "@/lib/prayer-names";
 import {
@@ -29,6 +31,7 @@ import { RawatibSheet } from "@/components/RawatibSheet";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { AdhkarReader } from "@/components/AdhkarReader";
 import { StatsSheet } from "@/components/StatsSheet";
+import { AlarmOverlay } from "@/components/AlarmOverlay";
 import {
   FetchErrorState,
   LoadingState,
@@ -53,6 +56,24 @@ function App() {
   const location = useLocation();
   const settings = useSettings();
   useWakeLock(); // keep the screen awake while the app is open
+  const alarm = useAlarm(); // full-screen alarm when an alarm-kind reminder fires
+
+  // Unlock alarm audio on the first user interaction so a later push-triggered
+  // alarm (while the app is open) can play without its own gesture — browsers
+  // block audio until the page has been interacted with at least once.
+  useEffect(() => {
+    const unlock = () => {
+      unlockAlarmAudio();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheet, setSheet] = useState<WorshipSheet>(null);
@@ -237,6 +258,8 @@ function App() {
         onChangeIqama={settings.setIqama}
         features={settings.features}
         onChangeFeature={settings.setFeature}
+        alarmSound={settings.alarmSound}
+        onChangeAlarmSound={settings.setAlarmSound}
       />
 
       {/* Worship tracker sheets */}
@@ -276,6 +299,14 @@ function App() {
         stats={worship.stats}
         today={worship.today}
       />
+
+      {alarm.alarm && (
+        <AlarmOverlay
+          title={alarm.alarm.title}
+          body={alarm.alarm.body}
+          onStop={alarm.dismiss}
+        />
+      )}
     </div>
   );
 }

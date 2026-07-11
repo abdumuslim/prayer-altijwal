@@ -53,6 +53,8 @@ export const AlertRuleBody = z
     timing: z.enum(["at_time", "before", "after"]),
     minutes: z.number().int().min(1).max(180).nullable().optional(),
     prayers: z.array(AlertTarget).min(1),
+    // How the reminder presents. Defaults so pre-alarm clients keep working.
+    kind: z.enum(["notification", "alarm"]).default("notification"),
   })
   .refine((b) => b.timing === "at_time" || (b.minutes != null && b.minutes >= 1), {
     message: "minutes (1–180) is required when timing is 'before' or 'after'",

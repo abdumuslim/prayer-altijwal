@@ -163,6 +163,9 @@ export interface PushSubscribeBody {
 /** When a reminder fires: at the prayer time, or N minutes before / after. */
 export type AlertTiming = "at_time" | "before" | "after";
 
+/** How a reminder presents: a quiet notification, or a full-screen alarm. */
+export type AlertKind = "notification" | "alarm";
+
 /**
  * What a reminder rule can fire on: the five fard plus the sunnah/adhkar anchors
  * (duha = window start, qiyam = last-third start, morning/evening adhkar). Kept
@@ -186,6 +189,7 @@ export interface PrayerAlert {
   timing: AlertTiming;
   minutes: number | null;
   prayers: AlertTarget[];
+  kind: AlertKind;
 }
 
 /** Body for creating/updating a reminder rule. */
@@ -194,6 +198,7 @@ export interface AlertInput {
   timing: AlertTiming;
   minutes: number | null;
   prayers: AlertTarget[];
+  kind: AlertKind;
 }
 
 export interface AlertsResponse {

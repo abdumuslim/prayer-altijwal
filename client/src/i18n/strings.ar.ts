@@ -74,12 +74,17 @@ export const ar: Record<StringKey, string> = {
   "notify.prayers": "أي الصلوات",
   "notify.timing": "التوقيت",
   "notify.leadTime": "الدقائق قبل الأذان",
-  "notify.atTime": "عند الأذان",
+  "notify.atTime": "عند",
   "notify.beforeTiming": "قبل",
   "notify.afterTiming": "بعد",
   "notify.minBefore": "قبل {min} دقيقة",
   "notify.minAfter": "بعد {min} دقيقة",
   "notify.leadTimeAfter": "الدقائق بعد الوقت",
+  "notify.customMinutes": "مخصص",
+  "notify.kind": "نوع التنبيه",
+  "notify.kindNotification": "إشعار",
+  "notify.kindAlarm": "منبه",
+  "notify.alarmSound": "نغمة المنبّه",
   "notify.sunnahTargets": "السنن والأذكار",
   "notify.allPrayers": "كل الصلوات",
   "notify.selectAll": "تحديد الكل",
@@ -94,6 +99,9 @@ export const ar: Record<StringKey, string> = {
   "notify.unsupported": "التذكيرات غير مدعومة في هذا المتصفح.",
   "notify.permissionDenied": "الإشعارات محظورة. فعّلها من إعدادات المتصفح.",
   "notify.saving": "جارٍ الحفظ…",
+
+  // Alarm (full-screen)
+  "alarm.stop": "إيقاف",
 
   // Sunnah satellites + iqama
   "sunnah.duha": "الضحى",

@@ -16,6 +16,16 @@ export interface SendResult {
   gone: boolean;
 }
 
+/**
+ * Per-send delivery options. Alarms send `{ urgency: "high", TTL: 600 }` so the
+ * push service wakes dozing devices promptly and drops an alarm that would land
+ * >10 min late (avoiding a siren at the wrong time). Notifications use defaults.
+ */
+export interface PushSendOptions {
+  TTL?: number;
+  urgency?: "very-low" | "low" | "normal" | "high";
+}
+
 /** Configure VAPID details once at boot. */
 export function setupWebPush(vapid: VapidDetails): void {
   webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
@@ -36,9 +46,17 @@ function isWebPushError(error: unknown): error is WebPushError {
  * no longer valid → `gone:true` so the caller can delete it. Any other failure
  * is logged and reported as `ok:false` (transient — keep the subscription).
  */
-export async function sendPush(subscription: unknown, payload: object): Promise<SendResult> {
+export async function sendPush(
+  subscription: unknown,
+  payload: object,
+  options?: PushSendOptions,
+): Promise<SendResult> {
   try {
-    await webpush.sendNotification(subscription as PushSubscription, JSON.stringify(payload));
+    await webpush.sendNotification(
+      subscription as PushSubscription,
+      JSON.stringify(payload),
+      options,
+    );
     return { ok: true, gone: false };
   } catch (error: unknown) {
     if (isWebPushError(error)) {

@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS prayer_alert_rules (
   timing      TEXT NOT NULL CHECK (timing IN ('at_time','before','after')),
   minutes     INTEGER,
   prayers     TEXT[] NOT NULL,
+  kind        TEXT NOT NULL DEFAULT 'notification' CHECK (kind IN ('notification','alarm')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -60,6 +61,16 @@ CREATE INDEX IF NOT EXISTS idx_prayer_alert_rules_endpoint ON prayer_alert_rules
 ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_timing_check;
 ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_timing_check
   CHECK (timing IN ('at_time','before','after'));
+
+-- 2026-07 migration: per-rule kind ('notification' | 'alarm'). ADD COLUMN IF NOT
+-- EXISTS covers already-deployed tables (CREATE TABLE IF NOT EXISTS never alters
+-- them); the DROP/ADD pair normalizes the CHECK name on both fresh and migrated
+-- installs. Idempotent; existing rows default to 'notification'.
+-- (Verify prayer_alert_rules_kind_check in pg_constraint on the VPS after deploy.)
+ALTER TABLE prayer_alert_rules ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'notification';
+ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_kind_check;
+ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_kind_check
+  CHECK (kind IN ('notification','alarm'));
 `;
 
 /** Apply the idempotent schema. Run once at startup, after createPool. */

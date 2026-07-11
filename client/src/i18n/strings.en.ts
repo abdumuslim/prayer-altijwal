@@ -77,6 +77,11 @@ export const en = {
   "notify.minBefore": "{min} min before",
   "notify.minAfter": "{min} min after",
   "notify.leadTimeAfter": "Minutes After",
+  "notify.customMinutes": "Custom",
+  "notify.kind": "Alert type",
+  "notify.kindNotification": "Notification",
+  "notify.kindAlarm": "Alarm",
+  "notify.alarmSound": "Alarm tone",
   "notify.sunnahTargets": "Sunnah & adhkar",
   "notify.allPrayers": "All prayers",
   "notify.selectAll": "Select all",
@@ -91,6 +96,9 @@ export const en = {
   "notify.unsupported": "Reminders aren't supported on this browser.",
   "notify.permissionDenied": "Notifications are blocked. Enable them in browser settings.",
   "notify.saving": "Saving…",
+
+  // Alarm (full-screen)
+  "alarm.stop": "Stop",
 
   // Sunnah satellites + iqama
   "sunnah.duha": "Duha",

@@ -3,7 +3,7 @@
 // Shows the iOS "Add to Home Screen" hint when iOS && !standalone.
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellOff, BellRing, Share, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { AlarmClock, Bell, BellOff, BellRing, Share, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizeNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -51,7 +51,12 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
     if (status !== "subscribed" || !endpoint || loading) return;
     if (alerts.length === 0 && !seeded.current) {
       seeded.current = true;
-      void create({ timing: "before", minutes: 10, prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"] });
+      void create({
+        timing: "before",
+        minutes: 10,
+        prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"],
+        kind: "notification",
+      });
     }
   }, [status, endpoint, loading, alerts.length, create]);
 
@@ -67,17 +72,7 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 place-items-center rounded-xl bg-gold/10 text-gold">
-          <BellRing className="size-4.5" />
-        </span>
-        <div className="flex flex-col leading-tight">
-          <h3 className="text-sm font-bold text-ink">{t("notify.title")}</h3>
-          <span className="text-xs text-ink-dim">{t("notify.subtitle")}</span>
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-3">
       {status === "ios-install" && (
         <div className="flex items-start gap-2.5 rounded-xl border border-gold/30 bg-gold/[0.07] px-3.5 py-3">
           <Share className="mt-0.5 size-4.5 shrink-0 text-gold" />
@@ -157,7 +152,11 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
                     key={a.id}
                     className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-white/[0.02] px-3.5 py-2.5"
                   >
-                    <BellRing className="size-4 shrink-0 text-gold" />
+                    {a.kind === "alarm" ? (
+                      <AlarmClock className="size-4 shrink-0 text-gold" />
+                    ) : (
+                      <BellRing className="size-4 shrink-0 text-gold" />
+                    )}
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">
                       {describeRule(a, t, lang)}
                     </span>
@@ -206,6 +205,6 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }

@@ -65,7 +65,7 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
             <X className="size-5" />
           </button>
         </div>
-        <div className="scrollbar-hide flex-1 overflow-y-auto px-5 py-5">
+        <div className="scrollbar-hide flex-1 overflow-y-auto overscroll-contain px-5 py-5">
           {children}
         </div>
       </div>

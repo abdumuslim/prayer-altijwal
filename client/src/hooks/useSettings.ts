@@ -24,6 +24,8 @@ export interface SettingsState {
   iqamaMinutes: IqamaMinutes;
   /** Opt-in worship features (all off by default). */
   features: WorshipFeatures;
+  /** Selected alarm tone id (see lib/alarm-sounds). */
+  alarmSound: string;
 }
 
 export interface UseSettings extends SettingsState {
@@ -32,6 +34,7 @@ export interface UseSettings extends SettingsState {
   setAsr: (asr: AsrMadhab) => void;
   setIqama: (prayer: IqamaPrayer, minutes: number) => void;
   setFeature: (key: WorshipFeatureKey, on: boolean) => void;
+  setAlarmSound: (id: string) => void;
 }
 
 export function useSettings(): UseSettings {
@@ -43,6 +46,7 @@ export function useSettings(): UseSettings {
       asr: s.asr,
       iqamaMinutes: s.iqamaMinutes,
       features: s.features,
+      alarmSound: s.alarmSound,
     };
   });
 
@@ -78,5 +82,18 @@ export function useSettings(): UseSettings {
     });
   }, []);
 
-  return { ...state, setMethod, resetMethodToAuto, setAsr, setIqama, setFeature };
+  const setAlarmSound = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, alarmSound: id }));
+    patchState({ alarmSound: id });
+  }, []);
+
+  return {
+    ...state,
+    setMethod,
+    resetMethodToAuto,
+    setAsr,
+    setIqama,
+    setFeature,
+    setAlarmSound,
+  };
 }

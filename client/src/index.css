@@ -115,6 +115,13 @@
   50% { opacity: 0.35; }
 }
 
+/* Full-screen alarm ring — a fixed fast pulse (not the countdown-paced --breath
+   driver, which the overlay sits above). Scales + fades the gold halo. */
+@keyframes alarm-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -231,5 +238,10 @@
   /* Iqama bar pulse during the final minute. */
   .iqama-blink {
     animation: iqama-blink 1s ease-in-out infinite;
+  }
+
+  /* Alarm ring halo pulse. */
+  .alarm-pulse {
+    animation: alarm-pulse 1s ease-in-out infinite;
   }
 }

@@ -12,8 +12,10 @@ Related: `ARCHITECTURE.md` §4, `PRAYER_TIMES_API.md` (push endpoints), `DEPLOYM
 
 1. User toggles **Prayer reminders** → request `Notification.permission`.
 2. Register `public/sw.js` (`navigator.serviceWorker.register('/sw.js')`). The SW handles `push`
-   (show notification from the JSON payload — `{ title, body }`, built server-side) and
-   `notificationclick` (focus/open the app).
+   (show notification from the JSON payload — `{ title, body }`, built server-side; **`kind:'alarm'`
+   branches to the full-screen-alarm path — §3b**) and `notificationclick` (focus/open the app; alarm
+   clicks route into the overlay). `app.ts` serves `.js` with `no-cache`, so an updated `sw.js` is
+   picked up on the next visit.
 3. `GET /api/push/vapid-key` → `pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`.
 4. `POST /api/push/subscribe` with the subscription **plus the user's chosen location
    (`lat/lon/tz/country`), `method`, `asr`, and `lang`**. **Reminder selections (`prayers`/lead)
@@ -72,6 +74,8 @@ CREATE TABLE IF NOT EXISTS prayer_alert_rules (
   prayers     TEXT[] NOT NULL,                  -- AlertTarget[]: the five fard + duha/qiyam/
                                                 --   adhkar_morning/adhkar_evening (no value CHECK;
                                                 --   zod is the only gate)
+  kind        TEXT NOT NULL DEFAULT 'notification'  -- 'notification' | 'alarm' (§3b)
+                CHECK (kind IN ('notification','alarm')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -83,6 +87,14 @@ CREATE INDEX IF NOT EXISTS idx_prayer_alert_rules_endpoint ON prayer_alert_rules
 ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_timing_check;
 ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_timing_check
   CHECK (timing IN ('at_time','before','after'));
+
+-- 2026-07 migration: per-rule `kind`. ADD COLUMN IF NOT EXISTS covers deployed
+-- tables (existing rows default to 'notification'); the DROP/ADD pair normalizes
+-- the CHECK name. Idempotent. Verify prayer_alert_rules_kind_check via pg_constraint.
+ALTER TABLE prayer_alert_rules ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'notification';
+ALTER TABLE prayer_alert_rules DROP CONSTRAINT IF EXISTS prayer_alert_rules_kind_check;
+ALTER TABLE prayer_alert_rules ADD CONSTRAINT prayer_alert_rules_kind_check
+  CHECK (kind IN ('notification','alarm'));
 
 -- Persistent dedup ledger — survives restarts (the fix for home's in-memory Set).
 CREATE TABLE IF NOT EXISTS push_log (
@@ -115,8 +127,53 @@ first enable, one **default rule** is seeded (5 fard, 10 min before). Client pie
   at-time / **before** / **after** (N min). "Select all" governs only the fard subset, and a rule
   reads "all prayers" only when it contains every fard (extras appended). `client/src/types/api.ts`
   `AlertTarget` is the union; `PrayerName` stays fard+sunrise only.
+- **Kind & custom minutes (2026-07-11):** each rule also carries a **`kind`** — `notification`
+  (quiet, the default) or `alarm` (full-screen — §3b). `AlertForm` opens with a two-way
+  «إشعار/منبه» segmented control (`Bell`/`AlarmClock`), and the before/after minutes offer a
+  **«مخصص» custom stepper** (1–180, clamped client-side; the server zod already allowed 1–180 so
+  no schema change was needed). The at-time label was shortened «عند الأذان» → **«عند»**. Alarm
+  rules show an `AlarmClock` icon in the rule list; `describeRule` is unchanged.
 
 `localStorage` no longer needs `reminderPrefs` — reminders are server-side.
+
+## 3b. Alarm kind — full-screen phone-style alarm
+
+An `alarm`-kind rule fires a **full-screen alarm UI** (client) instead of a passive notification.
+A web app **cannot** replicate an OS alarm when the browser is fully closed; the design is:
+
+- **App open (foreground):** the SW `push` handler finds a **focused visible** client, `postMessage`s
+  `{ type: "prayer-alarm", payload }`, and **skips** `showNotification` (Chrome only forgives a missing
+  notification under `userVisibleOnly` when a focused client handles it). The page raises
+  `AlarmOverlay` (`useAlarm`).
+- **App closed / backgrounded:** the SW shows a **persistent** notification (`requireInteraction: true`,
+  stronger `vibrate`, `data:{ kind, prayer, firedAt }`). `notificationclick` focuses a live client and
+  `postMessage`s it, or cold-opens `/?alarm=<prayer>&t=<firedAt>`; `useAlarm` parses that and raises the
+  overlay, then `history.replaceState`-strips the params.
+- **Payload** gains `kind`: the scheduler sends `{ ...buildPushPayload(...), kind }`. `alarm` rules use
+  **send options** `{ urgency: "high", TTL: 600 }` (`sendPush(sub, payload, options)`) so the push
+  service wakes dozing devices and drops a delivery >10 min late (no siren at the wrong time);
+  `notification` rules keep web-push defaults. `notification-text.ts` stays a pure text module.
+- **Stale guards (triple):** server `TTL 600`; client drops a `postMessage`/URL alarm whose `firedAt`
+  is >5 min old; `AlarmOverlay` auto-dismisses after 5 min.
+- **Client-side local trigger was rejected:** the SW receives the push in real time even with the page
+  open, so `postMessage` covers the foreground case without a second (dedup-prone) firing path.
+- **Sound:** the overlay plays a **user-selected MP3** (catalog `client/src/lib/alarm-sounds.ts`, files
+  in `client/public/alarms/`; the chosen `alarmSound` id lives in `prayer.app.v1`). It **loops for
+  2 min**, then auto-dismisses if untouched. Picked in Settings → reminders (`AlarmSoundPicker`, generic
+  «نغمة N» labels + tap-to-preview). Overlay UI detail → `FRONTEND.md` §9.
+- **Autoplay:** browsers block audio until the page has a user gesture, so `unlockAlarmAudio()`
+  pre-warms the audio element on the app's **first interaction** and on the `AlertForm` kind-switch/save;
+  `AlarmOverlay` **retries on every tap** until it plays, and always alerts via pulsing visual +
+  `navigator.vibrate`.
+- **⚠️ Reach — the key limit (same on iOS & Android):** the ringing alarm (MP3 + full-screen +
+  vibration) plays **only while the app/PWA is open**. There is **no local background timer** — a closed
+  app runs no code; the server push wakes the SW, which when the app is **closed** can only show a
+  **notification** (with the **system** sound, not the MP3; `requireInteraction` + strong vibrate on
+  Android). It is NOT a background alarm clock. A true closed-app alarm with a custom ring requires a
+  **native wrapper** (Capacitor + local-notification/AlarmManager, iOS critical alerts).
+- **iOS caveat:** push needs the installed PWA (existing hint); `requireInteraction`, SW `vibrate`, and
+  `navigator.vibrate` are ignored → iOS closed-app is a plain system notification; the overlay + MP3
+  appear only once the app is opened (audio after a prior in-app gesture).
 
 ---
 
@@ -185,6 +242,8 @@ for each sub in subs:
   the subscriber's `lang`, so it sends `{ title, body }` already localized (target name + at-time /
   "in N min" / "N min ago"; **Latin numerals**; Friday dhuhr → الجمعة). This fixes a latent bug where
   the SW received no body and showed an empty notification — the SW now just renders `title`/`body`.
+  The scheduler appends **`kind`** (`fire()`); `alarm` also passes `{ urgency:"high", TTL:600 }` send
+  options (§3b).
 
 ---
 
@@ -193,7 +252,8 @@ for each sub in subs:
 `GET /api/push/vapid-key` · `POST /api/push/subscribe` · `POST /api/push/unsubscribe` ·
 `POST /api/push/prefs` · and the reminder-rule CRUD `GET/POST /api/push/alerts`,
 `PUT/DELETE /api/push/alerts/:id` (ownership scoped to the `endpoint`; `AlertRuleBody` requires
-`minutes` 1–180 when `timing='before'|'after'`; `prayers` is the `AlertTarget` enum). All
+`minutes` 1–180 when `timing='before'|'after'`; `prayers` is the `AlertTarget` enum; `kind` is
+`'notification' | 'alarm'`, defaulting to `notification` so pre-alarm clients keep working). All
 zod-validated at the boundary.
 
 ---

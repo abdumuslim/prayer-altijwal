@@ -3,6 +3,7 @@
 // migrate forward without corrupting older data.
 
 import type { AsrMadhab, Lang } from "@/types/api";
+import { DEFAULT_ALARM_SOUND, isAlarmSoundId } from "@/lib/alarm-sounds";
 
 const STORAGE_KEY = "prayer.app.v1";
 const CURRENT_VERSION = 1 as const;
@@ -79,6 +80,8 @@ export interface AppState {
   iqamaMinutes: IqamaMinutes;
   /** Opt-in worship features (all off by default). */
   features: WorshipFeatures;
+  /** Selected alarm tone id (see lib/alarm-sounds). */
+  alarmSound: string;
 }
 
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
@@ -97,6 +100,7 @@ export const DEFAULT_STATE: AppState = {
   reminderPrefs: DEFAULT_REMINDER_PREFS,
   iqamaMinutes: { ...DEFAULT_IQAMA_MINUTES },
   features: { ...DEFAULT_WORSHIP_FEATURES },
+  alarmSound: DEFAULT_ALARM_SOUND,
 };
 
 /** Coerce a stored value to a valid IqamaMinutes, defaulting each key defensively. */
@@ -163,6 +167,7 @@ function migrate(raw: unknown): AppState {
     },
     iqamaMinutes: coerceIqama(raw.iqamaMinutes),
     features: coerceFeatures(raw.features),
+    alarmSound: isAlarmSoundId(raw.alarmSound) ? raw.alarmSound : DEFAULT_ALARM_SOUND,
   };
 }
 

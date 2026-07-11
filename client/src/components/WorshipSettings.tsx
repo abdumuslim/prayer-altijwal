@@ -8,7 +8,6 @@ import {
   BookOpen,
   MoonStar,
   Repeat,
-  Sparkles,
   SunMedium,
   Trophy,
   type LucideIcon,
@@ -42,18 +41,7 @@ export function WorshipSettings({ features, onChange }: WorshipSettingsProps) {
   const { t } = useI18n();
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 place-items-center rounded-xl bg-emerald/10 text-emerald">
-          <Sparkles className="size-4.5" />
-        </span>
-        <div className="flex flex-col leading-tight">
-          <h3 className="text-sm font-bold text-ink">{t("worship.settings.title")}</h3>
-          <span className="text-xs text-ink-dim">{t("worship.settings.subtitle")}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
         {FEATURE_ROWS.map(({ key, icon: Icon, color, labelKey }) => {
           const labelId = `worship-feature-${key}`;
           return (
@@ -73,7 +61,6 @@ export function WorshipSettings({ features, onChange }: WorshipSettingsProps) {
             </div>
           );
         })}
-      </div>
-    </section>
+    </div>
   );
 }

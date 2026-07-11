@@ -37,7 +37,10 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
    tap-to-count adhkar reader + score/streak stats — client-only in `prayer.worship.v1`
    (`docs/FRONTEND.md` §8, `docs/DECISIONS.md` ADR-006). **All worship features (Duha, Qiyam,
    rawatib, adhkar, record+points/history) are opt-in and OFF by default** — five Settings switches,
-   persisted as `features` on `prayer.app.v1` (2026-07-04, ADR-007).
+   persisted as `features` on `prayer.app.v1` (2026-07-04, ADR-007). **Per-rule reminder `kind`
+   (2026-07-11): `notification` (quiet) or `alarm` (full-screen phone-style alarm — huge clock,
+   synthesized tone, swipe-up X to stop) + a «مخصص» custom-minutes input; Settings sections are now
+   collapsible (`docs/NOTIFICATIONS.md` §3b, `docs/FRONTEND.md` §9).**
 4. **Bilingual AR/EN**, Arabic default, RTL-aware.
 
 ## Routing table — read the doc BEFORE working on the topic
@@ -49,7 +52,8 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | The reused engine: `calculatePrayerTimes`, 13 methods, **nationwide Iraqi (BaghdadYMA) calibration**, high-lat | `docs/PRAYER_ENGINE.md` |
 | HTTP API contract: `/api/prayer-times`, geo + push endpoints, response shapes | `docs/PRAYER_TIMES_API.md` |
 | Location resolution: GeoNames cities dataset, reverse/forward, country→method detection | `docs/GEOCODING.md` |
-| Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
+| Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, alarm kind + full-screen overlay + tone picker, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
+| Future **native (Capacitor) alarm** — real closed-app ringing on iOS/Android (plan only, not built) | `docs/NATIVE_ALARM_PLAN.md` |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |
 | SSH/VPS access, credentials, secrets, routine ops | `docs/OPERATIONS.md` ⚠️ local-only (gitignored); if absent, ask the user |

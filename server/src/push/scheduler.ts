@@ -3,9 +3,9 @@ import { dateKey, isValidDate } from "../prayer/format.js";
 import { computePrayerTimes } from "../prayer/compute.js";
 import { duhaWindow, nightThird } from "../prayer-engine/sunnah.js";
 import type { SubscriptionsRepo, Subscription } from "../db/repositories/subscriptions.js";
-import type { AlertRule, AlertRulesRepo } from "../db/repositories/alert-rules.js";
+import type { AlertRule, AlertRulesRepo, AlertKind } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
-import { sendPush, type SendResult } from "./webpush.js";
+import { sendPush, type SendResult, type PushSendOptions } from "./webpush.js";
 import { buildPushPayload } from "./notification-text.js";
 import type { MethodName, AsrMadhab } from "../prayer-engine/index.js";
 
@@ -70,7 +70,7 @@ export interface SchedulerDeps {
   /** Injectable time computation (tests return fixed Dates). */
   computeTimes?: (sub: Subscription) => PrayerTimeMap;
   /** Injectable sender (tests spy on this). */
-  send?: (subscription: unknown, payload: object) => Promise<SendResult>;
+  send?: (subscription: unknown, payload: object, options?: PushSendOptions) => Promise<SendResult>;
   /** Tick interval in ms. Default 30000. */
   tickMs?: number;
   /**
@@ -163,7 +163,11 @@ export class PrayerScheduler {
   private readonly logRepo: PushLogRepo;
   private readonly now: () => Date;
   private readonly computeTimes: (sub: Subscription) => PrayerTimeMap;
-  private readonly send: (subscription: unknown, payload: object) => Promise<SendResult>;
+  private readonly send: (
+    subscription: unknown,
+    payload: object,
+    options?: PushSendOptions,
+  ) => Promise<SendResult>;
   private readonly tickMs: number;
   private readonly armingWindowMin: number;
 
@@ -293,17 +297,29 @@ export class PrayerScheduler {
             const fireKey = `${key}-r${rule.id}-${prayer}`;
             const won = await this.logRepo.tryClaim(sub.endpoint, fireKey);
             if (!won) continue; // already fired (this day) — restart/overlap safe
-            await this.fire(sub, prayer, lead, t);
+            await this.fire(sub, prayer, lead, t, rule.kind);
           }
         }
       }
     }
   }
 
-  private async fire(sub: Subscription, prayer: string, lead: number, at: Date): Promise<void> {
+  private async fire(
+    sub: Subscription,
+    prayer: string,
+    lead: number,
+    at: Date,
+    kind: AlertKind,
+  ): Promise<void> {
     const friday = isFridayInTz(at, sub.tz);
-    const payload = buildPushPayload(prayer, lead, sub.lang, { friday });
-    const result = await this.send(sub.subscription, payload);
+    // The kind rides on the payload so the service worker can branch (full-screen
+    // alarm vs quiet notification). notification-text stays a pure text module.
+    const payload = { ...buildPushPayload(prayer, lead, sub.lang, { friday }), kind };
+    // Alarms ask the push service to wake dozing devices and to drop a stale
+    // delivery (>10 min) so a siren never fires at the wrong time.
+    const options: PushSendOptions | undefined =
+      kind === "alarm" ? { urgency: "high", TTL: 600 } : undefined;
+    const result = await this.send(sub.subscription, payload, options);
     if (result.gone) {
       // 404/410 → subscription is dead; delete it (cascades to its ledger rows).
       await this.subsRepo.deleteByEndpoint(sub.endpoint);

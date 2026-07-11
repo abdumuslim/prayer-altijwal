@@ -119,6 +119,7 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 | `language` | `"ar"` \| `"en"` |
 | `iqamaMinutes` | `{ fajr, dhuhr, asr, maghrib, isha }` — minutes from adhan to iqama (defaults 25/15/15/5/10; `migrate()` coerces each key to a finite 0–60, defaulting when absent — no version bump). **No `sunrise`** (no iqama). |
 | `features` | `{ duha, qiyam, rawatib, adhkar, record }` — **opt-in worship features, all `false` by default** (§5/§8). `migrate()`/`coerceFeatures` treats each key as `false` unless a real `true` (missing → off), so a fresh or legacy user gets a clean core-only screen. Set via `useSettings().setFeature`. |
+| `alarmSound` | selected alarm-tone id (`lib/alarm-sounds` catalog; default `soft-plucks`). The global tone every `alarm`-kind reminder plays. `migrate()` coerces unknown ids to the default. Set via `useSettings().setAlarmSound`. |
 
 Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
 selections are **server-side** (alert rules) — no `reminderPrefs` key. Note `features` (the worship
@@ -198,12 +199,19 @@ unsupported — no UI, called once in `App`).
   the **governorate list** as its default when the query is empty.
 - `GovernorateList` — list of the country's governorate capitals (`/api/geo/governorates`), shown
   **in `CitySearch` only**; selecting one sets the location. **This replaced the manual method/Asr controls.**
-- `SettingsPanel` — a **worship-features section** (`WorshipSettings`, rendered **first**), the
-  reminders section, and the **iqama-timing section** (`IqamaSettings`). **No
-  language toggle** (UI locked to Arabic — see §3; removed 2026-06-30). **The location quick-pick is
-  not here** — it lives only in the search panel (`CitySearch`); removed from Settings 2026-06-20 as
-  redundant (the location header already opens the picker). **No method picker and no Asr madhab
-  toggle** (removed — `DECISIONS.md` ADR-002/003).
+- `SettingsPanel` — three **collapsible sections** (`ui/CollapsibleSection`), **all collapsed by
+  default** (2026-07-11) so the panel opens as a compact list of headers: worship features
+  (`WorshipSettings`, first), reminders (`NotificationsOptIn`), iqama timing (`IqamaSettings`).
+  `CollapsibleSection` owns the header (icon tile + title/subtitle + rotating `ChevronDown`); the
+  three section components render **body-only** now (their old internal headers were lifted into it).
+  Height animates via the **grid-template-rows `0fr↔1fr`** trick (works with dynamic content — the
+  rule list grows, `AlertForm` expands inline); content stays **mounted while collapsed** (only
+  clipped) because `NotificationsOptIn` seeds its default rule from an effect that must keep running.
+  `SlideOver`'s body is `overflow-y-auto overscroll-contain`. **No language toggle** (UI locked to
+  Arabic — see §3; removed 2026-06-30). **The location quick-pick is not here** — it lives only in the
+  search panel (`CitySearch`); removed from Settings 2026-06-20 as redundant (the location header
+  already opens the picker). **No method picker and no Asr madhab toggle** (removed — `DECISIONS.md`
+  ADR-002/003).
 - `IqamaSettings` — five per-prayer stepper rows (Minus / value / Plus, clamped 0–60) editing
   `iqamaMinutes` via `useSettings().setIqama`; persisted to localStorage. Sunrise has no row.
 - `WorshipSettings` — five **on/off switches** for the opt-in worship features (`features.{duha,
@@ -213,7 +221,11 @@ unsupported — no UI, called once in `App`).
   emerald when on). Toggling off only **hides** the widget — `prayer.worship.v1` is untouched.
 - `NotificationsOptIn` + `AlertForm` — enable/disable + a list of independent reminder **rules**
   (add/edit/delete; seeds one default rule on first enable); iOS "Add to Home Screen" hint when
-  non-standalone (`NOTIFICATIONS.md`).
+  non-standalone (`NOTIFICATIONS.md`). `AlertForm` (2026-07-11) opens with a **«إشعار/منبه» kind**
+  segmented control (`Bell`/`AlarmClock`; picking منبه pre-warms the alarm audio via
+  `unlockAlarmAudio()`), and the before/after minutes offer a **«مخصص» custom stepper** (1–180)
+  beside the 5/10/15/30 presets. Alarm rules show an `AlarmClock` icon in the list. Full-screen alarm
+  behavior → §9 + `NOTIFICATIONS.md` §3b.
 - `LanguageToggle` — **retained in code but no longer rendered** (the UI is locked to Arabic, §3).
   Kept for future re-enablement; not imported anywhere.
 
@@ -318,3 +330,43 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
 corner); iqama bar narrows to `max-w-[200px]` beside the corner rings; hero header shortened to
 "المتبقي للأذان". Verified no-scroll at 390×844 **and** 360×740 in every state (the iqama bar and
 the check-in row never coexist by design).
+
+---
+
+## 9. Full-screen alarm (منبه, 2026-07-11)
+
+An `alarm`-kind reminder rule (`NOTIFICATIONS.md` §3b) raises a phone-alarm-style overlay. Pieces:
+
+- **`hooks/useAlarm`** — the trigger. Listens for the SW `message` `{ type:"prayer-alarm", payload }`
+  (app open / notification tap) and, on mount, parses a cold-open `?alarm=<prayer>&t=<firedAt>` URL
+  (then `history.replaceState`-strips it). Both drop alarms whose `firedAt` is **>5 min old**. Returns
+  `{ alarm, dismiss }`; `App` renders `<AlarmOverlay>` last (above every sheet) when `alarm` is set.
+- **`components/AlarmOverlay`** — `fixed inset-0 z-[100]`, radial-gold background, styled to read as a
+  mobile alarm: a small ringing label (`AlarmClock` + prayer name), a **huge live clock** as the
+  centerpiece (`Intl.DateTimeFormat` split into time + AM/PM, **Latin numerals**, `dir="ltr"`), the
+  at-time body («حان وقت الصلاة», reused `next.now`), and a **swipe-up-to-dismiss** X button
+  (`SwipeUpToStop`: vertical pointer-drag past a threshold → `onStop`; animated `ChevronsUp` hint;
+  Enter/Space keyboard fallback; **no snooze**). On mount it starts the tone, loops `navigator.vibrate`
+  where supported, and auto-dismisses after 5 min; wake lock is already global (`useWakeLock`). Only
+  new string: **`alarm.stop`** («إيقاف»).
+  On mount it starts the tone and **loops for 2 min**, then auto-dismisses if untouched.
+- **`lib/alarm-sound` + `lib/alarm-sounds`** — the alarm plays a **user-selected MP3** (catalog in
+  `lib/alarm-sounds`; files in `public/alarms/`, served at `/alarms/…`, never bundled). `alarm-sound`
+  reuses one `HTMLAudioElement`: `startAlarm()` loops the selected tone (`getSelectedAlarmSrc()` reads
+  `alarmSound` from storage), `stopAlarm()` stops+rewinds, `previewAlarm(src)` single-shots for the
+  Settings picker. **Autoplay:** browsers block audio until the page has a user gesture, so
+  `unlockAlarmAudio()` pre-warms the element — called by `AlertForm` (kind switch/save) **and** on the
+  app's **first interaction** (`App` one-time `pointerdown`/`keydown` listener). If a push-triggered
+  alarm still can't autoplay (e.g. cold-open from a notification, no gesture yet), `AlarmOverlay`
+  **retries `startAlarm()` on every tap** until it catches. `AlarmSoundPicker` (Settings → reminders)
+  lists the tones (generic «نغمة N» labels); tapping a row selects + previews it.
+- **`index.css`** — `@keyframes alarm-pulse` + `.alarm-pulse` (a fixed fast pulse for the ringing icon,
+  independent of the countdown-paced `--breath` driver the overlay sits above).
+
+**Reach (hard web-platform limit — same on iOS & Android):** the full-screen alarm + MP3 + vibration
+play **only while the app/PWA is open** (foreground, or a tab the OS keeps alive). There is **no local
+background timer**; the trigger is a **server push** that wakes the service worker, which — when the
+app is **closed** — can only show a **notification** (system sound + vibration, `requireInteraction`),
+not the ringing MP3 or a full-screen takeover. Tapping that notification opens the app into the alarm.
+A true closed-app alarm with a custom ring needs a **native wrapper** (Capacitor + local
+notifications / Android AlarmManager / iOS critical alerts). See `NOTIFICATIONS.md` §3b.

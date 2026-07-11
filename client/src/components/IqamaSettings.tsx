@@ -1,7 +1,7 @@
 // Settings section: per-prayer adhan→iqama durations (minutes). One stepper row
 // per obligatory prayer (sunrise has no iqama). Persists via useSettings.setIqama.
 
-import { Minus, Plus, Timer } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { PRAYER_ICONS } from "@/components/ui/icons";
 import { localizeNumber } from "@/lib/format";
@@ -20,18 +20,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
   const { t, lang } = useI18n();
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 place-items-center rounded-xl bg-teal/10 text-teal">
-          <Timer className="size-4.5" />
-        </span>
-        <div className="flex flex-col leading-tight">
-          <h3 className="text-sm font-bold text-ink">{t("iqama.title")}</h3>
-          <span className="text-xs text-ink-dim">{t("iqama.subtitle")}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
         {IQAMA_PRAYERS.map((name) => {
           const Icon = PRAYER_ICONS[name];
           const val = iqamaMinutes[name];
@@ -70,7 +59,6 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
             </div>
           );
         })}
-      </div>
-    </section>
+    </div>
   );
 }

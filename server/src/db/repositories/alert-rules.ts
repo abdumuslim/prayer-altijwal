@@ -7,9 +7,16 @@ const log = childLogger("db/alert-rules");
 export type AlertTiming = "at_time" | "before" | "after";
 
 /**
+ * How a reminder presents: a quiet OS notification, or a full-screen phone-style
+ * alarm (the service worker branches on this — see docs/NOTIFICATIONS.md).
+ */
+export type AlertKind = "notification" | "alarm";
+
+/**
  * One reminder rule for a device: fire `prayers` at `timing` (`minutes` before or
- * after when timing is "before"/"after"; null/ignored when "at_time"). A device
- * can own many independent rules — the multi-alert model ported from home.
+ * after when timing is "before"/"after"; null/ignored when "at_time") as `kind`
+ * (notification or alarm). A device can own many independent rules — the
+ * multi-alert model ported from home.
  */
 export interface AlertRule {
   id: number;
@@ -17,6 +24,7 @@ export interface AlertRule {
   timing: AlertTiming;
   minutes: number | null;
   prayers: string[];
+  kind: AlertKind;
 }
 
 export type AlertRuleInput = Omit<AlertRule, "id">;
@@ -30,7 +38,7 @@ export interface AlertRulesRepo {
   update(
     id: number,
     endpoint: string,
-    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers">,
+    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers" | "kind">,
   ): Promise<AlertRule | null>;
   /** Delete a rule, scoped to its owning endpoint. */
   delete(id: number, endpoint: string): Promise<void>;
@@ -42,6 +50,7 @@ interface AlertRuleRow {
   timing: AlertTiming;
   minutes: number | null;
   prayers: string[];
+  kind: AlertKind;
 }
 
 function rowToRule(row: AlertRuleRow): AlertRule {
@@ -51,10 +60,11 @@ function rowToRule(row: AlertRuleRow): AlertRule {
     timing: row.timing,
     minutes: row.minutes,
     prayers: row.prayers,
+    kind: row.kind,
   };
 }
 
-const SELECT = "SELECT id, endpoint, timing, minutes, prayers FROM prayer_alert_rules";
+const SELECT = "SELECT id, endpoint, timing, minutes, prayers, kind FROM prayer_alert_rules";
 
 /** Postgres-backed implementation. */
 export class PgAlertRulesRepo implements AlertRulesRepo {
@@ -75,10 +85,10 @@ export class PgAlertRulesRepo implements AlertRulesRepo {
 
   async create(input: AlertRuleInput): Promise<AlertRule> {
     const { rows } = await this.pool.query<AlertRuleRow>(
-      `INSERT INTO prayer_alert_rules (endpoint, timing, minutes, prayers)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, endpoint, timing, minutes, prayers`,
-      [input.endpoint, input.timing, input.minutes, input.prayers],
+      `INSERT INTO prayer_alert_rules (endpoint, timing, minutes, prayers, kind)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, endpoint, timing, minutes, prayers, kind`,
+      [input.endpoint, input.timing, input.minutes, input.prayers, input.kind],
     );
     log.info("Alert rule created", { endpoint: input.endpoint, id: rows[0]?.id });
     return rowToRule(rows[0]);
@@ -87,14 +97,14 @@ export class PgAlertRulesRepo implements AlertRulesRepo {
   async update(
     id: number,
     endpoint: string,
-    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers">,
+    patch: Pick<AlertRuleInput, "timing" | "minutes" | "prayers" | "kind">,
   ): Promise<AlertRule | null> {
     const { rows } = await this.pool.query<AlertRuleRow>(
       `UPDATE prayer_alert_rules
-         SET timing = $1, minutes = $2, prayers = $3, updated_at = NOW()
-       WHERE id = $4 AND endpoint = $5
-       RETURNING id, endpoint, timing, minutes, prayers`,
-      [patch.timing, patch.minutes, patch.prayers, id, endpoint],
+         SET timing = $1, minutes = $2, prayers = $3, kind = $4, updated_at = NOW()
+       WHERE id = $5 AND endpoint = $6
+       RETURNING id, endpoint, timing, minutes, prayers, kind`,
+      [patch.timing, patch.minutes, patch.prayers, patch.kind, id, endpoint],
     );
     return rows[0] ? rowToRule(rows[0]) : null;
   }
