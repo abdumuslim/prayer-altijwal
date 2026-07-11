@@ -73,8 +73,11 @@ export function useNativeAlarmScheduler(params: Params): void {
       try {
         const alarms = facade.computeSchedule(input);
         await PrayerAlarm.replaceAll({ alarms });
-      } catch {
-        // plugin unavailable / permission denied — the onboarding UI surfaces this
+      } catch (err) {
+        // Surface failures (plugin unavailable / permission denied / compute
+        // throw) in logcat instead of hiding them — a silent catch here masked
+        // the original "no alarms armed" bug (docs/NATIVE_ALARM_FIXES_SPEC.md §2a).
+        console.error("[native-alarm] replaceAll failed", err);
       }
     })();
     return () => {

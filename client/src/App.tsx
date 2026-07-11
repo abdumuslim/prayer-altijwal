@@ -12,6 +12,9 @@ import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useLocalAlerts } from "@/hooks/useLocalAlerts";
 import { useNativeAlarmScheduler } from "@/hooks/useNativeAlarmScheduler";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { isNative } from "@/lib/native";
+import { seedDefaultLocalAlerts } from "@/lib/local-alerts-store";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { useAlarm } from "@/hooks/useAlarm";
@@ -79,6 +82,33 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheet, setSheet] = useState<WorshipSheet>(null);
+
+  // Native only: seed the default reminder once at mount so a fresh user gets a
+  // reminder without opening Settings first (no-op on web / after first seed).
+  useEffect(() => {
+    if (isNative()) seedDefaultLocalAlerts();
+  }, []);
+
+  // Android hardware back: close the top-most overlay, else minimize the app.
+  useAndroidBack(() => {
+    if (alarm.alarm) {
+      alarm.dismiss();
+      return true;
+    }
+    if (sheet !== null) {
+      setSheet(null);
+      return true;
+    }
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return true;
+    }
+    if (searchOpen) {
+      setSearchOpen(false);
+      return true;
+    }
+    return false;
+  });
 
   const times = usePrayerTimes({
     location: location.location,

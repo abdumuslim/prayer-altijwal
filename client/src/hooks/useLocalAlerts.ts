@@ -1,15 +1,17 @@
-// Device-local reminder rules for the native app (localStorage-backed). Mirrors
-// the shape of usePrayerAlerts but with no server/endpoint — the on-device
-// scheduler (useNativeAlarmScheduler) turns these into OS alarms.
+// Device-local reminder rules for the native app. Thin wrapper over the shared
+// external store in lib/local-alerts-store.ts so the rule editor and the alarm
+// scheduler read ONE snapshot (docs/NATIVE_ALARM_FIXES_SPEC.md §2a). The public
+// UseLocalAlerts shape is unchanged, so consumers need no edits.
 
-import { useCallback, useState } from "react";
+import { useSyncExternalStore } from "react";
 import {
-  addLocalAlert,
-  loadLocalAlerts,
-  removeLocalAlert,
-  updateLocalAlert,
-  type LocalAlertRule,
-} from "@/lib/local-alerts";
+  addRule,
+  getLocalAlerts,
+  removeRule,
+  subscribeLocalAlerts,
+  updateRule,
+} from "@/lib/local-alerts-store";
+import type { LocalAlertRule } from "@/lib/local-alerts";
 
 export interface UseLocalAlerts {
   rules: LocalAlertRule[];
@@ -19,19 +21,7 @@ export interface UseLocalAlerts {
 }
 
 export function useLocalAlerts(): UseLocalAlerts {
-  const [rules, setRules] = useState<LocalAlertRule[]>(() => loadLocalAlerts());
-
-  const add = useCallback((input: Omit<LocalAlertRule, "id">) => {
-    setRules((r) => addLocalAlert(r, input));
-  }, []);
-
-  const update = useCallback((id: number, input: Omit<LocalAlertRule, "id">) => {
-    setRules((r) => updateLocalAlert(r, id, input));
-  }, []);
-
-  const remove = useCallback((id: number) => {
-    setRules((r) => removeLocalAlert(r, id));
-  }, []);
-
-  return { rules, add, update, remove };
+  const rules = useSyncExternalStore(subscribeLocalAlerts, getLocalAlerts);
+  // add/update/remove are module-level functions → referentially stable.
+  return { rules, add: addRule, update: updateRule, remove: removeRule };
 }

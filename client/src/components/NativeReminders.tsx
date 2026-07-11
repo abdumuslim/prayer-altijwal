@@ -3,7 +3,6 @@
 // NotificationsOptIn on native (SettingsPanel branches on isNative). Rules feed
 // the on-device scheduler (useNativeAlarmScheduler, mounted in App).
 
-import { useEffect, useRef } from "react";
 import { AlarmClock, BatteryWarning, BellRing, Maximize } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -26,20 +25,9 @@ export function NativeReminders() {
   const local = useLocalAlerts();
   const perms = useAlarmPermissions();
 
-  // Seed one sensible default rule the first time (mirrors the web default).
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (seeded.current) return;
-    seeded.current = true;
-    if (local.rules.length === 0) {
-      local.add({
-        timing: "before",
-        minutes: 10,
-        prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"],
-        kind: "notification",
-      });
-    }
-  }, [local]);
+  // Note: the default rule is seeded once at app mount (App.tsx →
+  // seedDefaultLocalAlerts) so a fresh user gets a reminder without having to
+  // open Settings first (docs/NATIVE_ALARM_FIXES_SPEC.md §2a).
 
   const st = perms.state;
   const rows: PermRow[] = [];
