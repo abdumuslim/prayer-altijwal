@@ -1,10 +1,10 @@
 # Native Alarm Spec (Capacitor, offline-first) — Android first, iOS deferred
 
-> **Status: Phases 1–5 BUILT + VERIFIED (2026-07-11)** — server split + CORS, offline compute +
-> parity, Capacitor shell, Java `PrayerAlarm` plugin, TS scheduler, and the native reminder UI +
-> permission onboarding all build/test green and produce a debug APK. **Remaining:** Phase 6 (Play
-> release — needs Google account/keystore) and Phase B (iOS AlarmKit). On-device firing is not yet
-> verified. Supersedes the exploratory
+> **Status: Phases 1–5 BUILT + VERIFIED (2026-07-11); on-device firing VERIFIED on the emulator the
+> same day after a fix round** — see `docs/NATIVE_ALARM_FIXES_SPEC.md` (shared rules store, hardware
+> back, AlarmActivity web-overlay design + countdown-to-adhan, brand launcher icon; all reproduced,
+> fixed, and re-verified on the `prayer36` AVD). **Remaining:** Phase 6 (Play release — needs Google
+> account/keystore; Play Console field list prepared) and Phase B (iOS AlarmKit). Supersedes the exploratory
 > `NATIVE_ALARM_PLAN.md` (which now holds the research + vehicle verdict). Execute phase-by-phase;
 > each phase ends with commands that must pass. Read `NOTIFICATIONS.md` (rule model + push),
 > `PRAYER_ENGINE.md` (engine + Iraqi calibration), `PRAYER_TIMES_API.md` (payload shape),
