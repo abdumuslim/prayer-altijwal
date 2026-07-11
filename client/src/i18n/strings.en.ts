@@ -82,6 +82,8 @@ export const en = {
   "notify.kindNotification": "Notification",
   "notify.kindAlarm": "Alarm",
   "notify.alarmSound": "Alarm tone",
+  "notify.tonesApp": "App tones",
+  "notify.tonesDevice": "Device tones",
   "notify.sunnahTargets": "Sunnah & adhkar",
   "notify.allPrayers": "All prayers",
   "notify.selectAll": "Select all",

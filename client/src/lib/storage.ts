@@ -3,7 +3,7 @@
 // migrate forward without corrupting older data.
 
 import type { AsrMadhab, Lang } from "@/types/api";
-import { DEFAULT_ALARM_SOUND, isAlarmSoundId } from "@/lib/alarm-sounds";
+import { DEFAULT_ALARM_SOUND, isSelectableToneId } from "@/lib/alarm-sounds";
 
 const STORAGE_KEY = "prayer.app.v1";
 const CURRENT_VERSION = 1 as const;
@@ -167,7 +167,7 @@ function migrate(raw: unknown): AppState {
     },
     iqamaMinutes: coerceIqama(raw.iqamaMinutes),
     features: coerceFeatures(raw.features),
-    alarmSound: isAlarmSoundId(raw.alarmSound) ? raw.alarmSound : DEFAULT_ALARM_SOUND,
+    alarmSound: isSelectableToneId(raw.alarmSound) ? raw.alarmSound : DEFAULT_ALARM_SOUND,
   };
 }
 

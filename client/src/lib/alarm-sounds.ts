@@ -26,9 +26,27 @@ export const ALARM_SOUNDS: AlarmSound[] = [
 
 export const DEFAULT_ALARM_SOUND = "soft-plucks";
 
+/**
+ * Device (system) tones — native app only. The id embeds the Android ringtone
+ * content URI so it flows through the existing toneId plumbing unchanged:
+ * `device:content://media/internal/audio/media/…`. The Java side branches on
+ * the prefix (AlarmService.startTone / PrayerAlarmPlugin.previewTone).
+ */
+export const DEVICE_TONE_PREFIX = "device:";
+
+/** True when `id` is a device (system) tone id. */
+export function isDeviceToneId(id: unknown): id is string {
+  return typeof id === "string" && id.startsWith(DEVICE_TONE_PREFIX);
+}
+
 /** True when `id` names a known alarm tone. */
 export function isAlarmSoundId(id: unknown): id is string {
   return typeof id === "string" && ALARM_SOUNDS.some((s) => s.id === id);
+}
+
+/** True when `id` is persistable as the selected tone (bundled OR device). */
+export function isSelectableToneId(id: unknown): id is string {
+  return isAlarmSoundId(id) || isDeviceToneId(id);
 }
 
 /** Public URL of a tone by id, falling back to the default when unknown. */

@@ -50,6 +50,13 @@ export interface PrayerAlarmState {
   batteryExempt: boolean;
 }
 
+/** One selectable system (device) alarm tone. id = `device:<content-uri>`. */
+export interface DeviceTone {
+  id: string;
+  /** System-localized display name (e.g. "Cesium"). */
+  title: string;
+}
+
 export interface PrayerAlarmPlugin {
   /** Cancel every previously-armed alarm, then arm exactly this set. Idempotent. */
   replaceAll(options: { alarms: ScheduledAlarm[] }): Promise<void>;
@@ -59,6 +66,11 @@ export interface PrayerAlarmPlugin {
   openExactAlarmSettings(): Promise<void>;
   openFullScreenIntentSettings(): Promise<void>;
   openBatterySettings(): Promise<void>;
+  /** The device's system alarm tones (RingtoneManager TYPE_ALARM). */
+  listDeviceTones(): Promise<{ tones: DeviceTone[] }>;
+  /** Preview a `device:` tone natively (webview audio can't reach content://). */
+  previewTone(options: { id: string }): Promise<void>;
+  stopTonePreview(): Promise<void>;
 }
 
 /**

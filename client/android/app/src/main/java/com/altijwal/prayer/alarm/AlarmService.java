@@ -120,7 +120,17 @@ public class AlarmService extends Service {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build());
             boolean set = false;
-            if (!toneId.isEmpty()) {
+            if (toneId.startsWith(PrayerAlarmPlugin.DEVICE_TONE_PREFIX)) {
+                // A system (device) tone chosen in the dropdown — play its content URI.
+                try {
+                    android.net.Uri uri = android.net.Uri.parse(
+                            toneId.substring(PrayerAlarmPlugin.DEVICE_TONE_PREFIX.length()));
+                    player.setDataSource(this, uri);
+                    set = true;
+                } catch (Exception ignored) {
+                    // tone gone/unreadable — fall through to the default alarm ringtone
+                }
+            } else if (!toneId.isEmpty()) {
                 try {
                     AssetFileDescriptor afd = getAssets().openFd("public/alarms/" + toneId + ".mp3");
                     player.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());

@@ -4,6 +4,10 @@ import android.Manifest;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.media.AudioAttributes;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
@@ -123,6 +127,78 @@ public class PrayerAlarmPlugin extends Plugin {
                 Uri.parse("package:" + getContext().getPackageName()));
         startSafely(i);
         call.resolve();
+    }
+
+    // ── device tones (dropdown "device tones" group) ─────────────────────────
+
+    /** Tone id prefix shared with JS (lib/alarm-sounds DEVICE_TONE_PREFIX). */
+    static final String DEVICE_TONE_PREFIX = "device:";
+
+    private Ringtone previewRingtone;
+
+    /** List the device's system alarm tones as { id: "device:<uri>", title }. */
+    @PluginMethod
+    public void listDeviceTones(PluginCall call) {
+        JSArray tones = new JSArray();
+        try {
+            RingtoneManager rm = new RingtoneManager(getContext());
+            rm.setType(RingtoneManager.TYPE_ALARM);
+            Cursor cursor = rm.getCursor();
+            while (cursor.moveToNext()) {
+                String title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX);
+                Uri uri = rm.getRingtoneUri(cursor.getPosition());
+                if (uri == null) continue;
+                JSObject tone = new JSObject();
+                tone.put("id", DEVICE_TONE_PREFIX + uri);
+                tone.put("title", title == null ? "" : title);
+                tones.put(tone);
+            }
+        } catch (Exception ignored) {
+            // tone listing is best-effort — an empty list just hides the group
+        }
+        JSObject res = new JSObject();
+        res.put("tones", tones);
+        call.resolve(res);
+    }
+
+    /** Preview a device tone (webview audio cannot play content:// URIs). */
+    @PluginMethod
+    public void previewTone(PluginCall call) {
+        String id = call.getString("id", "");
+        stopPreviewRingtone();
+        if (id != null && id.startsWith(DEVICE_TONE_PREFIX)) {
+            try {
+                Uri uri = Uri.parse(id.substring(DEVICE_TONE_PREFIX.length()));
+                Ringtone r = RingtoneManager.getRingtone(getContext(), uri);
+                if (r != null) {
+                    r.setAudioAttributes(new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build());
+                    r.play();
+                    previewRingtone = r;
+                }
+            } catch (Exception ignored) {
+                // preview is best-effort
+            }
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopTonePreview(PluginCall call) {
+        stopPreviewRingtone();
+        call.resolve();
+    }
+
+    private void stopPreviewRingtone() {
+        if (previewRingtone != null) {
+            try {
+                previewRingtone.stop();
+            } catch (Exception ignored) {
+            }
+            previewRingtone = null;
+        }
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

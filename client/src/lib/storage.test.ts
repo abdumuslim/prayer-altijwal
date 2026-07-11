@@ -75,3 +75,21 @@ describe("worship features", () => {
     expect(loadState().features).toEqual(next);
   });
 });
+
+describe("alarmSound coercion", () => {
+  test("keeps bundled tone ids", () => {
+    seed({ v: 1, alarmSound: "classic" });
+    expect(loadState().alarmSound).toBe("classic");
+  });
+
+  test("keeps device tone ids (native system tones)", () => {
+    const id = "device:content://media/internal/audio/media/42";
+    seed({ v: 1, alarmSound: id });
+    expect(loadState().alarmSound).toBe(id);
+  });
+
+  test("coerces unknown ids to the default", () => {
+    seed({ v: 1, alarmSound: "not-a-tone" });
+    expect(loadState().alarmSound).toBe(DEFAULT_STATE.alarmSound);
+  });
+});

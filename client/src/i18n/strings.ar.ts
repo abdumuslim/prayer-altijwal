@@ -85,6 +85,8 @@ export const ar: Record<StringKey, string> = {
   "notify.kindNotification": "إشعار",
   "notify.kindAlarm": "منبه",
   "notify.alarmSound": "نغمة المنبّه",
+  "notify.tonesApp": "نغمات التطبيق",
+  "notify.tonesDevice": "نغمات الجهاز",
   "notify.sunnahTargets": "السنن والأذكار",
   "notify.allPrayers": "كل الصلوات",
   "notify.selectAll": "تحديد الكل",
