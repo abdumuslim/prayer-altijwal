@@ -78,6 +78,11 @@ describe("computeSchedule", () => {
     expect(baghdadMinute(a!.at)).toBe(12 * 60 + 29);
     // Notification kind carries no tone.
     expect(b!.toneId).toBe("");
+    // The anchor (adhan) instant rides along for the ring-screen countdown:
+    // before → anchor is 15 min AFTER the fire; after → 20 min BEFORE it.
+    expect(b!.anchorAt - b!.at).toBe(15 * 60_000);
+    expect(a!.anchorAt - a!.at).toBe(-20 * 60_000);
+    expect(b!.untilLabel).toBe("المتبقي للأذان"); // reused hero label (lang=ar)
   });
 
   it("keeps only future instants within the 7-day horizon", () => {

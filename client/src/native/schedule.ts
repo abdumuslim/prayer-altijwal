@@ -6,6 +6,8 @@
 
 import { computeLocalPrayerTimes } from "./local-times";
 import { buildPushPayload } from "../../../server/src/push/notification-text.js";
+import { ar } from "@/i18n/strings.ar";
+import { en } from "@/i18n/strings.en";
 import type { ScheduledAlarm } from "@/lib/native";
 import type { LocalAlertRule } from "@/lib/local-alerts";
 import type { AlertTarget, AsrMadhab, Lang } from "@/types/api";
@@ -103,6 +105,8 @@ export function computeSchedule(input: ScheduleInput): ScheduledAlarm[] {
   const tz = input.location.tz;
   const now = (input.now ?? new Date()).getTime();
   const horizon = now + HORIZON_DAYS * DAY_MS;
+  // Reused hero label — the ring screen shows a live countdown to the anchor.
+  const untilLabel = (input.lang === "ar" ? ar : en)["next.header"];
   const out: ScheduledAlarm[] = [];
 
   for (let d = 0; d < HORIZON_DAYS; d++) {
@@ -127,6 +131,8 @@ export function computeSchedule(input: ScheduleInput): ScheduledAlarm[] {
           body,
           toneId: rule.kind === "alarm" ? input.toneId : "",
           target,
+          anchorAt: anchor,
+          untilLabel,
         });
       }
     }

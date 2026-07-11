@@ -52,9 +52,11 @@ public class AlarmService extends Service {
         String body = orEmpty(intent != null ? intent.getStringExtra("body") : "");
         String toneId = orEmpty(intent != null ? intent.getStringExtra("toneId") : "");
         String target = orEmpty(intent != null ? intent.getStringExtra("target") : "");
+        String untilLabel = orEmpty(intent != null ? intent.getStringExtra("untilLabel") : "");
         long at = intent != null ? intent.getLongExtra("at", System.currentTimeMillis()) : System.currentTimeMillis();
+        long anchorAt = intent != null ? intent.getLongExtra("anchorAt", at) : at;
 
-        startForegroundWithNotification(title, body, target, at);
+        startForegroundWithNotification(title, body, target, at, anchorAt, untilLabel);
         startTone(toneId);
         startVibration();
 
@@ -63,13 +65,16 @@ public class AlarmService extends Service {
         return START_NOT_STICKY;
     }
 
-    private void startForegroundWithNotification(String title, String body, String target, long at) {
+    private void startForegroundWithNotification(String title, String body, String target,
+                                                 long at, long anchorAt, String untilLabel) {
         Intent full = new Intent(this, AlarmActivity.class);
         full.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
         full.putExtra("title", title);
         full.putExtra("body", body);
         full.putExtra("target", target);
         full.putExtra("at", at);
+        full.putExtra("anchorAt", anchorAt);
+        full.putExtra("untilLabel", untilLabel);
         PendingIntent fullPi = PendingIntent.getActivity(this, 1, full,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

@@ -35,6 +35,8 @@ public class AlarmScheduler {
         i.putExtra("body", a.body);
         i.putExtra("toneId", a.toneId);
         i.putExtra("target", a.target);
+        i.putExtra("anchorAt", a.anchorAt);
+        i.putExtra("untilLabel", a.untilLabel);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         return PendingIntent.getBroadcast(ctx, a.requestCode(), i, flags);
     }

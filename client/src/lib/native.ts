@@ -34,6 +34,13 @@ export interface ScheduledAlarm {
   toneId: string;
   /** AlertTarget, used for the ?alarm=<target> deep link. */
   target: string;
+  /**
+   * The anchor (adhan/window) instant itself, epoch ms — after `at` for
+   * "before" rules. The native ring screen ticks a live countdown to it.
+   */
+  anchorAt: number;
+  /** Prebuilt localized countdown label (the hero's "next.header" string). */
+  untilLabel: string;
 }
 
 export interface PrayerAlarmState {

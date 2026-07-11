@@ -18,5 +18,19 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ system splash paints the launcher icon on this color. -->
+        <item name="windowSplashScreenBackground">#04181a</item>
+    </style>
+
+    <!-- Full-screen alarm ring screen (AlarmActivity). A plain dark, no-action-bar,
+         no-splash window so the programmatic dark clock UI renders correctly — the
+         previous splash launch theme painted the white Capacitor logo over it
+         (docs/NATIVE_ALARM_FIXES_SPEC.md §2e). -->
+    <style name="AlarmTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/alarmBackground</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:statusBarColor">@color/alarmBackground</item>
+        <item name="android:navigationBarColor">@color/alarmBackground</item>
     </style>
 </resources>
