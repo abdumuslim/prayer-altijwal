@@ -1,0 +1,21 @@
+{
+  // Type-checks the native-only offline chunk (client/src/native/**) together with
+  // the REUSED server engine/wrappers it imports (../server/src/**). Those sources
+  // are checked under SERVER-compatible flags (looser than tsconfig.app.json) so
+  // the verbatim engine is never edited to satisfy the client's stricter rules
+  // (hard rule 2). See docs/NATIVE_ALARM_SPEC.md §3b.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "composite": false,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.native.tsbuildinfo",
+    "types": ["vite/client", "node"],
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": false,
+    "erasableSyntaxOnly": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noUncheckedSideEffectImports": false
+  },
+  "include": ["src/native"],
+  "exclude": []
+}
