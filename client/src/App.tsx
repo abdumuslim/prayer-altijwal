@@ -13,6 +13,7 @@ import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useLocalAlerts } from "@/hooks/useLocalAlerts";
 import { useNativeAlarmScheduler } from "@/hooks/useNativeAlarmScheduler";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { useFirstRunPermissions } from "@/hooks/useFirstRunPermissions";
 import { isNative } from "@/lib/native";
 import { seedDefaultLocalAlerts } from "@/lib/local-alerts-store";
 import { useWakeLock } from "@/hooks/useWakeLock";
@@ -88,6 +89,10 @@ function App() {
   useEffect(() => {
     if (isNative()) seedDefaultLocalAlerts();
   }, []);
+
+  // Native only: first launch asks for the alarm permissions right away
+  // (notification dialog + the top missing system screen). One-time.
+  useFirstRunPermissions();
 
   // Android hardware back: close the top-most overlay, else minimize the app.
   useAndroidBack(() => {
