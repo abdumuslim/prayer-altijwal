@@ -357,6 +357,25 @@ emulator afterwards:
    FGS declaration/demo video**; `AlarmService.onTimeout` added as the system backstop. Also avoids
    the Android 15+ ban on `mediaPlayback` FGS starts from `BOOT_COMPLETED` ever mattering.
 
+### 2g. First-run permission onboarding + tone dropdown with device tones (2026-07-11)
+
+- **First launch asks for permissions immediately** (`useFirstRunPermissions`, mounted in `App.tsx`,
+  `prayer.perms.prompted.v1` marker): awaits the system notification dialog, then surfaces at most
+  ONE more screen by impact — battery-exemption dialog → exact-alarm settings → FSI settings —
+  only for whatever the OS didn't auto-grant. No new strings (system dialogs). The Settings rows
+  remain the recovery path (`useAlarmPermissions` re-checks on resume). Verified on a wiped install:
+  notification dialog → battery dialog → app whitelisted in `dumpsys deviceidle`.
+- **Alarm-tone dropdown + device (system) tones** (user request): the tone picker is a compact
+  dropdown (closed: selected tone + preview control; open: grouped inline list). Native adds the
+  device's system alarm tones via new plugin methods `listDeviceTones` (RingtoneManager TYPE_ALARM),
+  `previewTone`/`stopTonePreview` (Ringtone, USAGE_ALARM — the webview can't play `content://`).
+  Device ids ride the existing toneId plumbing as `device:<content-uri>` (`DEVICE_TONE_PREFIX`);
+  `AlarmService.startTone` plays the URI with the existing default-ringtone fallback; storage
+  persists them (`isSelectableToneId`); the picker resets to the bundled default if the stored
+  device tone disappears. New AR/EN group labels `notify.tonesApp`/`notify.tonesDevice`
+  (native-only surface). Verified: selection persists, alarms re-arm live on tone change, fired
+  alarm plays the device tone (audio track active, no MediaPlayer errors).
+
 ### 2d. Test environment (already provisioned this session)
 
 A **second SDK root on D:** (nothing new written to C: except a possible <1 KB AVD `.ini`) — the app's

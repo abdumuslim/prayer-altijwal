@@ -17,7 +17,7 @@
 | Category | App → Lifestyle |
 | Price | Free (never reversible to paid) |
 | Website | `https://prayer.altijwal.com` |
-| Contact email | `abdu.bns@gmail.com` (verified + shown publicly) |
+| Contact email | `contact@al-tijwal.com` (verified + shown publicly) |
 | First release | `versionCode 1`, `versionName "1.0"` (`client/android/app/build.gradle`) |
 
 ---
@@ -138,7 +138,7 @@ redact them or change the wording "لا نحتفظ بها" accordingly. The Data
   <h2>حذف البيانات</h2>
   <p>لا نخزّن بيانات عنك على خوادمنا، فلا يوجد ما يُطلب حذفه. حذف التطبيق يزيل كل البيانات المحلية.</p>
   <h2>التواصل</h2>
-  <p>لأي استفسار: <a href="mailto:abdu.bns@gmail.com">abdu.bns@gmail.com</a></p>
+  <p>لأي استفسار: <a href="mailto:contact@al-tijwal.com">contact@al-tijwal.com</a></p>
   <hr />
   <div class="en">
     <h1>Privacy Policy — “Prayer Times” (مواقيت الصلاة)</h1>
@@ -154,7 +154,7 @@ redact them or change the wording "لا نحتفظ بها" accordingly. The Data
        full-screen permissions are used solely to ring prayer alarms on time while the app is
        closed.</p>
     <p><b>Deletion:</b> we store nothing about you server-side; uninstalling removes all local data.
-       Contact: abdu.bns@gmail.com</p>
+       Contact: contact@al-tijwal.com</p>
   </div>
 </body>
 </html>
@@ -215,7 +215,7 @@ declarations.
 - Graphics: icon 512 + feature graphic + screenshots (Phase 3).
 
 **Store settings:** Category **Lifestyle** · tags (e.g. "Religion & spirituality") · contact email
-`abdu.bns@gmail.com` · website `https://prayer.altijwal.com`.
+`contact@al-tijwal.com` · website `https://prayer.altijwal.com`.
 
 **App content (Policy → App content) — exact answers:**
 
