@@ -72,6 +72,14 @@ cd client && npm run build      # client typecheck + build — USE THIS. Bare `t
                                 # build fails on deploy. See [[build_client_typecheck_gotcha]].
 cd server && npm test           # server tests (vitest)
 cd server && npm run build:cities   # regenerate the bundled GeoNames dataset (n/a/alt/nar/etc.)
+
+# Native (Capacitor Android) app — offline alarms (docs/NATIVE_ALARM_SPEC.md):
+cd client && npm run build          # NOW runs tsc -b + tsc -p tsconfig.native.json + vite build
+                                    # (tsconfig.native type-checks the reused engine under looser flags)
+cd client && npx cap sync android   # copy the built dist + plugins into client/android
+cd client/android && ./gradlew.bat assembleDebug   # build the debug APK (Java PrayerAlarm plugin)
+# SDK path in client/android/local.properties (gitignored). If gradle downloads fail with a sandbox
+# TLS bad_record_mac, run gradle with the sandbox disabled + retry (caches warm after first success).
 ```
 
 Deployment: tarball → scp → `docker compose up -d --build` on the VPS — exact steps in

@@ -368,5 +368,36 @@ play **only while the app/PWA is open** (foreground, or a tab the OS keeps alive
 background timer**; the trigger is a **server push** that wakes the service worker, which — when the
 app is **closed** — can only show a **notification** (system sound + vibration, `requireInteraction`),
 not the ringing MP3 or a full-screen takeover. Tapping that notification opens the app into the alarm.
-A true closed-app alarm with a custom ring needs a **native wrapper** (Capacitor + local
-notifications / Android AlarmManager / iOS critical alerts). See `NOTIFICATIONS.md` §3b.
+A true closed-app alarm with a custom ring needs a **native wrapper** (Capacitor + Android
+`AlarmManager` / iOS 26 AlarmKit) — **built for Android** (§10 + `NATIVE_ALARM_SPEC.md`). See
+`NOTIFICATIONS.md` §3b.
+
+---
+
+## 10. Native app (Capacitor, offline-first — 2026-07-11)
+
+The Android (Capacitor) build wraps the **same SPA** and adds true closed-app alarms + fully offline
+compute. Full detail: `NATIVE_ALARM_SPEC.md`. Frontend-relevant pieces:
+
+- **`lib/native.ts`** — `isNative()` (`Capacitor.isNativePlatform`), the typed `PrayerAlarm` plugin
+  handle, and `loadNativeFacade()` which dynamically imports the **native-only chunk**
+  (`src/native/api.ts`) via `import.meta.glob`, keeping the reused engine out of the web bundle
+  (amended hard rule 3; `findstr /m astronomy` gate). Guard every native call with `isNative()`.
+- **`src/native/`** (type-checked by `tsconfig.native.json` under server-compatible flags; the strict
+  app tsconfig `exclude`s it): `local-times.ts` builds the `/api/prayer-times` payload on-device (reused
+  engine via the Vite `node:module` shim + `iraq-calibration-browser`); `schedule.ts` turns local rules
+  into a 7-day `ScheduledAlarm[]`, reusing the server's `buildPushPayload` text; `api.ts` re-exports both.
+- **Offline seam** — `usePrayerTimes` computes locally when `isNative()`; the web fetch path is byte-for-
+  byte unchanged.
+- **Local rules** — `lib/local-alerts.ts` (localStorage `prayer.alerts.v1`) + `useLocalAlerts`; no push
+  endpoint (Web Push is absent in the Android WebView). `useNativeAlarmScheduler` recomputes and
+  `PrayerAlarm.replaceAll`s the OS alarms on rule/location/tone change and on app resume.
+- **UI** — `SettingsPanel` renders `<NativeReminders>` (native) vs `<NotificationsOptIn>` (web); both
+  share the extracted **`AlertRuleList`** (add/edit/delete + `AlertForm`, whose `initial` was widened to
+  `AlertDraft`). `NativeReminders` adds the Android **permission-onboarding rows** (`useAlarmPermissions`
+  → `PrayerAlarm.getState()`, re-checked on resume) for notifications / exact-alarm / full-screen /
+  battery + an OEM notice, and seeds one default rule on first launch. New strings: `notify.perm*` +
+  `notify.offlineNote` (AR+EN, approved 2026-07-11); launcher name «مواقيت الصلاة».
+- The full-screen **ring** is a **native `AlarmActivity`** (not the web `AlarmOverlay`); the web overlay
+  (§9) still handles the in-app foreground case and is opened from the native activity's `?alarm=` deep
+  link.

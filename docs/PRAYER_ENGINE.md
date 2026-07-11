@@ -111,6 +111,13 @@ Baghdad-level accuracy (Baghdad worst error = 1 min). A **seasonal** (declinatio
 is negligible (<1 min drift across the 47° span), so a per-gov **constant** is the calibrated —
 not-overfit — model.
 
+> **Split for browser reuse (2026-07-11).** `iraq-calibration.ts` is now a **thin server loader**
+> (`readFileSync` + pino) over a pure, data-injected **`iraq-calibration-core.ts`** (no Node APIs).
+> The native app reuses the core in-browser via `client/src/native/iraq-calibration-browser.ts`
+> (ESM-imports the same JSON). Behavior-neutral — the split kept all server tests green unchanged.
+> Public signatures (`iraqCalibration`/`iraqExactTimes`/`baghdadInstant`) are identical, so callers
+> and the poster regression are untouched. See `NATIVE_ALARM_SPEC.md` §3a/§3b.
+
 **Exact-data override (literal 0-min) — `iraqExactTimes` + `server/data/waqf-exact.json`.** For a
 location **at a governorate capital** (≤45 km) on a **digitized date**, `payload.ts` overlays the
 official poster numbers **verbatim** → a literal 0-shift match. Everything else uses the calibrated

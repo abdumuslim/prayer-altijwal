@@ -152,3 +152,6 @@ GET /api/health  → { ok: true, db: "up" }     // DB connectivity probe; used b
   carries a **`tomorrow`** boolean; `nextEvent` carries a stable **`key`** alongside the localized `name`.
 - `db` health is `"up" | "down" | "disabled"` ("disabled" = no `DATABASE_URL`, stateless mode).
 - Push endpoints (`/api/push/*`) return 503 when push isn't configured (no VAPID/DB).
+- **CORS** is enabled on `/api/*` (`cors`, origin-reflecting) so the native (Capacitor) app can call
+  the geo endpoints from its `https://localhost` origin (2026-07-11). The API is public/no-auth, so
+  this exposes nothing new; the same-origin SPA is unaffected. See `NATIVE_ALARM_SPEC.md` §3a.
