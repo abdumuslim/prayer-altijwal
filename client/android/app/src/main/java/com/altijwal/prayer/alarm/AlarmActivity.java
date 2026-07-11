@@ -74,8 +74,11 @@ public class AlarmActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
-            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-            if (km != null) km.requestDismissKeyguard(this, null);
+            // Do NOT requestDismissKeyguard here: on a secured device it pops the
+            // PIN/fingerprint prompt OVER the alarm, forcing an unlock before the
+            // user can hit Stop. The activity shows fine over the keyguard with
+            // setShowWhenLocked and Stop works locked; the keyguard is only
+            // dismissed when the user taps through to open the app (openApp).
         } else {
             getWindow().addFlags(
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
@@ -333,6 +336,22 @@ public class AlarmActivity extends Activity {
     }
 
     private void openApp(String target, long at) {
+        // MainActivity is not showWhenLocked, so ask the user to unlock first
+        // (this is the ONLY path that prompts the keyguard — Stop never does).
+        KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && km != null && km.isKeyguardLocked()) {
+            km.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
+                @Override
+                public void onDismissSucceeded() {
+                    launchApp(target, at);
+                }
+            });
+            return;
+        }
+        launchApp(target, at);
+    }
+
+    private void launchApp(String target, long at) {
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (open == null) return;
         open.setData(Uri.parse("https://prayer.altijwal.com/?alarm=" + target + "&t=" + at));
