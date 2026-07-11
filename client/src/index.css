@@ -141,7 +141,13 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     margin: 0;
-    padding: 0;
+    /* Native (Capacitor) edge-to-edge: consume the safe-area insets the
+       SystemBars plugin injects so content clears the transparent system
+       bars (status bar / gesture bar / cutout). The vars are unset on the
+       web → 0px → no effect there. Fixed overlays (SlideOver, BottomSheet,
+       AlarmOverlay) apply the same vars themselves. */
+    padding: var(--safe-area-inset-top, 0px) var(--safe-area-inset-right, 0px)
+      var(--safe-area-inset-bottom, 0px) var(--safe-area-inset-left, 0px);
   }
 
   /* Arabic typography when RTL */

@@ -14,6 +14,14 @@ const config: CapacitorConfig = {
     // endpoints are reached absolutely (see client/src/lib/api.ts) with CORS.
     allowMixedContent: false,
   },
+  plugins: {
+    // The UI is always dark (night theme) → dark system bars with LIGHT icons,
+    // regardless of the device light/dark mode. Insets are consumed in CSS via
+    // the injected --safe-area-inset-* vars (index.css + fixed overlays).
+    SystemBars: {
+      style: "DARK",
+    },
+  },
 };
 
 export default config;

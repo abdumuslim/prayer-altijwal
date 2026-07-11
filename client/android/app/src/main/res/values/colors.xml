@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window background for the full-screen alarm ring screen (AlarmActivity).
-         The app's night color (#04181a) — same as the web AlarmOverlay base, so
-         there is no color flash before setContentView paints the gradient
-         (docs/NATIVE_ALARM_FIXES_SPEC.md §2e). -->
-    <color name="alarmBackground">#04181A</color>
+    <!-- The app's night color (#04181a), the web theme's "color-night" token.
+         Used as every window background (main activity, splash, alarm ring
+         screen) so system-bar areas and pre-draw frames always match the dark
+         UI (docs/NATIVE_ALARM_FIXES_SPEC.md §2e/§2f). -->
+    <color name="night">#04181A</color>
 </resources>

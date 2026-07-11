@@ -47,6 +47,10 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
         aria-modal="true"
         aria-label={title}
         className="animate-panel-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-xl flex-col rounded-t-3xl border-x border-t border-border bg-night-2/95 backdrop-blur-xl"
+        style={{
+          // Native edge-to-edge: keep the sheet content above the gesture bar.
+          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+        }}
       >
         <div className="mx-auto mt-4 h-1 w-10 shrink-0 rounded-full bg-white/20" />
         <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-3">

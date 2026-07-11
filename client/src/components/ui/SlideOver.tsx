@@ -48,6 +48,11 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
           "animate-panel-in relative ms-auto flex h-full w-full max-w-md flex-col",
           "border-s border-border-soft bg-night-2/95 shadow-2xl backdrop-blur-xl",
         )}
+        style={{
+          // Native edge-to-edge: keep the header/footer clear of the system bars.
+          paddingTop: "var(--safe-area-inset-top, 0px)",
+          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+        }}
       >
         <div className="flex items-center gap-2.5 border-b border-border-soft/70 px-5 py-4">
           {icon && (
