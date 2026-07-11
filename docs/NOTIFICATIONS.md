@@ -170,7 +170,8 @@ A web app **cannot** replicate an OS alarm when the browser is fully closed; the
   app runs no code; the server push wakes the SW, which when the app is **closed** can only show a
   **notification** (with the **system** sound, not the MP3; `requireInteraction` + strong vibrate on
   Android). It is NOT a background alarm clock. A true closed-app alarm with a custom ring requires a
-  **native wrapper** (Capacitor + local-notification/AlarmManager, iOS critical alerts).
+  **native wrapper** (Capacitor + Android `AlarmManager`/full-screen intent, **iOS 26 AlarmKit**) —
+  scoped in `NATIVE_ALARM_SPEC.md` (offline-first; Android first, iOS deferred).
 - **iOS caveat:** push needs the installed PWA (existing hint); `requireInteraction`, SW `vibrate`, and
   `navigator.vibrate` are ignored → iOS closed-app is a plain system notification; the overlay + MP3
   appear only once the app is opened (audio after a prior in-app gesture).

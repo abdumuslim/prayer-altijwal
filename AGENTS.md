@@ -53,7 +53,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | HTTP API contract: `/api/prayer-times`, geo + push endpoints, response shapes | `docs/PRAYER_TIMES_API.md` |
 | Location resolution: GeoNames cities dataset, reverse/forward, country→method detection | `docs/GEOCODING.md` |
 | Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, alarm kind + full-screen overlay + tone picker, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
-| Future **native (Capacitor) alarm** — real closed-app ringing on iOS/Android (plan only, not built) | `docs/NATIVE_ALARM_PLAN.md` |
+| Native (Capacitor) alarm — real closed-app **offline** ringing; **Android first, iOS (AlarmKit) deferred** | `docs/NATIVE_ALARM_SPEC.md` (build) + `docs/NATIVE_ALARM_PLAN.md` (research/verdict) |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |
 | SSH/VPS access, credentials, secrets, routine ops | `docs/OPERATIONS.md` ⚠️ local-only (gitignored); if absent, ask the user |
@@ -84,8 +84,12 @@ Deployment: tarball → scp → `docker compose up -d --build` on the VPS — ex
    VPS `.env`.
 2. **Reuse the engine verbatim; never edit `server/src/prayer-engine/`.** Calibrate/extend via
    `config` in *our* wrapper modules. Re-copy from home if it improves upstream (`docs/PRAYER_ENGINE.md`).
-3. **`astronomy-engine` is server-only** (loaded via `createRequire`) — never import `prayer-engine/`
-   into the client bundle.
+3. **`astronomy-engine`/`prayer-engine/` must never reach the WEB bundle.** The web client fetches
+   times from the API; it never imports the engine. **Exception (native only, 2026-07-11):** the
+   Capacitor app computes times offline by importing the engine verbatim into a **lazy chunk reached
+   only via `if (isNative()) import('./native/boot')`** (Vite code-splits it; web users never fetch
+   it — verified by the `findstr /m astronomy` gate). The engine is loaded via a Vite `node:module`
+   alias shim, **never** by editing `prayer-engine/`. See `docs/NATIVE_ALARM_SPEC.md` §3b.
 4. **All engine times are UTC; the `tz` is the *target location's* IANA tz, never the device tz.**
    This is the central correctness rule (`docs/ARCHITECTURE.md` §3).
 5. **The Iraqi `BaghdadYMA` profile applies to all of Iraq** (cc=IQ), not just Baghdad, with a
