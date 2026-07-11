@@ -27,12 +27,21 @@ Browser → Cloudflare (DNS + origin SSL) → Traefik (VPS, :80/:443) → prayer
 ## 2. Container
 
 **Dockerfile** — multi-stage Node 22-slim, copied from home and simplified:
-1. **client-build** — `vite build` the React app.
-2. **server-build** — `tsc` the Express server.
+1. **server-build** — `tsc` the Express server. **Built first** (2026-07-11) so the client stage can
+   reuse its source tree + `node_modules`.
+2. **client-build** — `vite build` the React app. **Copies the full built server tree from
+   server-build** (`COPY --from=server-build /build/server /build/server`) because the native
+   (Capacitor) **offline chunk imports the reused engine + wrappers + calibration data verbatim** from
+   `../server` (hard rule 2). The client build type-checks (`tsc -p tsconfig.native.json`) and bundles
+   them, and resolves `pino`/`astronomy-engine` **types from `server/node_modules`** — so `src`, `data`,
+   AND `node_modules` must all be present at `../server`. Web users never load the resulting engine
+   chunk (code-split behind `isNative()`; `NATIVE_ALARM_SPEC.md` §3b). **Without this the web build
+   fails** (`Cannot find module '../../../server/...'` / `'pino'`).
 3. **production** — Node 22-slim; copy server `dist` + `node_modules` + the built client static
    files + `server/data/cities15000.json`; serve on **port 8000**.
    - Drop home's `bias-table.json` copy line (weather-only, not used here).
    - Express serves `/api/*` and the SPA (history-mode fallback to `index.html` for non-`/api` routes).
+   - **CORS** is enabled on `/api/*` (for the native origin `https://localhost`); harmless for the SPA.
 
 **docker-compose.yml** — copy home's and **rename every Traefik label** `home.*` → `prayer.*`
 (a duplicate router name on the shared Traefik silently breaks routing):

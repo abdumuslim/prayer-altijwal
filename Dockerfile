@@ -1,18 +1,27 @@
-# Stage 1: Build client (Vite → static SPA)
-FROM node:22-slim AS client-build
-WORKDIR /build/client
-COPY client/package*.json ./
-RUN npm ci
-COPY client/ ./
-RUN npm run build
-
-# Stage 2: Build server (tsc → dist)
+# Stage 1: Build server (tsc → dist). Built first so the client stage can reuse
+# the server source tree + node_modules for its native offline chunk (below).
 FROM node:22-slim AS server-build
 WORKDIR /build/server
 COPY server/package*.json ./
 RUN npm ci
 COPY server/ ./
 RUN npx tsc
+
+# Stage 2: Build client (Vite → static SPA)
+FROM node:22-slim AS client-build
+WORKDIR /build/client
+COPY client/package*.json ./
+RUN npm ci
+COPY client/ ./
+# The native (Capacitor) offline chunk imports the reused server engine + wrappers
+# + calibration data VERBATIM (hard rule 2) from ../server. The client build
+# (tsc -p tsconfig.native.json + vite) type-checks and bundles them, so the whole
+# built server tree — src, data, AND node_modules (pino/astronomy-engine types are
+# resolved from there) — must be present at ../server. Web users never load the
+# resulting engine chunk (it is code-split behind isNative()). See
+# NATIVE_ALARM_SPEC.md §3b.
+COPY --from=server-build /build/server /build/server
+RUN npm run build
 
 # Stage 3: Production
 FROM node:22-slim
