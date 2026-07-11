@@ -10,6 +10,8 @@ import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
 import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { useLocalAlerts } from "@/hooks/useLocalAlerts";
+import { useNativeAlarmScheduler } from "@/hooks/useNativeAlarmScheduler";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { useAlarm } from "@/hooks/useAlarm";
@@ -109,6 +111,19 @@ function App() {
     method: effectiveMethod,
     asr: effectiveAsr,
     lang,
+  });
+
+  // Native (Capacitor) app only: keep OS-level alarms in sync with device-local
+  // reminder rules. No-op on web (guarded inside the hooks by isNative()).
+  const localAlerts = useLocalAlerts();
+  useNativeAlarmScheduler({
+    location: location.location,
+    lang,
+    method: settings.method,
+    methodAuto: settings.methodAuto,
+    asr: settings.asr,
+    toneId: settings.alarmSound,
+    rules: localAlerts.rules,
   });
 
   const showLocationNeeded =

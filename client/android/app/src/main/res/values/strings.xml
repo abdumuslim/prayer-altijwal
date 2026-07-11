@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">مواقيت الصلاة</string>
+    <string name="title_activity_main">مواقيت الصلاة</string>
+    <string name="package_name">com.altijwal.prayer</string>
+    <string name="custom_url_scheme">com.altijwal.prayer</string>
+</resources>

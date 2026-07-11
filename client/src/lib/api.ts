@@ -13,6 +13,15 @@ import type {
   ReverseGeoResponse,
   VapidKeyResponse,
 } from "@/types/api";
+import { isNative } from "@/lib/native";
+
+// In the native (Capacitor) app the page origin is https://localhost, so API
+// calls must target the deployed backend absolutely (CORS is enabled server-side
+// for /api/*). On web this is "" → same-origin relative paths (dev proxy / prod).
+const PROD_API_ORIGIN = "https://prayer.altijwal.com";
+function apiBase(): string {
+  return isNative() ? PROD_API_ORIGIN : "";
+}
 
 export class ApiRequestError extends Error {
   readonly status: number;
@@ -30,7 +39,7 @@ async function request<T>(
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(apiBase() + path, {
       ...init,
       signal,
       headers: {

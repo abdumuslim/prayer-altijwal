@@ -99,6 +99,22 @@ export const ar: Record<StringKey, string> = {
   "notify.unsupported": "التذكيرات غير مدعومة في هذا المتصفح.",
   "notify.permissionDenied": "الإشعارات محظورة. فعّلها من إعدادات المتصفح.",
   "notify.saving": "جارٍ الحفظ…",
+  // Native (Capacitor) app — alarm permission onboarding + offline note.
+  "notify.permsTitle": "أذونات المنبّه",
+  "notify.permNotifications": "الإشعارات",
+  "notify.permNotificationsDesc": "مطلوبة لإظهار التذكيرات",
+  "notify.permExact": "التنبيهات الدقيقة",
+  "notify.permExactDesc": "لينطلق المنبّه في وقته تمامًا",
+  "notify.permFullScreen": "التنبيه بملء الشاشة",
+  "notify.permFullScreenDesc": "لإظهار المنبّه فوق شاشة القفل",
+  "notify.permBattery": "استثناء موفّر البطارية",
+  "notify.permBatteryDesc": "حتى لا يوقف النظامُ المنبّه",
+  "notify.permAllow": "السماح",
+  "notify.permOpenSettings": "فتح الإعدادات",
+  "notify.permOemNotice":
+    "على بعض الأجهزة (شاومي، هواوي، أوبو…) فعّل «التشغيل التلقائي» وأزل قيود البطارية عن التطبيق ليعمل المنبّه بثبات.",
+  "notify.permGranted": "مُفعّل",
+  "notify.offlineNote": "تعمل التذكيرات دون إنترنت",
 
   // Alarm (full-screen)
   "alarm.stop": "إيقاف",

@@ -10,7 +10,7 @@ import { ALERT_TARGET_LABEL, EXTRA_TARGETS, FARD_TARGETS } from "@/lib/alert-tar
 import { localizeNumber } from "@/lib/format";
 import { unlockAlarmAudio } from "@/lib/alarm-sound";
 import { cn } from "@/lib/utils";
-import type { AlertKind, AlertTarget, AlertTiming, PrayerAlert } from "@/types/api";
+import type { AlertKind, AlertTarget, AlertTiming } from "@/types/api";
 
 const MINUTE_PRESETS = [5, 10, 15, 30];
 const MIN_CUSTOM = 1;
@@ -29,7 +29,8 @@ export interface AlertDraft {
 }
 
 interface AlertFormProps {
-  initial?: PrayerAlert;
+  // Any object carrying the draft fields (server PrayerAlert or a local rule).
+  initial?: AlertDraft;
   busy?: boolean;
   onSave: (draft: AlertDraft) => void;
   onCancel: () => void;

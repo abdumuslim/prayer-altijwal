@@ -96,6 +96,22 @@ export const en = {
   "notify.unsupported": "Reminders aren't supported on this browser.",
   "notify.permissionDenied": "Notifications are blocked. Enable them in browser settings.",
   "notify.saving": "Saving…",
+  // Native (Capacitor) app — alarm permission onboarding + offline note.
+  "notify.permsTitle": "Alarm permissions",
+  "notify.permNotifications": "Notifications",
+  "notify.permNotificationsDesc": "Required to show reminders",
+  "notify.permExact": "Exact alarms",
+  "notify.permExactDesc": "So the alarm rings at the exact time",
+  "notify.permFullScreen": "Full-screen alarm",
+  "notify.permFullScreenDesc": "To show the alarm over the lock screen",
+  "notify.permBattery": "Battery-saver exemption",
+  "notify.permBatteryDesc": "So the system doesn't stop the alarm",
+  "notify.permAllow": "Allow",
+  "notify.permOpenSettings": "Open settings",
+  "notify.permOemNotice":
+    "On some devices (Xiaomi, Huawei, Oppo…) enable \"Autostart\" and remove battery restrictions so the alarm works reliably.",
+  "notify.permGranted": "On",
+  "notify.offlineNote": "Reminders work offline",
 
   // Alarm (full-screen)
   "alarm.stop": "Stop",

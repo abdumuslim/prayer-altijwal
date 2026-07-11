@@ -8,7 +8,9 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { NotificationsOptIn } from "@/components/NotificationsOptIn";
+import { NativeReminders } from "@/components/NativeReminders";
 import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
+import { isNative } from "@/lib/native";
 import { IqamaSettings } from "@/components/IqamaSettings";
 import { WorshipSettings } from "@/components/WorshipSettings";
 import type {
@@ -70,7 +72,7 @@ export function SettingsPanel({
           title={t("notify.title")}
           subtitle={t("notify.subtitle")}
         >
-          <NotificationsOptIn push={push} />
+          {isNative() ? <NativeReminders /> : <NotificationsOptIn push={push} />}
           <AlarmSoundPicker selected={alarmSound} onSelect={onChangeAlarmSound} />
         </CollapsibleSection>
 

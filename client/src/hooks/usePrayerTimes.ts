@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiRequestError, fetchPrayerTimes } from "@/lib/api";
+import { isNative, loadNativeFacade } from "@/lib/native";
 import { localDayKey } from "@/lib/civil-day";
 import { proximityFromMs, type Proximity } from "@/lib/format";
 import type {
@@ -99,6 +100,27 @@ export function usePrayerTimes({
     setLoading(true);
     setError(null);
     try {
+      // Native app: compute times ON-DEVICE (works fully offline). The web path
+      // below is unchanged. Falls through to the network only if the offline
+      // chunk can't load (should not happen on native).
+      if (isNative()) {
+        const facade = await loadNativeFacade();
+        if (facade && !ac.signal.aborted) {
+          const res = facade.computeLocalPrayerTimes({
+            location,
+            lang,
+            method: methodAuto ? null : method,
+            methodAuto,
+            asr,
+          });
+          setData(res);
+          lastFetchAt.current = Date.now();
+          fetchedDayKey.current = localDayKey(location.tz);
+          setNow(Date.now());
+          return;
+        }
+      }
+
       const res = await fetchPrayerTimes(
         {
           lat: location.lat,

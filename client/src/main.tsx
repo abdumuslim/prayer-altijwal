@@ -4,6 +4,7 @@ import "./index.css";
 import App from "./App";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isNative } from "@/lib/native";
 
 // DEV-only design preview (?design=N) — lazy so it is code-split and the chunk
 // is never even requested in production builds.
@@ -12,8 +13,11 @@ const designParam = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get("design")
   : null;
 
-// Register the service worker (push + offline shell). Best-effort.
-if ("serviceWorker" in navigator) {
+// Register the service worker (push + offline shell). Best-effort. Skipped in the
+// native (Capacitor) app, which uses on-device scheduling instead of web push.
+// The offline engine + alarm scheduler load lazily via loadNativeFacade() (see
+// @/lib/native) when a native hook first needs them — kept out of the web bundle.
+if ("serviceWorker" in navigator && !isNative()) {
   window.addEventListener("load", () => {
     void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
   });
