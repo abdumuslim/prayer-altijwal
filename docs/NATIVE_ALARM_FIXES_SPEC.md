@@ -327,6 +327,36 @@ screen must use `AlarmTheme` (a bare dark window), NOT the splash theme — othe
   clock and hides it once the anchor passes (so at-time/after rules show no countdown). Covered by
   `schedule.test.ts` (anchor offsets ±, label value).
 
+### 2f. Real-device (Pixel) fix round — edge-to-edge, locked Stop, shortService (2026-07-11)
+
+Found by the user on a physical Pixel after the emulator round; all reproduced/verified on the
+emulator afterwards:
+
+1. **Content intersected the status bar.** targetSdk 36 ⇒ edge-to-edge is enforced (the Android 15
+   opt-out is disabled on Android 16). Capacitor 8's built-in `SystemBars` plugin passes insets
+   through when the page has `viewport-fit=cover` **and** WebView ≥140 (the Pixel), injecting
+   `--safe-area-inset-*` CSS vars that the page never consumed; older WebViews (the emulator) get a
+   native padded strip colored by the theme `windowBackground` (was white). Fix, both paths:
+   - `index.css` `body` consumes the vars as padding (0px fallback → web unaffected); the fixed
+     overlays consume them too (`SlideOver` top+bottom, `BottomSheet` bottom, `AlarmOverlay`
+     top+bottom via `calc`).
+   - `capacitor.config.ts` `plugins.SystemBars.style = "DARK"` → light bar icons over the
+     always-dark UI regardless of device theme.
+   - `styles.xml`: `android:windowBackground = @color/night` on `AppTheme.NoActionBar` +
+     `AppTheme.NoActionBarLaunch` (the padded strip and pre-draw frames paint night, never white);
+     `colors.xml` renames `alarmBackground` → `night` (it now backs every window).
+2. **Stopping the alarm required unlocking the phone.** `AlarmActivity.onCreate` called
+   `requestDismissKeyguard()` immediately — on a secured device that pops the PIN/fingerprint sheet
+   OVER the ringing alarm (invisible on the PIN-less emulator). Fix: never dismiss the keyguard on
+   show (`setShowWhenLocked` is sufficient; Stop works over the lock screen); `openApp` alone
+   requests dismissal (with a success callback) since `MainActivity` isn't `showWhenLocked`.
+   Verified with `locksettings set-pin`: Stop silences while `deviceLocked=1`, no prompt.
+3. **FGS type switched `mediaPlayback` → `shortService`** (Play-policy driven, see
+   `docs/PLAY_RELEASE.md`): the ring is hard-capped at 2 min < the ~3-min shortService window, needs
+   no type permission (manifest `FOREGROUND_SERVICE_MEDIA_PLAYBACK` dropped) and **no Play Console
+   FGS declaration/demo video**; `AlarmService.onTimeout` added as the system backstop. Also avoids
+   the Android 15+ ban on `mediaPlayback` FGS starts from `BOOT_COMPLETED` ever mattering.
+
 ### 2d. Test environment (already provisioned this session)
 
 A **second SDK root on D:** (nothing new written to C: except a possible <1 KB AVD `.ini`) — the app's
