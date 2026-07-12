@@ -57,10 +57,17 @@ export const en = {
   "search.hint": "Search for any city worldwide",
   "search.governoratesIn": "Cities in {country}",
 
+  // Bottom navigation (v2 shell — labels user-approved)
+  "nav.home": "Home",
+  "nav.times": "Times",
+  "nav.reports": "Reports",
+  "nav.settings": "Settings",
+
   // Settings
   "settings.title": "Settings",
   "settings.language": "Language",
   "settings.done": "Done",
+  "settings.version": "Version",
 
   // Notifications
   "notify.title": "Prayer Reminders",

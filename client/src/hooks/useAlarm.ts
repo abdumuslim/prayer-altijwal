@@ -18,6 +18,8 @@ const STALE_MS = 5 * 60_000;
 export interface AlarmContent {
   title: string;
   body: string;
+  /** The adhan/window instant the alarm anchors to (epoch ms), when known. */
+  anchorAt?: number | null;
 }
 
 export interface UseAlarm {
@@ -32,6 +34,8 @@ interface AlarmMessage {
     body?: string;
     prayer?: string;
     firedAt?: number;
+    /** Optional adhan instant for the overlay's countdown-to-adhan element. */
+    anchorAt?: number;
   };
 }
 
@@ -54,6 +58,7 @@ export function useAlarm(): UseAlarm {
       setAlarm({
         title: p.title || t("next.now"),
         body: p.body || "",
+        anchorAt: typeof p.anchorAt === "number" ? p.anchorAt : null,
       });
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
@@ -66,17 +71,22 @@ export function useAlarm(): UseAlarm {
     const prayer = params.get("alarm");
     if (!prayer) return;
     const firedAt = Number(params.get("t"));
+    // Optional `a=<anchorAt>` — the adhan instant, appended by the native
+    // AlarmActivity deep link for the countdown-to-adhan element.
+    const anchor = Number(params.get("a"));
     const fresh = !Number.isFinite(firedAt) || Date.now() - firedAt <= STALE_MS;
     if (fresh && KNOWN_TARGETS.has(prayer)) {
       setAlarm({
         title: t(ALERT_TARGET_LABEL[prayer as AlertTarget]),
         body: t("next.now"),
+        anchorAt: Number.isFinite(anchor) ? anchor : null,
       });
     }
     // Strip the params so a refresh doesn't re-raise the alarm.
     const url = new URL(window.location.href);
     url.searchParams.delete("alarm");
     url.searchParams.delete("t");
+    url.searchParams.delete("a");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

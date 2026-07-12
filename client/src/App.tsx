@@ -364,6 +364,7 @@ function App() {
         <AlarmOverlay
           title={alarm.alarm.title}
           body={alarm.alarm.body}
+          anchorAt={alarm.alarm.anchorAt}
           onStop={alarm.dismiss}
         />
       )}

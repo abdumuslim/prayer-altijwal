@@ -60,10 +60,17 @@ export const ar: Record<StringKey, string> = {
   "search.hint": "ابحث عن أي مدينة في العالم",
   "search.governoratesIn": "مدن {country}",
 
+  // Bottom navigation (v2 shell — labels user-approved)
+  "nav.home": "الرئيسية",
+  "nav.times": "المواقيت",
+  "nav.reports": "التقارير",
+  "nav.settings": "الإعدادات",
+
   // Settings
   "settings.title": "الإعدادات",
   "settings.language": "اللغة",
   "settings.done": "تم",
+  "settings.version": "الإصدار",
 
   // Notifications
   "notify.title": "تذكيرات الصلاة",

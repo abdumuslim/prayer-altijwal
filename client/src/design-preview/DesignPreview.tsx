@@ -26,7 +26,14 @@ const SCREENS = [
   {
     n: 11,
     title: "شاشة المنبّه حسب المظهر",
-    el: <AlarmOverlay title="أذان المغرب" body="حان الآن وقت أذان المغرب في بغداد" onStop={() => undefined} />,
+    el: (
+      <AlarmOverlay
+        title="أذان المغرب"
+        body="بقي 7 دقائق على أذان المغرب في بغداد"
+        anchorAt={Date.now() + 7 * 60_000}
+        onStop={() => undefined}
+      />
+    ),
   },
 ];
 
