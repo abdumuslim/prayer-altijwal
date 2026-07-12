@@ -266,7 +266,6 @@ function App() {
           iqamaMinutes={settings.iqamaMinutes}
           features={settings.features}
           heroWorship={heroWorship}
-          checkinFor={checkinFor}
           isFriday={isFriday}
           showLocationNeeded={showLocationNeeded}
           onOpenSearch={() => setSearchOpen(true)}

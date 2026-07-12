@@ -6,18 +6,16 @@
 import { useMemo } from "react";
 import { TopBar } from "@/components/TopBar";
 import { NextPrayerCountdown, type HeroWorship } from "@/components/NextPrayerCountdown";
-import { PrayerList } from "@/components/PrayerList";
+import { PrayerStrip } from "@/components/PrayerStrip";
 import { NextEvent } from "@/components/NextEvent";
 import {
   FetchErrorState,
   LoadingState,
   LocationNeededState,
 } from "@/components/StatusViews";
-import type { CardCheckin } from "@/components/PrayerCard";
 import type { useLocation } from "@/hooks/useLocation";
 import type { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import type { IqamaMinutes, WorshipFeatures } from "@/lib/storage";
-import type { PrayerName } from "@/types/api";
 
 interface HomePageProps {
   location: ReturnType<typeof useLocation>;
@@ -25,7 +23,6 @@ interface HomePageProps {
   iqamaMinutes: IqamaMinutes;
   features: WorshipFeatures;
   heroWorship: HeroWorship | null;
-  checkinFor: (name: PrayerName) => CardCheckin | null;
   isFriday: boolean;
   showLocationNeeded: boolean;
   onOpenSearch: () => void;
@@ -37,7 +34,6 @@ export function HomePage({
   iqamaMinutes,
   features,
   heroWorship,
-  checkinFor,
   isFriday,
   showLocationNeeded,
   onOpenSearch,
@@ -71,7 +67,8 @@ export function HomePage({
           features={features}
           isFriday={isFriday}
         />
-        <PrayerList prayers={times.prayers} now={times.now} checkinFor={checkinFor} isFriday={isFriday} />
+        {/* Glanceable strip — the full list (with check-ins) is on المواقيت. */}
+        <PrayerStrip prayers={times.prayers} isFriday={isFriday} />
         {times.data.nextEvent && (
           <section className="card p-2.5">
             <NextEvent
@@ -87,7 +84,7 @@ export function HomePage({
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, iqamaMinutes, features, heroWorship, checkinFor, isFriday]);
+  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, iqamaMinutes, features, heroWorship, isFriday]);
 
   return (
     <>
