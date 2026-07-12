@@ -1,8 +1,9 @@
 // Single consolidated top row (replaces the old location bar + date card):
-//   [settings] [time]      <location, centred>      [Hijri / Gregorian dates]
-// GPS lives in the search panel now. Keeps the header to one row to save space.
+//   [time]      <location, centred>      [Hijri / Gregorian dates]
+// GPS lives in the search panel; Settings is a bottom tab since the v2 shell
+// (the gear button was retired — docs/V2_REDESIGN_SPEC.md Phase 3).
 
-import { Settings2, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { gregorianFull } from "@/lib/gregorian";
 import { storedCityName } from "@/lib/locale";
@@ -14,7 +15,6 @@ interface TopBarProps {
   data: PrayerTimesResponse | null;
   now: number;
   resolving: boolean;
-  onOpenSettings: () => void;
   onOpenSearch: () => void;
 }
 
@@ -23,7 +23,6 @@ export function TopBar({
   data,
   now,
   resolving,
-  onOpenSettings,
   onOpenSearch,
 }: TopBarProps) {
   const { t, lang } = useI18n();
@@ -54,16 +53,8 @@ export function TopBar({
 
   return (
     <header className="card grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2">
-      {/* start: settings + current time (time sized up to fill the row height) */}
-      <div className="flex min-w-0 items-center gap-2 justify-self-start">
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          aria-label={t("settings.title")}
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-veil/5 text-ink-dim transition-colors hover:bg-veil/10 hover:text-gold"
-        >
-          <Settings2 className="size-4" />
-        </button>
+      {/* start: current time (settings moved to the bottom tab bar) */}
+      <div className="flex min-w-0 items-center justify-self-start">
         {time && (
           <span className="tnum shrink-0 text-2xl font-bold text-ink">{time}</span>
         )}

@@ -23,19 +23,24 @@ const SCREENS = [
   { n: 10, title: "v2 + معرض المظاهر (وزر T يبدّل)", el: <V2Shell themeChips /> },
   // The real AlarmOverlay under the active theme (T key cycles) — the alarm
   // screen is part of the theme design surface (user request 2026-07-12).
-  {
-    n: 11,
-    title: "شاشة المنبّه حسب المظهر",
-    el: (
-      <AlarmOverlay
-        title="أذان المغرب"
-        body="بقي 7 دقائق على أذان المغرب في بغداد"
-        anchorAt={Date.now() + 7 * 60_000}
-        onStop={() => undefined}
-      />
-    ),
-  },
+  { n: 11, title: "شاشة المنبّه حسب المظهر", el: <AlarmPreview /> },
 ];
+
+/** Screen 11: the real AlarmOverlay, dismissible by the real swipe/tap-to-stop.
+    Stopping lands on the shell's Home (the real app behavior); leave & re-enter
+    the screen (any number key, then "-") to ring again. */
+function AlarmPreview() {
+  const [ringing, setRinging] = useState(true);
+  if (!ringing) return <V2Shell />;
+  return (
+    <AlarmOverlay
+      title="أذان المغرب"
+      body="بقي 7 دقائق على أذان المغرب في بغداد"
+      anchorAt={Date.now() + 7 * 60_000}
+      onStop={() => setRinging(false)}
+    />
+  );
+}
 
 export default function DesignPreview({ initial }: { initial: number }) {
   const [n, setN] = useState(() => (initial >= 1 && initial <= SCREENS.length ? initial : 1));

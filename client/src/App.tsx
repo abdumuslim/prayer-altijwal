@@ -1,8 +1,9 @@
-// Root app: composes the location bar, hero countdown, prayer list, hijri +
-// event row, and the slide-over panels. Wires the live-countdown hook to the
-// resolved location + settings, degrading gracefully at every step. Also owns
-// the worship tracker: useWorshipLog + the four bottom sheets (rawatib,
-// adhkar checklist, tap-to-count reader, stats).
+// v2 shell (docs/V2_REDESIGN_SPEC.md Phase 3): App owns the global hooks, the
+// breath-driver root (the ONE persistent ancestor every breathing element
+// inherits --breath from), the tab state, and the overlays (search, worship
+// sheets, alarm). Page content lives in src/pages/*; all four pages stay
+// MOUNTED (inactive ones display:none) so the hero countdown interval and the
+// breath timeline never reset on tab switches.
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -23,27 +24,24 @@ import { unlockAlarmAudio } from "@/lib/alarm-sound";
 import { applyFontScale, applyTheme } from "@/lib/theme";
 import { glowBreathPeriod } from "@/lib/format";
 import { isFridayKey } from "@/lib/prayer-names";
+import { cn } from "@/lib/utils";
 import {
   deriveAdhkarCorner,
   deriveCheckinPrayer,
   deriveRawatibCorner,
 } from "@/lib/worship-vm";
-import { TopBar } from "@/components/TopBar";
-import { NextPrayerCountdown, type HeroWorship } from "@/components/NextPrayerCountdown";
-import { PrayerList } from "@/components/PrayerList";
-import { NextEvent } from "@/components/NextEvent";
+import { TabBar, type TabId } from "@/components/shell/TabBar";
+import { HomePage } from "@/pages/HomePage";
+import { TimesPage } from "@/pages/TimesPage";
+import { ReportsPage } from "@/pages/ReportsPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { CitySearch } from "@/components/CitySearch";
-import { SettingsPanel } from "@/components/SettingsPanel";
 import { RawatibSheet } from "@/components/RawatibSheet";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { AdhkarReader } from "@/components/AdhkarReader";
 import { StatsSheet } from "@/components/StatsSheet";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
-import {
-  FetchErrorState,
-  LoadingState,
-  LocationNeededState,
-} from "@/components/StatusViews";
+import type { HeroWorship } from "@/components/NextPrayerCountdown";
 import type { CardCheckin } from "@/components/PrayerCard";
 import type { AdhkarSlot, FardPrayer } from "@/lib/worship-log";
 import type { AsrMadhab, PrayerName } from "@/types/api";
@@ -90,9 +88,16 @@ function App() {
       window.removeEventListener("keydown", unlock);
     };
   }, []);
+
+  const [tab, setTab] = useState<TabId>("home");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheet, setSheet] = useState<WorshipSheet>(null);
+
+  // Stopping an alarm always lands on Home (user decision 2026-07-12).
+  const dismissAlarm = () => {
+    alarm.dismiss();
+    setTab("home");
+  };
 
   // Native only: seed the default reminder once at mount so a fresh user gets a
   // reminder without opening Settings first (no-op on web / after first seed).
@@ -104,22 +109,23 @@ function App() {
   // (notification dialog + the top missing system screen). One-time.
   useFirstRunPermissions();
 
-  // Android hardware back: close the top-most overlay, else minimize the app.
+  // Android hardware back: close the top-most overlay, else return to the Home
+  // tab, else minimize the app.
   useAndroidBack(() => {
     if (alarm.alarm) {
-      alarm.dismiss();
+      dismissAlarm();
       return true;
     }
     if (sheet !== null) {
       setSheet(null);
       return true;
     }
-    if (settingsOpen) {
-      setSettingsOpen(false);
-      return true;
-    }
     if (searchOpen) {
       setSearchOpen(false);
+      return true;
+    }
+    if (tab !== "home") {
+      setTab("home");
       return true;
     }
     return false;
@@ -232,74 +238,59 @@ function App() {
 
   const readerSlot = typeof sheet === "object" && sheet !== null ? sheet.reader : null;
 
-  const mainContent = useMemo(() => {
-    if (showLocationNeeded) {
-      return (
-        <LocationNeededState
-          denied={location.status === "denied"}
-          onUseGps={() => void location.requestGps()}
-          onSearch={() => setSearchOpen(true)}
-        />
-      );
-    }
-    if (!times.data && times.loading) return <LoadingState />;
-    if (!times.data && times.error) {
-      return <FetchErrorState message={times.error} onRetry={times.refetch} />;
-    }
-    if (!times.data) return <LoadingState />;
-
-    return (
-      <>
-        <NextPrayerCountdown
-          next={times.next}
-          now={times.now}
-          duhaWindow={times.data.duhaWindow}
-          qiyamWindow={times.data.qiyamWindow}
-          prayers={times.prayers}
-          iqamaMinutes={settings.iqamaMinutes}
-          worship={heroWorship}
-          features={settings.features}
-          isFriday={isFriday}
-        />
-        <PrayerList prayers={times.prayers} now={times.now} checkinFor={checkinFor} isFriday={isFriday} />
-        {times.data.nextEvent && (
-          <section className="card p-2.5">
-            <NextEvent
-              event={times.data.nextEvent}
-              now={times.now}
-              tz={location.location?.tz}
-            />
-          </section>
-        )}
-        {times.error && (
-          <p className="text-center text-sm text-imminent/80">{times.error}</p>
-        )}
-      </>
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, settings.iqamaMinutes, settings.features, heroWorship, checkinFor, isFriday]);
-
   // One breath timeline for the whole screen: the period ramps with the next
   // prayer's countdown, and every breathing element (hero halo + next-prayer
   // card) inherits --glow-period / the animated --breath from this wrapper, so
   // they all breathe in perfect lockstep. No next prayer → calm slow breath.
   const breathPeriod = glowBreathPeriod(times.next?.msUntil ?? Number.POSITIVE_INFINITY);
 
+  // Each page keeps living while hidden (state, timers, the breath phase).
+  // Conditional classes (NOT the `hidden` attribute — a display class would
+  // override it). Home is the no-scroll screen; the others scroll internally.
+  const pageClass = (id: TabId, scroll: boolean): string =>
+    cn(
+      "min-h-0 flex-1 flex-col gap-3 px-4 pb-2 pt-3",
+      scroll && "overflow-y-auto overscroll-contain",
+      tab === id ? "flex" : "hidden",
+    );
+
   return (
     <div
-      className="breath-driver mx-auto flex min-h-screen w-full max-w-xl flex-col gap-3 px-4 pb-2 pt-3"
+      className="breath-driver mx-auto flex h-dvh w-full max-w-xl flex-col"
       style={{ "--glow-period": `${breathPeriod.toFixed(2)}s` } as CSSProperties}
     >
-      <TopBar
-        location={location.location}
-        data={times.data}
-        now={times.now}
-        resolving={location.resolving}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSearch={() => setSearchOpen(true)}
-      />
+      <div className={pageClass("home", true)}>
+        <HomePage
+          location={location}
+          times={times}
+          iqamaMinutes={settings.iqamaMinutes}
+          features={settings.features}
+          heroWorship={heroWorship}
+          checkinFor={checkinFor}
+          isFriday={isFriday}
+          showLocationNeeded={showLocationNeeded}
+          onOpenSearch={() => setSearchOpen(true)}
+        />
+      </div>
+      <div className={pageClass("times", true)}>
+        <TimesPage times={times} checkinFor={checkinFor} isFriday={isFriday} />
+      </div>
+      <div className={pageClass("reports", true)}>
+        <ReportsPage />
+      </div>
+      <div className={pageClass("settings", true)}>
+        <SettingsPage
+          push={push}
+          iqamaMinutes={settings.iqamaMinutes}
+          onChangeIqama={settings.setIqama}
+          features={settings.features}
+          onChangeFeature={settings.setFeature}
+          alarmSound={settings.alarmSound}
+          onChangeAlarmSound={settings.setAlarmSound}
+        />
+      </div>
 
-      {mainContent}
+      <TabBar tab={tab} onChange={setTab} />
 
       <CitySearch
         open={searchOpen}
@@ -308,18 +299,6 @@ function App() {
         country={location.location?.country ?? null}
         onUseGps={() => void location.requestGps()}
         resolving={location.resolving}
-      />
-
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        push={push}
-        iqamaMinutes={settings.iqamaMinutes}
-        onChangeIqama={settings.setIqama}
-        features={settings.features}
-        onChangeFeature={settings.setFeature}
-        alarmSound={settings.alarmSound}
-        onChangeAlarmSound={settings.setAlarmSound}
       />
 
       {/* Worship tracker sheets */}
@@ -365,7 +344,7 @@ function App() {
           title={alarm.alarm.title}
           body={alarm.alarm.body}
           anchorAt={alarm.alarm.anchorAt}
-          onStop={alarm.dismiss}
+          onStop={dismissAlarm}
         />
       )}
     </div>

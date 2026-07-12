@@ -169,9 +169,10 @@
        SystemBars plugin injects so content clears the transparent system
        bars (status bar / gesture bar / cutout). The vars are unset on the
        web → 0px → no effect there. Fixed overlays (SlideOver, BottomSheet,
-       AlarmOverlay) apply the same vars themselves. */
+       AlarmOverlay) apply the same vars themselves. BOTTOM inset lives in
+       the TabBar (v2 shell) — padding it here too would double-count. */
     padding: var(--safe-area-inset-top, 0px) var(--safe-area-inset-right, 0px)
-      var(--safe-area-inset-bottom, 0px) var(--safe-area-inset-left, 0px);
+      0 var(--safe-area-inset-left, 0px);
   }
 
   /* Arabic typography when RTL */
