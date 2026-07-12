@@ -78,8 +78,10 @@ export function AlarmOverlay({ title, body, onStop }: AlarmOverlayProps) {
       aria-label={title}
       className="animate-overlay-in fixed inset-0 z-[100] flex flex-col items-center px-6 text-center"
       style={{
+        // Token-driven so every theme (incl. light ones) restyles the alarm
+        // screen — docs/V2_REDESIGN_SPEC.md §5 (user: alarm follows the theme).
         background:
-          "radial-gradient(circle at 50% 32%, rgba(245,196,81,0.16), transparent 58%), var(--color-night)",
+          "radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--color-gold) 16%, transparent), transparent 58%), var(--color-night)",
         // pt-16/pb-12 + the native safe-area insets (0 on web).
         paddingTop: "calc(4rem + var(--safe-area-inset-top, 0px))",
         paddingBottom: "calc(3rem + var(--safe-area-inset-bottom, 0px))",

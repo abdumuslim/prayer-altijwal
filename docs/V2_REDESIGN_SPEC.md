@@ -138,9 +138,11 @@ Commit: `chore: adopt semver v2.0.0 (versionCode 2) + spec + CHANGELOG`.
 8. **Native appearance bridge:** new plugin method `PrayerAlarm.setAppearance({ systemBarsLight,
    bg })` — toggles `WindowInsetsControllerCompat.setAppearanceLight*Bars` at runtime
    (capacitor.config.ts keeps DARK as the pre-JS boot default) and paints the window decor
-   background with the theme color (overscroll/keyboard gaps match). `AlarmActivity` deliberately
-   stays night-dark in every theme (a ringing alarm is a dark surface by design — §3); the splash
-   also stays night (pre-WebView). No SharedPreferences store needed.
+   background with the theme color. **Alarm screens follow the theme too (user decision
+   2026-07-12):** the web `AlarmOverlay` is token-driven (auto-themed; previewed at `?design=11`);
+   in Phase 7 `setAppearance` grows a small palette payload `{bg, ink, inkDim, accent}` persisted
+   to an `AppearanceStore.java` (SharedPreferences) that `AlarmActivity` reads for its programmatic
+   UI (falls back to night when unset). Only the pre-WebView splash stays night.
 Gate extra: screenshot diff (Playwright) — pixel-identical night; emulator system-bar flip check.
 Commit: `feat(client): runtime theme engine (night tokens, no visual change)`.
 
@@ -224,7 +226,11 @@ Commit: `feat(client): reports tab (heatmap, per-prayer, trends, lifetime)`.
 ### Phase 7 — Themes build-out + gallery UI
 Implement three `html[data-theme=X]` blocks on the finished components (per-theme specs §5):
 `glass`, `material`, `contrast`. Then Settings gallery UI (swatch cards showing a mini preview of
-each theme; selecting applies instantly via `applyTheme`).
+each theme; selecting applies instantly via `applyTheme`). Also: **native alarm-screen theming** —
+extend `setAppearance` with `{bg, ink, inkDim, accent}` → new `AppearanceStore.java`
+(SharedPreferences, AlarmStore pattern) → `AlarmActivity` builds its programmatic UI from the
+stored palette (night fallback); verify on the emulator with a non-night theme active and the app
+killed before the alarm fires.
 Gate extra: axe/Playwright contrast scan per theme; glass theme 60fps scroll/tab-switch on emulator
 + one real device (if it stutters: reduce blur radius/layer count before shipping); screenshots of
 every tab × every theme × both viewports.
