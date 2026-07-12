@@ -43,8 +43,8 @@ export function PrayerCard({ prayer, now, checkin, isFriday }: PrayerCardProps) 
         // The next prayer breathes in lockstep with the hero halo (shared --breath),
         // tinted by its proximity accent via --prox; the rest stay calm.
         isNext
-          ? cn("breath-glow border-transparent bg-white/[0.06]", style.border)
-          : "border-border-soft/60 bg-white/[0.02]",
+          ? cn("breath-glow border-transparent bg-veil/[0.06]", style.border)
+          : "border-border-soft/60 bg-veil/[0.02]",
         prayer.isPassed && !isNext && "opacity-45",
       )}
       style={isNext ? ({ "--prox": style.ring } as CSSProperties) : undefined}

@@ -116,7 +116,7 @@ export function AlarmSoundPicker({ selected, onSelect }: AlarmSoundPickerProps) 
             "grid size-9 shrink-0 place-items-center rounded-xl border transition-colors",
             isPlaying
               ? "border-gold/50 bg-gold/15 text-gold"
-              : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:bg-white/[0.05]",
+              : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:bg-veil/[0.05]",
           )}
         >
           {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
@@ -125,7 +125,7 @@ export function AlarmSoundPicker({ selected, onSelect }: AlarmSoundPickerProps) 
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border-soft/60 bg-white/[0.02] px-3 py-2 text-start transition-colors hover:bg-white/[0.04]"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border-soft/60 bg-veil/[0.02] px-3 py-2 text-start transition-colors hover:bg-veil/[0.04]"
         >
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gold">
             {label(selected)}
@@ -190,7 +190,7 @@ function ToneRow({ label, isSelected, onClick }: ToneRowProps) {
       aria-pressed={isSelected}
       className={cn(
         "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-start transition-colors",
-        isSelected ? "bg-gold/10" : "hover:bg-white/[0.04]",
+        isSelected ? "bg-gold/10" : "hover:bg-veil/[0.04]",
       )}
     >
       <span

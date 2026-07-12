@@ -47,7 +47,7 @@ export function WorshipSettings({ features, onChange }: WorshipSettingsProps) {
           return (
             <div
               key={key}
-              className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-white/[0.02] px-3 py-2"
+              className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-veil/[0.02] px-3 py-2"
             >
               <Icon className={`size-4 shrink-0 ${color}`} />
               <span id={labelId} className="min-w-0 flex-1 truncate text-sm text-ink">

@@ -101,7 +101,7 @@ export function CitySearch({ open, onClose, onSelect, country, onUseGps, resolvi
       icon={<Search className="size-5" />}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2.5 rounded-2xl border border-border-soft bg-white/[0.04] px-3.5 py-2.5 focus-within:border-teal/50">
+        <div className="flex items-center gap-2.5 rounded-2xl border border-border-soft bg-veil/[0.04] px-3.5 py-2.5 focus-within:border-teal/50">
           <Search className="size-4.5 shrink-0 text-ink-dim" />
           <input
             ref={inputRef}
@@ -155,7 +155,7 @@ export function CitySearch({ open, onClose, onSelect, country, onUseGps, resolvi
               <button
                 type="button"
                 onClick={() => pick(c)}
-                className="flex w-full items-center gap-3 rounded-xl border border-transparent bg-white/[0.02] px-3 py-2.5 text-start transition-colors hover:border-teal/30 hover:bg-white/[0.06]"
+                className="flex w-full items-center gap-3 rounded-xl border border-transparent bg-veil/[0.02] px-3 py-2.5 text-start transition-colors hover:border-teal/30 hover:bg-veil/[0.06]"
               >
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-teal/10 text-teal">
                   <MapPin className="size-4" />

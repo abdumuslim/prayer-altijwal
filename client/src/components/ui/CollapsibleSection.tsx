@@ -33,13 +33,13 @@ export function CollapsibleSection({
   const bodyId = useId();
 
   return (
-    <section className="rounded-2xl border border-border-soft/70 bg-white/[0.015]">
+    <section className="rounded-2xl border border-border-soft/70 bg-veil/[0.015]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-3 text-start transition-colors hover:bg-white/[0.02]"
+        className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-3 text-start transition-colors hover:bg-veil/[0.02]"
       >
         <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", iconClass)}>
           {icon}

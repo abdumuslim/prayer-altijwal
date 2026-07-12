@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Theme system layer 2 — surface-recipe contract + shared chrome classes
+   (docs/V2_REDESIGN_SPEC.md §3). Night defaults live on :root there. */
+@import "./styles/surfaces.css";
 
 /* ─────────────────────────────────────────────────────────────────────────
    Theme — refined Islamic palette: deep night → teal → emerald, warm gold.
@@ -34,6 +37,15 @@
   --color-ink: #eafaf6;
   --color-ink-dim: #8fb3ad;
   --color-ink-faint: #5c8079;
+
+  /* Semantic overlay inks (theme-flippable — docs/V2_REDESIGN_SPEC.md Phase 1).
+     veil = the "subtle raised surface" base used at low alphas (bg-veil/[0.04]…):
+     white on dark themes, flips to dark ink on light themes so the same alpha
+     recipes read correctly. scrim = modal backdrop base. on-accent = ink drawn
+     on top of solid accent fills (check discs etc.). */
+  --color-veil: #ffffff;
+  --color-scrim: #000000;
+  --color-on-accent: #ffffff;
 
   /* Proximity accents (countdown vibe): green → yellow → orange → red → pulse */
   --color-safe: #34d399; /* > 15 min  — green */
@@ -127,13 +139,18 @@
     scroll-behavior: smooth;
   }
 
+  /* In-app font-size steps (a11y — Settings حجم الخط). Only rem-based type
+     scales; px-tuned geometry (rings, pins) deliberately stays fixed. */
+  html[data-font-scale="1.125"] {
+    font-size: 112.5%;
+  }
+  html[data-font-scale="1.25"] {
+    font-size: 125%;
+  }
+
   body {
     font-family: var(--font-sans);
-    background:
-      radial-gradient(circle at 85% -5%, rgba(45, 212, 191, 0.16), transparent 45%),
-      radial-gradient(circle at 0% 100%, rgba(15, 118, 110, 0.22), transparent 50%),
-      radial-gradient(circle at 50% 120%, rgba(245, 196, 81, 0.06), transparent 45%),
-      var(--color-night);
+    background: var(--bg-scene);
     background-attachment: fixed;
     color: var(--color-ink);
     min-height: 100vh;
@@ -160,25 +177,17 @@
   }
 
   ::selection {
-    background: rgba(45, 212, 191, 0.3);
+    background: var(--selection-bg);
     color: var(--color-ink);
   }
 }
 
 @layer components {
-  /* Frosted card surface */
-  .card {
-    background: linear-gradient(160deg, rgba(14, 58, 54, 0.55), rgba(6, 35, 31, 0.65));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--color-border-soft);
-    border-radius: 1.25rem;
-    box-shadow: 0 10px 40px -16px rgba(0, 0, 0, 0.55);
-  }
+  /* .card lives in styles/surfaces.css (theme-recipe contract). */
 
   /* Subtle dotted arabesque texture overlay */
   .arabesque {
-    background-image: radial-gradient(rgba(110, 231, 183, 0.07) 1px, transparent 1px);
+    background-image: radial-gradient(var(--arabesque-dot) 1px, transparent 1px);
     background-size: 22px 22px;
   }
 
@@ -249,5 +258,24 @@
   /* Alarm ring halo pulse. */
   .alarm-pulse {
     animation: alarm-pulse 1s ease-in-out infinite;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Accessibility: reduced motion (docs/V2_REDESIGN_SPEC.md Phase 1/8).
+   Freeze every decorative loop; --breath rests at its registered initial 0
+   (trough) so halo/glow sit at their calm values. One exception: the alarm
+   pulse keeps a single gentle opacity cue is NOT needed — the alarm screen
+   communicates by content; freeze it too.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .breath-driver,
+  .shimmer-text,
+  .iqama-blink,
+  .alarm-pulse,
+  .animate-shimmer,
+  .animate-float,
+  .animate-spin-slow {
+    animation: none !important;
   }
 }

@@ -71,6 +71,12 @@ export interface PrayerAlarmPlugin {
   /** Preview a `device:` tone natively (webview audio can't reach content://). */
   previewTone(options: { id: string }): Promise<void>;
   stopTonePreview(): Promise<void>;
+  /**
+   * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1): flips the
+   * system-bar icon style at runtime and persists the theme backdrop color so
+   * the native AlarmActivity can match the active theme.
+   */
+  setAppearance(options: { systemBarsLight: boolean; bg: string }): Promise<void>;
 }
 
 /**

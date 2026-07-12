@@ -29,7 +29,7 @@ export function AdhkarSheet() {
         title="أذكار بعد الصلاة · العصر"
         badge={<span className="tnum rounded-full bg-teal/10 px-2 py-0.5 text-[11px] font-bold text-teal">2/7</span>}
       >
-        <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-white/[0.08]">
+        <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-veil/[0.08]">
           <div className="h-full rounded-full" style={{ width: "29%", background: TEAL }} />
         </div>
 
@@ -60,7 +60,7 @@ export function AdhkarSheet() {
         <div className="flex flex-col gap-1">
           {UPCOMING_DHIKR.map((d) => (
             <div key={d} className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-[13px] text-ink-dim opacity-70">
-              <span className="size-1.5 shrink-0 rounded-full bg-white/25" />
+              <span className="size-1.5 shrink-0 rounded-full bg-veil/25" />
               <span className="truncate font-serif-ar">{d}</span>
             </div>
           ))}
@@ -115,7 +115,7 @@ export function StatsSheet() {
           {BREAKDOWN.map((b) => (
             <div key={b.label} className="flex items-center gap-2 text-[12px] font-semibold leading-none">
               <span className="w-24 shrink-0 text-ink-dim">{b.label}</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-veil/[0.08]">
                 <div className="h-full rounded-full" style={{ width: `${(b.got / b.max) * 100}%`, background: b.color }} />
               </div>
               <span className="tnum w-9 text-end" style={{ color: b.color }}>
@@ -178,9 +178,9 @@ export function RawatibSheet() {
               disabled={r.state === "locked"}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start",
-                r.state === "done" && "border-transparent bg-white/[0.05]",
-                r.state === "open" && "border-dashed border-warning/50 bg-white/[0.02]",
-                r.state === "locked" && "border-border-soft/50 bg-white/[0.01] opacity-45",
+                r.state === "done" && "border-transparent bg-veil/[0.05]",
+                r.state === "open" && "border-dashed border-warning/50 bg-veil/[0.02]",
+                r.state === "locked" && "border-border-soft/50 bg-veil/[0.01] opacity-45",
               )}
             >
               {r.state === "done" ? (
@@ -193,7 +193,7 @@ export function RawatibSheet() {
               <span className={cn("flex-1 text-[15px] font-semibold", r.state === "done" ? "text-ink" : "text-ink-dim")}>
                 {r.label}
               </span>
-              <span className="tnum rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-bold text-ink-dim">
+              <span className="tnum rounded-full bg-veil/5 px-2 py-0.5 text-[11px] font-bold text-ink-dim">
                 {r.rakaat} ركعة
               </span>
               {r.state === "done" && (
@@ -242,9 +242,9 @@ export function AdhkarChecklistSheet() {
               className={cn(
                 "flex items-center gap-2.5 rounded-xl border px-3 py-2 text-start",
                 i === 2 && "mt-1.5", // visual group break: daily pair vs after-prayer five
-                r.state === "done" && "border-transparent bg-white/[0.05]",
+                r.state === "done" && "border-transparent bg-veil/[0.05]",
                 r.state === "open" && "border-teal/40 bg-teal/[0.04]",
-                r.state === "locked" && "border-border-soft/50 bg-white/[0.01] opacity-45",
+                r.state === "locked" && "border-border-soft/50 bg-veil/[0.01] opacity-45",
               )}
             >
               {r.state === "done" ? (

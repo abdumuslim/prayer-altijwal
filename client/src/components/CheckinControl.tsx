@@ -232,7 +232,7 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
           <div className="fixed inset-0 z-40">
             {/* Dim the whole page; a tap anywhere closes. */}
             <div
-              className="animate-overlay-in absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+              className="animate-overlay-in absolute inset-0 bg-scrim/60 backdrop-blur-[2px]"
               onPointerDown={() => setOpen(false)}
               aria-hidden="true"
             />

@@ -48,7 +48,7 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
       )}
 
       {status === "unsupported" && (
-        <p className="rounded-xl border border-border-soft bg-white/[0.02] px-3.5 py-3 text-sm text-ink-dim">
+        <p className="rounded-xl border border-border-soft bg-veil/[0.02] px-3.5 py-3 text-sm text-ink-dim">
           {t("notify.unsupported")}
         </p>
       )}
@@ -73,7 +73,7 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
             className={cn(
               "flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60",
               status === "subscribed"
-                ? "border border-border-soft bg-white/[0.03] text-ink-dim hover:bg-white/[0.06]"
+                ? "border border-border-soft bg-veil/[0.03] text-ink-dim hover:bg-veil/[0.06]"
                 : "bg-gradient-to-r from-emerald-deep to-emerald text-night-2 hover:brightness-110",
             )}
           >

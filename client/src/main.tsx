@@ -13,6 +13,23 @@ const designParam = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get("design")
   : null;
 
+// DEV-only theme steering (docs/V2_REDESIGN_SPEC.md Phase 1): `?theme=X` forces
+// a theme (overriding the persisted one) and the `T` key cycles themes live on
+// ANY screen — the approval loop for the Phase-2/7 skins. Production ignores both.
+if (import.meta.env.DEV) {
+  const themeParam = new URLSearchParams(window.location.search).get("theme");
+  const ids = ["night", "glass", "material", "contrast"];
+  if (themeParam && ids.includes(themeParam)) {
+    document.documentElement.dataset.theme = themeParam;
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "t" && e.key !== "T") return;
+    const el = document.documentElement;
+    const cur = ids.indexOf(el.dataset.theme ?? "night");
+    el.dataset.theme = ids[(cur + 1) % ids.length];
+  });
+}
+
 // Register the service worker (push + offline shell). Best-effort. Skipped in the
 // native (Capacitor) app, which uses on-device scheduling instead of web push.
 // The offline engine + alarm scheduler load lazily via loadNativeFacade() (see

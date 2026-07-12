@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
@@ -12,8 +13,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.Window;
 
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -127,6 +131,34 @@ public class PrayerAlarmPlugin extends Plugin {
                 Uri.parse("package:" + getContext().getPackageName()));
         startSafely(i);
         call.resolve();
+    }
+
+    /**
+     * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1): light themes need
+     * dark system-bar icons, and the window backdrop should match the theme so
+     * overscroll/keyboard gaps don't flash night-green. capacitor.config.ts keeps
+     * SystemBars DARK as the pre-JS boot default; the web layer calls this after
+     * applying the persisted theme. AlarmActivity deliberately stays night-dark.
+     */
+    @PluginMethod
+    public void setAppearance(PluginCall call) {
+        boolean light = Boolean.TRUE.equals(call.getBoolean("systemBarsLight", false));
+        String bg = call.getString("bg");
+        getActivity().runOnUiThread(() -> {
+            Window window = getActivity().getWindow();
+            WindowInsetsControllerCompat bars =
+                    WindowCompat.getInsetsController(window, window.getDecorView());
+            bars.setAppearanceLightStatusBars(light);
+            bars.setAppearanceLightNavigationBars(light);
+            if (bg != null) {
+                try {
+                    window.getDecorView().setBackgroundColor(Color.parseColor(bg));
+                } catch (IllegalArgumentException ignored) {
+                    // malformed color — keep the current backdrop
+                }
+            }
+            call.resolve();
+        });
     }
 
     // ── device tones (dropdown "device tones" group) ─────────────────────────

@@ -60,7 +60,7 @@ export function TopBar({
           type="button"
           onClick={onOpenSettings}
           aria-label={t("settings.title")}
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/5 text-ink-dim transition-colors hover:bg-white/10 hover:text-gold"
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-veil/5 text-ink-dim transition-colors hover:bg-veil/10 hover:text-gold"
         >
           <Settings2 className="size-4" />
         </button>
@@ -75,7 +75,7 @@ export function TopBar({
         type="button"
         onClick={onOpenSearch}
         aria-label={t("location.change")}
-        className="group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-white/5"
+        className="group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-veil/5"
       >
         <span className="flex min-w-0 items-center gap-1">
           <span className="truncate text-lg font-semibold text-ink">{cityLabel}</span>

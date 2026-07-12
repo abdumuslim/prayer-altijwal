@@ -57,9 +57,9 @@ export function RawatibSheet({ open, onClose, today, canMark, mark }: RawatibShe
               onClick={() => mark({ kind: "rawatib", slot, done: !today.rawatib[slot] })}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start",
-                state === "done" && "border-transparent bg-white/[0.05]",
-                state === "open" && "border-dashed border-warning/50 bg-white/[0.02]",
-                state === "locked" && "border-border-soft/50 bg-white/[0.01]",
+                state === "done" && "border-transparent bg-veil/[0.05]",
+                state === "open" && "border-dashed border-warning/50 bg-veil/[0.02]",
+                state === "locked" && "border-border-soft/50 bg-veil/[0.01]",
               )}
             >
               {state === "done" ? (
@@ -72,7 +72,7 @@ export function RawatibSheet({ open, onClose, today, canMark, mark }: RawatibShe
               <span className={cn("flex-1 text-[15px] font-semibold", state === "done" ? "text-ink" : "text-ink-dim")}>
                 {t(`rawatib.${slot}` as StringKey)}
               </span>
-              <span className="tnum rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-bold text-ink-dim">
+              <span className="tnum rounded-full bg-veil/5 px-2 py-0.5 text-[11px] font-bold text-ink-dim">
                 {t("rawatib.rakaat", { n: String(RAWATIB_RAKAAT[slot]) })}
               </span>
               {state === "done" && <span className="tnum text-[11px] font-bold text-sky">+1</span>}

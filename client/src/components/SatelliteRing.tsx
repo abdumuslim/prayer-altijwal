@@ -65,7 +65,7 @@ export function SatelliteRing({
           className="satellite-glow grid size-[58px] place-items-center rounded-full"
           style={{ background: color, "--sat": color } as CSSProperties}
         >
-          <Check className="size-8 text-white" strokeWidth={4} />
+          <Check className="size-8 text-on-accent" strokeWidth={4} />
         </div>
       ) : (
         <div
@@ -76,7 +76,7 @@ export function SatelliteRing({
             progress={progress}
             size={58}
             stroke={5}
-            color={active ? color : "rgba(255,255,255,0.14)"}
+            color={active ? color : "color-mix(in srgb, var(--color-veil) 14%, transparent)"}
           >
             <Icon className="size-5" style={{ color: active ? color : "var(--color-ink-faint)" }} />
           </ProgressRing>

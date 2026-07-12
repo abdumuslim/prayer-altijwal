@@ -99,7 +99,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
           "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
           on
             ? "border-emerald/50 bg-emerald/10 text-emerald"
-            : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+            : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
         )}
       >
         <Icon className="size-3.5" />
@@ -109,7 +109,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-teal/30 bg-white/[0.03] p-3.5">
+    <div className="flex flex-col gap-4 rounded-2xl border border-teal/30 bg-veil/[0.03] p-3.5">
       {/* Kind — notification vs full-screen alarm */}
       <div className="flex flex-col gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -132,7 +132,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                   "flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors",
                   active
                     ? "border-gold/50 bg-gold/10 text-gold"
-                    : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                    : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
                 )}
               >
                 <Icon className="size-3.5" />
@@ -160,7 +160,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                   "flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors",
                   active
                     ? "border-teal/50 bg-teal/10 text-teal"
-                    : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                    : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
                 )}
               >
                 <Clock className="size-3.5" />
@@ -196,7 +196,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                     "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     active
                       ? "border-gold/50 bg-gold/10 text-gold"
-                      : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                      : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
                   )}
                 >
                   {t(timing === "before" ? "notify.minBefore" : "notify.minAfter", {
@@ -212,7 +212,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                 "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 isCustom
                   ? "border-gold/50 bg-gold/10 text-gold"
-                  : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                  : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
               )}
             >
               {t("notify.customMinutes")}
@@ -226,7 +226,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                 aria-label={t("iqama.decrease")}
                 onClick={() => setMinutes((v) => clampMinutes(v - CUSTOM_STEP))}
                 disabled={minutes <= MIN_CUSTOM}
-                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
               >
                 <Minus className="size-3.5" />
               </button>
@@ -238,14 +238,14 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                   const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
                   if (Number.isFinite(n)) setMinutes(clampMinutes(n));
                 }}
-                className="tnum w-16 rounded-lg border border-border-soft bg-white/[0.03] py-1.5 text-center text-sm font-semibold text-ink outline-none focus:border-gold/50"
+                className="tnum w-16 rounded-lg border border-border-soft bg-veil/[0.03] py-1.5 text-center text-sm font-semibold text-ink outline-none focus:border-gold/50"
               />
               <button
                 type="button"
                 aria-label={t("iqama.increase")}
                 onClick={() => setMinutes((v) => clampMinutes(v + CUSTOM_STEP))}
                 disabled={minutes >= MAX_CUSTOM}
-                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
               >
                 <Plus className="size-3.5" />
               </button>
@@ -289,7 +289,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2 text-sm font-medium text-ink-dim transition-colors hover:bg-white/[0.06]"
+          className="rounded-xl border border-border-soft bg-veil/[0.03] px-4 py-2 text-sm font-medium text-ink-dim transition-colors hover:bg-veil/[0.06]"
         >
           {t("common.cancel")}
         </button>

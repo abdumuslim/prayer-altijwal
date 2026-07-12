@@ -146,13 +146,13 @@ export function ScorePill({ className }: { className?: string }) {
     <button
       type="button"
       className={cn(
-        "flex items-center gap-1.5 rounded-full border border-gold/30 bg-white/[0.04] px-2 py-1 leading-none",
+        "flex items-center gap-1.5 rounded-full border border-gold/30 bg-veil/[0.04] px-2 py-1 leading-none",
         className,
       )}
     >
       <Star className="size-3.5 text-gold" fill="currentColor" />
       <span className="tnum text-[13px] font-extrabold text-gold">{SCORE.today}</span>
-      <span className="h-3 w-px bg-white/15" />
+      <span className="h-3 w-px bg-veil/15" />
       <Flame className="size-3.5 text-urgent" />
       <span className="tnum text-[13px] font-bold text-urgent">{SCORE.streak}</span>
     </button>
@@ -167,7 +167,7 @@ export function MockTopBar() {
       <div className="flex min-w-0 items-center gap-2 justify-self-start">
         <button
           type="button"
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/5 text-ink-dim"
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-veil/5 text-ink-dim"
         >
           <Settings2 className="size-4" />
         </button>
@@ -222,14 +222,14 @@ export function MiniCorner({ label, caption, color, side, progress, active, comp
           className="satellite-glow grid size-[58px] place-items-center rounded-full"
           style={{ background: color, "--sat": color } as CSSProperties}
         >
-          <CheckIcon className="size-8 text-white" strokeWidth={4} />
+          <CheckIcon className="size-8 text-on-accent" strokeWidth={4} />
         </div>
       ) : (
         <div
           className={cn("grid place-items-center rounded-full", active && "satellite-glow")}
           style={active ? ({ "--sat": color } as CSSProperties) : undefined}
         >
-          <ProgressRing progress={progress} size={58} stroke={5} color={active ? color : "rgba(255,255,255,0.2)"}>
+          <ProgressRing progress={progress} size={58} stroke={5} color={active ? color : "color-mix(in srgb, var(--color-veil) 20%, transparent)"}>
             {children}
           </ProgressRing>
         </div>
@@ -336,7 +336,7 @@ export function MockHero({ corners, checkinRow, scorePill }: MockHeroProps) {
         </div>
 
         {checkinRow && (
-          <div className="w-full max-w-[280px] rounded-xl border border-border-soft bg-white/[0.03] px-2.5 py-2">
+          <div className="w-full max-w-[280px] rounded-xl border border-border-soft bg-veil/[0.03] px-2.5 py-2">
             <p className="mb-2 text-center text-[12px] font-semibold leading-none text-ink-dim">
               أين صلّيت العصر؟
             </p>
@@ -361,8 +361,8 @@ function MockCard({ p, mode }: { p: MockPrayer; mode: GridMode }) {
       className={cn(
         "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-5 transition-colors",
         p.isNext
-          ? cn("breath-glow border-transparent bg-white/[0.06]", style.border)
-          : "border-border-soft/60 bg-white/[0.02]",
+          ? cn("breath-glow border-transparent bg-veil/[0.06]", style.border)
+          : "border-border-soft/60 bg-veil/[0.02]",
         p.passed && !p.isNext && p.checkin === undefined && "opacity-45",
       )}
       style={p.isNext ? ({ "--prox": style.ring } as CSSProperties) : undefined}
@@ -413,7 +413,7 @@ export function MockNextEvent() {
       <span className="justify-self-center text-base font-bold text-gold">المولد النبوي</span>
       <div className="flex flex-col items-center justify-self-end leading-tight">
         <span className="tnum text-sm font-semibold text-ink">12 ربيع الأول</span>
-        <span className="tnum rounded-full bg-white/5 px-2 text-[11px] text-ink-dim">بعد 52 يوم</span>
+        <span className="tnum rounded-full bg-veil/5 px-2 text-[11px] text-ink-dim">بعد 52 يوم</span>
       </div>
     </section>
   );
@@ -460,7 +460,7 @@ export function DayStrip({ popover }: { popover?: boolean }) {
           );
         })}
       </div>
-      <span className="mx-0.5 h-5 w-px shrink-0 bg-white/10" />
+      <span className="mx-0.5 h-5 w-px shrink-0 bg-veil/10" />
       <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: SKY }}>
         <Sparkles className="size-3.5" />
         <span className="tnum">{RAWATIB.done}/{RAWATIB.total}</span>
@@ -502,11 +502,11 @@ export function TrackerCard() {
           <Sparkles className="size-3.5" />
           الرواتب
         </span>
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-veil/[0.08]">
           <div className="h-full rounded-full" style={{ width: `${(RAWATIB.done / RAWATIB.total) * 100}%`, background: SKY }} />
         </div>
         <span className="tnum" style={{ color: SKY }}>{RAWATIB.done}/{RAWATIB.total}</span>
-        <span className="mx-0.5 h-4 w-px bg-white/10" />
+        <span className="mx-0.5 h-4 w-px bg-veil/10" />
         <span className="flex items-center gap-1 text-teal">
           <BookOpenText className="size-3.5" />
           <span className="tnum">{ADHKAR.done}/{ADHKAR.total}</span>
@@ -525,14 +525,14 @@ export function TrackerCard() {
 export function SheetShell({ title, badge, children }: { title: string; badge?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" />
+      <div className="fixed inset-0 z-40 bg-scrim/60 backdrop-blur-[2px]" />
       <div className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-xl rounded-t-3xl border-x border-t border-border bg-night-2/95 p-4 pb-6 backdrop-blur-xl">
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-veil/20" />
         <div className="mb-3 flex items-center justify-between">
           <span className="text-base font-bold text-gold">{title}</span>
           <div className="flex items-center gap-2">
             {badge}
-            <button type="button" aria-label="إغلاق" className="grid size-7 place-items-center rounded-lg bg-white/5 text-ink-dim">
+            <button type="button" aria-label="إغلاق" className="grid size-7 place-items-center rounded-lg bg-veil/5 text-ink-dim">
               <X className="size-4" />
             </button>
           </div>

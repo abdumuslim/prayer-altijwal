@@ -25,7 +25,7 @@ export function Toggle({ checked, onChange, labelId }: ToggleProps) {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50",
         checked
           ? "border-emerald/60 bg-emerald/80"
-          : "border-border-soft bg-white/[0.06]",
+          : "border-border-soft bg-veil/[0.06]",
       )}
     >
       <span

@@ -112,7 +112,7 @@ export function StatsSheet({ open, onClose, stats, today }: StatsSheetProps) {
         {breakdown.map((b) => (
           <div key={b.label} className="flex items-center gap-2 text-[12px] font-semibold leading-none">
             <span className="w-24 shrink-0 text-ink-dim">{b.label}</span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-veil/[0.08]">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -151,7 +151,7 @@ export function StatsSheet({ open, onClose, stats, today }: StatsSheetProps) {
               "rounded-full border px-3.5 py-1 text-[11px] font-semibold transition-colors",
               view === v
                 ? "border-teal/50 bg-teal/10 text-teal"
-                : "border-border-soft/60 bg-white/[0.02] text-ink-dim hover:text-ink",
+                : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
             )}
           >
             {t(`stats.${v}` as StringKey)}

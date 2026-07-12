@@ -37,7 +37,7 @@ export function IqamaBar({ state, now, isFriday }: IqamaBarProps) {
           {t("iqama.in", { time: formatCountdown(state.iqamaTs, now, lang) })}
         </span>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-veil/[0.08]">
         <div
           className="h-full rounded-full"
           style={{

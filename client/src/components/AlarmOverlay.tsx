@@ -165,7 +165,7 @@ function SwipeUpToStop({ label, onStop }: SwipeUpToStopProps) {
         }}
         style={{ transform: `translateY(${-travel}px)` }}
         className={cn(
-          "grid size-16 touch-none place-items-center rounded-full border border-white/20 bg-white/10 text-ink shadow-lg backdrop-blur-sm",
+          "grid size-16 touch-none place-items-center rounded-full border border-veil/20 bg-veil/10 text-ink shadow-lg backdrop-blur-sm",
           !dragging && "transition-transform duration-200",
         )}
       >

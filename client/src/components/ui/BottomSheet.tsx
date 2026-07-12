@@ -38,7 +38,7 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
   return (
     <div className="fixed inset-0 z-50">
       <div
-        className="animate-overlay-in absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+        className="animate-overlay-in absolute inset-0 bg-scrim/60 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -52,7 +52,7 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
           paddingBottom: "var(--safe-area-inset-bottom, 0px)",
         }}
       >
-        <div className="mx-auto mt-4 h-1 w-10 shrink-0 rounded-full bg-white/20" />
+        <div className="mx-auto mt-4 h-1 w-10 shrink-0 rounded-full bg-veil/20" />
         <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-3">
           <span className="text-base font-bold text-gold">{title}</span>
           <div className="flex items-center gap-2">
@@ -61,7 +61,7 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
               type="button"
               onClick={onClose}
               aria-label={t("common.close")}
-              className="grid size-7 place-items-center rounded-lg bg-white/5 text-ink-dim transition-colors hover:bg-white/10 hover:text-ink"
+              className="grid size-7 place-items-center rounded-lg bg-veil/5 text-ink-dim transition-colors hover:bg-veil/10 hover:text-ink"
             >
               <X className="size-4" />
             </button>

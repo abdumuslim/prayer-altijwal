@@ -136,10 +136,11 @@ Commit: `chore: adopt semver v2.0.0 (versionCode 2) + spec + CHANGELOG`.
 7. Dev preview hooks: support `?theme=X` and a `T` key that cycles `data-theme` live (dev only,
    in `DesignPreview`/`main.tsx`) — this is the theme approval loop's steering wheel.
 8. **Native appearance bridge:** new plugin method `PrayerAlarm.setAppearance({ systemBarsLight,
-   colors:{bg,ink,accent} })` — toggles `WindowInsetsControllerCompat.setAppearanceLight*Bars`
-   at runtime (capacitor.config.ts keeps DARK as the pre-JS boot default) and persists the color
-   triple to a tiny `AppearanceStore.java` (SharedPreferences) that `AlarmActivity` reads for its
-   programmatic UI (falls back to night; splash stays night — pre-WebView, documented).
+   bg })` — toggles `WindowInsetsControllerCompat.setAppearanceLight*Bars` at runtime
+   (capacitor.config.ts keeps DARK as the pre-JS boot default) and paints the window decor
+   background with the theme color (overscroll/keyboard gaps match). `AlarmActivity` deliberately
+   stays night-dark in every theme (a ringing alarm is a dark surface by design — §3); the splash
+   also stays night (pre-WebView). No SharedPreferences store needed.
 Gate extra: screenshot diff (Playwright) — pixel-identical night; emulator system-bar flip check.
 Commit: `feat(client): runtime theme engine (night tokens, no visual change)`.
 

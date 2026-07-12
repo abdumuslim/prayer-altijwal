@@ -72,7 +72,7 @@ export function LocationNeededState({
         <button
           type="button"
           onClick={onSearch}
-          className="rounded-xl border border-border-soft bg-white/[0.03] px-4 py-2.5 text-base font-semibold text-ink transition hover:bg-white/[0.06]"
+          className="rounded-xl border border-border-soft bg-veil/[0.03] px-4 py-2.5 text-base font-semibold text-ink transition hover:bg-veil/[0.06]"
         >
           {t("search.title")}
         </button>

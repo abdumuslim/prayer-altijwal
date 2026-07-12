@@ -65,14 +65,14 @@ export function CornerRing({
           className="satellite-glow grid size-[58px] place-items-center rounded-full"
           style={{ background: color, "--sat": color } as CSSProperties}
         >
-          <Check className="size-8 text-white" strokeWidth={4} />
+          <Check className="size-8 text-on-accent" strokeWidth={4} />
         </div>
       ) : (
         <div
           className={cn("grid place-items-center rounded-full", active && "satellite-glow")}
           style={active ? ({ "--sat": color } as CSSProperties) : undefined}
         >
-          <ProgressRing progress={progress} size={58} stroke={5} color={active || !dimWhenIdle ? color : "rgba(255,255,255,0.2)"}>
+          <ProgressRing progress={progress} size={58} stroke={5} color={active || !dimWhenIdle ? color : "color-mix(in srgb, var(--color-veil) 20%, transparent)"}>
             {children}
           </ProgressRing>
         </div>

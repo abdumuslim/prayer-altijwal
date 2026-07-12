@@ -4,6 +4,14 @@
 
 import type { AsrMadhab, Lang } from "@/types/api";
 import { DEFAULT_ALARM_SOUND, isSelectableToneId } from "@/lib/alarm-sounds";
+import {
+  coerceFontScale,
+  coerceTheme,
+  DEFAULT_FONT_SCALE,
+  DEFAULT_THEME,
+  type FontScale,
+  type ThemeId,
+} from "@/lib/theme";
 
 const STORAGE_KEY = "prayer.app.v1";
 const CURRENT_VERSION = 1 as const;
@@ -82,6 +90,10 @@ export interface AppState {
   features: WorshipFeatures;
   /** Selected alarm tone id (see lib/alarm-sounds). */
   alarmSound: string;
+  /** Active design-language theme (lib/theme.ts registry). */
+  theme: ThemeId;
+  /** In-app text scale step (a11y — Settings حجم الخط). */
+  fontScale: FontScale;
 }
 
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
@@ -101,6 +113,8 @@ export const DEFAULT_STATE: AppState = {
   iqamaMinutes: { ...DEFAULT_IQAMA_MINUTES },
   features: { ...DEFAULT_WORSHIP_FEATURES },
   alarmSound: DEFAULT_ALARM_SOUND,
+  theme: DEFAULT_THEME,
+  fontScale: DEFAULT_FONT_SCALE,
 };
 
 /** Coerce a stored value to a valid IqamaMinutes, defaulting each key defensively. */
@@ -168,6 +182,8 @@ function migrate(raw: unknown): AppState {
     iqamaMinutes: coerceIqama(raw.iqamaMinutes),
     features: coerceFeatures(raw.features),
     alarmSound: isSelectableToneId(raw.alarmSound) ? raw.alarmSound : DEFAULT_ALARM_SOUND,
+    theme: coerceTheme(raw.theme),
+    fontScale: coerceFontScale(raw.fontScale),
   };
 }
 

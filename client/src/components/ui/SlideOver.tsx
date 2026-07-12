@@ -56,7 +56,7 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
       >
         <div className="flex items-center gap-2.5 border-b border-border-soft/70 px-5 py-4">
           {icon && (
-            <span className="grid size-9 place-items-center rounded-xl bg-white/5 text-gold">
+            <span className="grid size-9 place-items-center rounded-xl bg-veil/5 text-gold">
               {icon}
             </span>
           )}
@@ -65,7 +65,7 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="ms-auto grid size-9 place-items-center rounded-xl text-ink-dim transition-colors hover:bg-white/5 hover:text-ink"
+            className="ms-auto grid size-9 place-items-center rounded-xl text-ink-dim transition-colors hover:bg-veil/5 hover:text-ink"
           >
             <X className="size-5" />
           </button>

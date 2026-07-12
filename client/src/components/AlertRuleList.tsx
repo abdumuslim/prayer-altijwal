@@ -76,7 +76,7 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
         ) : (
           <div
             key={a.id}
-            className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-white/[0.02] px-3.5 py-2.5"
+            className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-veil/[0.02] px-3.5 py-2.5"
           >
             {a.kind === "alarm" ? (
               <AlarmClock className="size-4 shrink-0 text-gold" />
@@ -90,7 +90,7 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
               type="button"
               aria-label={t("notify.edit")}
               onClick={() => setEditing(a.id)}
-              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-teal"
+              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-teal"
             >
               <Pencil className="size-3.5" />
             </button>
@@ -98,7 +98,7 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
               type="button"
               aria-label={t("notify.delete")}
               onClick={() => void onRemove(a.id)}
-              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-imminent"
+              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-imminent"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -116,7 +116,7 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-soft bg-white/[0.02] px-4 py-2.5 text-sm font-medium text-ink-dim transition-colors hover:border-teal/40 hover:text-teal"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-soft bg-veil/[0.02] px-4 py-2.5 text-sm font-medium text-ink-dim transition-colors hover:border-teal/40 hover:text-teal"
         >
           <Plus className="size-4" />
           {t("notify.add")}

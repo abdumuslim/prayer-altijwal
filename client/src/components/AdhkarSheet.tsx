@@ -76,9 +76,9 @@ export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader, mark,
                 "flex items-center gap-2 rounded-xl border px-3 py-2",
                 // group break between the daily pair and the after-prayer five
                 i === 2 && "mt-1.5",
-                state === "done" && "border-transparent bg-white/[0.05]",
+                state === "done" && "border-transparent bg-veil/[0.05]",
                 state === "open" && "border-teal/40 bg-teal/[0.04]",
-                state === "locked" && "border-border-soft/50 bg-white/[0.01]",
+                state === "locked" && "border-border-soft/50 bg-veil/[0.01]",
               )}
             >
               {/* Row body opens the tap-to-count reader (locked before adhan). */}

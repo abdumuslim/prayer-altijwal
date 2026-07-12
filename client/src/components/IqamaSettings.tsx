@@ -27,7 +27,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
           return (
             <div
               key={name}
-              className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-white/[0.02] px-3 py-2"
+              className="flex items-center gap-2 rounded-xl border border-border-soft/70 bg-veil/[0.02] px-3 py-2"
             >
               <Icon className="size-4 shrink-0 text-teal" />
               <span className="min-w-0 flex-1 truncate text-sm text-ink">
@@ -39,7 +39,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
                   aria-label={t("iqama.decrease")}
                   onClick={() => onChange(name, val - 1)}
                   disabled={val <= 0}
-                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
+                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
                 >
                   <Minus className="size-3.5" />
                 </button>
@@ -51,7 +51,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
                   aria-label={t("iqama.increase")}
                   onClick={() => onChange(name, val + 1)}
                   disabled={val >= 60}
-                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-white/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
+                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
                 >
                   <Plus className="size-3.5" />
                 </button>

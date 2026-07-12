@@ -23,7 +23,7 @@ export function LanguageToggle({ compact = false }: LanguageToggleProps) {
       <button
         type="button"
         onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-        className="grid size-11 place-items-center rounded-2xl border border-border-soft/70 bg-white/[0.03] text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-teal"
+        className="grid size-11 place-items-center rounded-2xl border border-border-soft/70 bg-veil/[0.03] text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-teal"
         aria-label="Toggle language"
       >
         <Languages className="size-4.5" />
@@ -32,7 +32,7 @@ export function LanguageToggle({ compact = false }: LanguageToggleProps) {
   }
 
   return (
-    <div className="inline-flex rounded-xl border border-border-soft bg-white/[0.03] p-1">
+    <div className="inline-flex rounded-xl border border-border-soft bg-veil/[0.03] p-1">
       {OPTIONS.map((o) => (
         <button
           key={o.lang}

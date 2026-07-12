@@ -205,7 +205,7 @@ export function NextPrayerCountdown({
             {next.msUntil <= 0 ? t("next.now") : t("next.header")}
           </span>
           {next.tomorrow && (
-            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[12px] font-medium text-ink-dim">
+            <span className="rounded-full bg-veil/5 px-2 py-0.5 text-[12px] font-medium text-ink-dim">
               {t("next.tomorrow")}
             </span>
           )}

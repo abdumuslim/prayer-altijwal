@@ -31,7 +31,7 @@ export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar
 
   if (state === "unmarked") {
     return (
-      <div className="relative w-full max-w-[280px] rounded-xl border border-border-soft bg-white/[0.03] px-2.5 py-2">
+      <div className="relative w-full max-w-[280px] rounded-xl border border-border-soft bg-veil/[0.03] px-2.5 py-2">
         <p className="mb-2 text-center text-[12px] font-semibold leading-none text-ink-dim">
           {t("track.q", { prayer: t(prayerNameKey(prayer, !!isFriday)) })}
         </p>

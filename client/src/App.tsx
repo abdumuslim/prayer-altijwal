@@ -20,6 +20,7 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { useAlarm } from "@/hooks/useAlarm";
 import { unlockAlarmAudio } from "@/lib/alarm-sound";
+import { applyFontScale, applyTheme } from "@/lib/theme";
 import { glowBreathPeriod } from "@/lib/format";
 import { isFridayKey } from "@/lib/prayer-names";
 import {
@@ -63,6 +64,15 @@ function App() {
   const settings = useSettings();
   useWakeLock(); // keep the screen awake while the app is open
   const alarm = useAlarm(); // full-screen alarm when an alarm-kind reminder fires
+
+  // Apply the persisted theme's side effects once on boot: index.html already
+  // stamped data-theme pre-paint, but the theme-color meta + native system-bar
+  // style + font scale attribute are applied here (lib/theme.ts).
+  useEffect(() => {
+    applyTheme(settings.theme);
+    applyFontScale(settings.fontScale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Unlock alarm audio on the first user interaction so a later push-triggered
   // alarm (while the app is open) can play without its own gesture — browsers

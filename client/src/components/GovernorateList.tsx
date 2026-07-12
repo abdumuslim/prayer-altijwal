@@ -73,7 +73,7 @@ export function GovernorateList({ country, onSelect }: GovernorateListProps) {
           <button
             type="button"
             onClick={() => pick(g)}
-            className="flex w-full items-center gap-2 rounded-xl border border-transparent bg-white/[0.02] px-3 py-2.5 text-start transition-colors hover:border-teal/30 hover:bg-white/[0.06]"
+            className="flex w-full items-center gap-2 rounded-xl border border-transparent bg-veil/[0.02] px-3 py-2.5 text-start transition-colors hover:border-teal/30 hover:bg-veil/[0.06]"
           >
             <MapPin className="size-3.5 shrink-0 text-teal" />
             <span className="truncate text-sm font-medium text-ink">

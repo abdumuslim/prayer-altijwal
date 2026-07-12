@@ -56,7 +56,7 @@ export function AdhkarReader({ open, onClose, slot, counts, onCount, isFriday }:
         </span>
       }
     >
-      <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-white/[0.08]">
+      <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-veil/[0.08]">
         <div
           className="h-full rounded-full bg-teal"
           style={{ width: `${listProgress(counts, items) * 100}%`, transition: "width 0.3s ease" }}
@@ -66,7 +66,7 @@ export function AdhkarReader({ open, onClose, slot, counts, onCount, isFriday }:
       {complete ? (
         <div className="flex flex-col items-center gap-4 py-8">
           <div className="satellite-glow grid size-20 place-items-center rounded-full bg-teal" style={{ "--sat": "var(--color-teal)" } as React.CSSProperties}>
-            <Check className="size-10 text-white" strokeWidth={4} />
+            <Check className="size-10 text-on-accent" strokeWidth={4} />
           </div>
           <p className="flex items-center gap-1.5 text-sm font-bold text-gold">
             <Star className="size-4" fill="currentColor" />
@@ -120,7 +120,7 @@ export function AdhkarReader({ open, onClose, slot, counts, onCount, isFriday }:
             {items.map((item, i) =>
               i > currentIdx ? (
                 <div key={item.id} className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-[13px] text-ink-dim opacity-70">
-                  <span className="size-1.5 shrink-0 rounded-full bg-white/25" />
+                  <span className="size-1.5 shrink-0 rounded-full bg-veil/25" />
                   <span className="truncate font-serif-ar">
                     {item.textAr}
                     {item.repeat > 1 && <span className="tnum"> ×{item.repeat}</span>}
