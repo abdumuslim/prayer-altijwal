@@ -3,15 +3,17 @@
 // retired), plus the About row surfacing the app semver (__APP_VERSION__).
 // Phase 7 adds the theme gallery section, Phase 8 the font-size control.
 
-import { BellRing, Info, Sparkles, Timer } from "lucide-react";
+import { BellRing, Info, Palette, Sparkles, Timer } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { NotificationsOptIn } from "@/components/NotificationsOptIn";
 import { NativeReminders } from "@/components/NativeReminders";
 import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { isNative } from "@/lib/native";
 import { IqamaSettings } from "@/components/IqamaSettings";
 import { WorshipSettings } from "@/components/WorshipSettings";
+import type { FontScale, ThemeId } from "@/lib/theme";
 import type {
   IqamaMinutes,
   IqamaPrayer,
@@ -28,6 +30,10 @@ interface SettingsPageProps {
   onChangeFeature: (key: WorshipFeatureKey, on: boolean) => void;
   alarmSound: string;
   onChangeAlarmSound: (id: string) => void;
+  theme: ThemeId;
+  onChangeTheme: (id: ThemeId) => void;
+  fontScale: FontScale;
+  onChangeFontScale: (scale: FontScale) => void;
 }
 
 export function SettingsPage({
@@ -38,11 +44,30 @@ export function SettingsPage({
   onChangeFeature,
   alarmSound,
   onChangeAlarmSound,
+  theme,
+  onChangeTheme,
+  fontScale,
+  onChangeFontScale,
 }: SettingsPageProps) {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Appearance first — the v2 headline feature (theme gallery + font size). */}
+      <CollapsibleSection
+        icon={<Palette className="size-4.5" />}
+        iconClass="bg-indigo/10 text-indigo"
+        title={t("settings.theme")}
+        subtitle={t("settings.themeSubtitle")}
+      >
+        <AppearanceSettings
+          theme={theme}
+          onChangeTheme={onChangeTheme}
+          fontScale={fontScale}
+          onChangeFontScale={onChangeFontScale}
+        />
+      </CollapsibleSection>
+
       {/* Collapsible sections — same order/content as the old panel. */}
       <CollapsibleSection
         icon={<Sparkles className="size-4.5" />}

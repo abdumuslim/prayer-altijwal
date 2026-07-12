@@ -63,11 +63,32 @@ export const en = {
   "nav.reports": "Reports",
   "nav.settings": "Settings",
 
+  // Times tab
+  "times.todayTitle": "Today's Times",
+  "times.monthTitle": "Monthly Table",
+  "times.thisMonth": "This Month",
+  "times.prevMonth": "Previous month",
+  "times.nextMonth": "Next month",
+  "times.dayCol": "Day",
+  "times.hijriCol": "Hijri",
+
   // Settings
   "settings.title": "Settings",
   "settings.language": "Language",
   "settings.done": "Done",
   "settings.version": "Version",
+
+  // Appearance (theme gallery + font size)
+  "settings.theme": "Appearance",
+  "settings.themeSubtitle": "Pick a design language",
+  "theme.night": "Night",
+  "theme.glass": "Glass",
+  "theme.material": "Material",
+  "theme.contrast": "High Contrast",
+  "settings.fontSize": "Font Size",
+  "fontSize.normal": "Normal",
+  "fontSize.large": "Large",
+  "fontSize.xlarge": "Largest",
 
   // Notifications
   "notify.title": "Prayer Reminders",

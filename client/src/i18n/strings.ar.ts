@@ -66,11 +66,32 @@ export const ar: Record<StringKey, string> = {
   "nav.reports": "التقارير",
   "nav.settings": "الإعدادات",
 
+  // المواقيت tab (strings user-approved in the v2 preview)
+  "times.todayTitle": "مواقيت اليوم",
+  "times.monthTitle": "الجدول الشهري",
+  "times.thisMonth": "هذا الشهر",
+  "times.prevMonth": "الشهر السابق",
+  "times.nextMonth": "الشهر التالي",
+  "times.dayCol": "اليوم",
+  "times.hijriCol": "هجري",
+
   // Settings
   "settings.title": "الإعدادات",
   "settings.language": "اللغة",
   "settings.done": "تم",
   "settings.version": "الإصدار",
+
+  // Appearance (theme gallery + font size — strings user-approved)
+  "settings.theme": "المظهر",
+  "settings.themeSubtitle": "اختر لغة التصميم",
+  "theme.night": "الليل",
+  "theme.glass": "الزجاج",
+  "theme.material": "ماتيريال",
+  "theme.contrast": "تباين عالٍ",
+  "settings.fontSize": "حجم الخط",
+  "fontSize.normal": "عادي",
+  "fontSize.large": "كبير",
+  "fontSize.xlarge": "أكبر",
 
   // Notifications
   "notify.title": "تذكيرات الصلاة",

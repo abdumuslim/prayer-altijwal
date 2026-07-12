@@ -110,6 +110,24 @@ export interface PrayerTimesResponse {
   qiyamWindow: SunnahWindow | null;
 }
 
+/** One row of the monthly table (GET /api/prayer-times/month — display-only). */
+export interface MonthDayRow {
+  date: string;
+  hijriDay: number;
+  hijriMonth: string;
+  hijriYear: number;
+  isFriday: boolean;
+  times: Record<PrayerName, string>;
+}
+
+export interface MonthTimesResponse {
+  month: string;
+  location: LocationInfo;
+  method: MethodInfo;
+  lang: Lang;
+  days: MonthDayRow[];
+}
+
 export interface ReverseGeoResponse {
   city: string | null;
   /** Arabic-script city name when known. */

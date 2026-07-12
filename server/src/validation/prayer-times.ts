@@ -30,3 +30,10 @@ export const PrayerTimesQuery = z.object({
 });
 
 export type PrayerTimesQueryInput = z.infer<typeof PrayerTimesQuery>;
+
+/** Query schema for GET /api/prayer-times/month — same params, month not date. */
+export const MonthQuery = PrayerTimesQuery.omit({ date: true }).extend({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, { message: "month must be YYYY-MM" }),
+});
+
+export type MonthQueryInput = z.infer<typeof MonthQuery>;

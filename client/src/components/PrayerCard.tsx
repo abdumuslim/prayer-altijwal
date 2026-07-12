@@ -39,7 +39,7 @@ export function PrayerCard({ prayer, now, checkin, isFriday }: PrayerCardProps) 
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 rounded-xl border px-2.5 py-5 transition-colors",
+        "flex items-center justify-between gap-2 rounded-xl border px-3 py-2 transition-colors",
         // The next prayer breathes in lockstep with the hero halo (shared --breath),
         // tinted by its proximity accent via --prox; the rest stay calm.
         isNext

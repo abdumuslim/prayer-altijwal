@@ -113,9 +113,35 @@ export interface NativeScheduleInput {
   now?: Date;
 }
 
+export interface NativeMonthInput {
+  location: StoredLocation;
+  lang: Lang;
+  method?: string | null;
+  methodAuto: boolean;
+  asr?: AsrMadhab | null;
+  /** Target month, YYYY-MM. */
+  month: string;
+}
+
+/** Structural mirror of the server MonthPayload (docs/PRAYER_TIMES_API.md). */
+export interface MonthDayRow {
+  date: string;
+  hijriDay: number;
+  hijriMonth: string;
+  hijriYear: number;
+  isFriday: boolean;
+  times: Record<PrayerTimesResponse["prayers"][number]["name"], string>;
+}
+
+export interface MonthPayloadShape {
+  month: string;
+  days: MonthDayRow[];
+}
+
 export interface NativeFacade {
   computeLocalPrayerTimes(input: NativeLocalTimesInput): PrayerTimesResponse;
   computeSchedule(input: NativeScheduleInput): ScheduledAlarm[];
+  computeLocalMonth(input: NativeMonthInput): MonthPayloadShape;
 }
 
 /**

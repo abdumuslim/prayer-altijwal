@@ -1,4 +1,7 @@
-// The six prayer times as a compact 2-column grid (3 natural-height rows).
+// The six prayer times as compact single-column rows (v2: lives on the
+// المواقيت tab — Home shows the PrayerStrip instead). One row per prayer keeps
+// full names at 360px (the old 2-col cards truncated الظهر/العشاء next to the
+// check-in icon) and reads lighter above the monthly table.
 
 import { PrayerCard, type CardCheckin } from "@/components/PrayerCard";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
@@ -15,7 +18,7 @@ interface PrayerListProps {
 
 export function PrayerList({ prayers, now, checkinFor, isFriday }: PrayerListProps) {
   return (
-    <section className="card animate-rise-in grid grid-cols-2 gap-2 p-3 sm:p-4">
+    <section className="card animate-rise-in flex flex-col gap-1.5 p-3">
       {prayers.map((p) => (
         <PrayerCard key={p.name} prayer={p} now={now} checkin={checkinFor?.(p.name) ?? null} isFriday={isFriday} />
       ))}

@@ -7,6 +7,7 @@ import type {
   CitySearchResponse,
   GovernoratesResponse,
   Lang,
+  MonthTimesResponse,
   PrayerAlert,
   PrayerTimesResponse,
   PushSubscribeBody,
@@ -95,6 +96,31 @@ export function fetchPrayerTimes(
 ): Promise<PrayerTimesResponse> {
   return request<PrayerTimesResponse>(
     `/api/prayer-times${qs({ ...params })}`,
+    undefined,
+    signal,
+  );
+}
+
+export interface MonthTimesParams {
+  lat: number;
+  lon: number;
+  tz: string;
+  method?: string;
+  country?: string;
+  city?: string;
+  asr?: string;
+  /** YYYY-MM */
+  month: string;
+  elevation?: number;
+  lang: Lang;
+}
+
+export function fetchMonthTimes(
+  params: MonthTimesParams,
+  signal?: AbortSignal,
+): Promise<MonthTimesResponse> {
+  return request<MonthTimesResponse>(
+    `/api/prayer-times/month${qs({ ...params })}`,
     undefined,
     signal,
   );

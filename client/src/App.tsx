@@ -275,7 +275,14 @@ function App() {
         />
       </div>
       <div className={pageClass("times", true)}>
-        <TimesPage times={times} checkinFor={checkinFor} isFriday={isFriday} />
+        <TimesPage
+          location={location}
+          times={times}
+          settings={settings}
+          checkinFor={checkinFor}
+          isFriday={isFriday}
+          active={tab === "times"}
+        />
       </div>
       <div className={pageClass("reports", true)}>
         <ReportsPage />
@@ -289,6 +296,10 @@ function App() {
           onChangeFeature={settings.setFeature}
           alarmSound={settings.alarmSound}
           onChangeAlarmSound={settings.setAlarmSound}
+          theme={settings.theme}
+          onChangeTheme={settings.setTheme}
+          fontScale={settings.fontScale}
+          onChangeFontScale={settings.setFontScale}
         />
       </div>
 
