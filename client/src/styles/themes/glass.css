@@ -63,9 +63,11 @@ html[data-theme="glass"] {
   --surface-blur: 32px;
   --surface-saturate: 200%;
   --radius-card: 2rem;
+  /* Tight, low-alpha shadows: at 12px card gaps, anything larger paints a
+     visible "shadow canvas" edge into the gap between stacked cards. */
   --elev-card:
-    0 24px 48px -20px rgba(24, 52, 84, 0.35),
-    0 4px 12px -6px rgba(24, 52, 84, 0.16);
+    0 10px 24px -14px rgba(24, 52, 84, 0.22),
+    0 2px 6px -3px rgba(24, 52, 84, 0.1);
   --surface-specular:
     inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
     inset 1.5px 0 0 rgba(255, 255, 255, 0.5),
@@ -106,8 +108,8 @@ html[data-theme="glass"] .card-hero {
     inset 2px 0 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 0 rgba(255, 255, 255, 0.35),
     inset 0 0 34px rgba(255, 255, 255, 0.22),
-    0 32px 56px -22px rgba(24, 52, 84, 0.42),
-    0 6px 16px -8px rgba(24, 52, 84, 0.18);
+    0 12px 26px -16px rgba(24, 52, 84, 0.28),
+    0 3px 8px -4px rgba(24, 52, 84, 0.12);
 }
 
 /* The active tab's pill is itself a small glass lens with a specular rim. */
