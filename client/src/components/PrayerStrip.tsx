@@ -26,21 +26,22 @@ export function PrayerStrip({ prayers, isFriday }: PrayerStripProps) {
   const { t, lang } = useI18n();
 
   return (
-    <section className="card grid grid-cols-6 gap-0.5 px-2 py-2.5">
+    // 3×2 grid (two rows) — roomier cells than a single 6-col strip (user).
+    <section className="card grid grid-cols-3 gap-1 px-2 py-2">
       {prayers.map((p) => {
         const style = p.isNext ? proximityStyle(proximityFromMs(p.msUntil)) : null;
         return (
           <div
             key={p.name}
             className={cn(
-              "flex flex-col items-center gap-1 rounded-xl py-1.5",
+              "flex flex-col items-center gap-1 rounded-xl py-2",
               p.isNext && "breath-glow bg-veil/[0.06]",
             )}
             style={style ? ({ "--prox": style.ring } as CSSProperties) : undefined}
           >
             <span
               className={cn(
-                "text-[12px] font-semibold leading-none",
+                "text-[13px] font-semibold leading-none",
                 p.isNext ? style?.text : p.isPassed ? "text-ink-faint" : "text-ink-dim",
               )}
             >
@@ -48,7 +49,7 @@ export function PrayerStrip({ prayers, isFriday }: PrayerStripProps) {
             </span>
             <span
               className={cn(
-                "tnum text-[13px] font-bold leading-none",
+                "tnum text-[15px] font-bold leading-none",
                 p.isPassed && !p.isNext ? "text-ink-faint" : "text-ink",
               )}
             >
