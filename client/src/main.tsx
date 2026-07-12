@@ -18,7 +18,7 @@ const designParam = import.meta.env.DEV
 // ANY screen — the approval loop for the Phase-2/7 skins. Production ignores both.
 if (import.meta.env.DEV) {
   const themeParam = new URLSearchParams(window.location.search).get("theme");
-  const ids = ["night", "glass", "material", "contrast"];
+  const ids = ["night", "glass", "material", "contrast", "kashi"];
   if (themeParam && ids.includes(themeParam)) {
     document.documentElement.dataset.theme = themeParam;
   }

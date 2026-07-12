@@ -1,0 +1,66 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Theme: material — Google Material 3 / Expressive (docs/V2_REDESIGN_SPEC.md §5).
+   Fully OPAQUE tonal surfaces (zero blur/transparency), elevation by tone +
+   subtle shadow, filled rounded shapes (M3 large radii), pill active
+   indicator in the navigation bar, state layers on press, M3 standard
+   easing. Tonal palette derived from the brand teal/emerald/gold.
+   DRAFT for the Phase-2 preview loop.
+   ───────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="material"] {
+  /* Palette — M3-style tonal light scheme from the brand hues */
+  --color-night: #f4f8f6; /* surface */
+  --color-night-2: #eef3f1;
+  --color-surface: #e7eeec; /* surface-container */
+  --color-surface-2: #ffffff;
+  --color-border: #d0dcd9;
+  --color-border-soft: #dde6e3;
+  --color-ink: #171d1c; /* on-surface */
+  --color-ink-dim: #3f4947; /* on-surface-variant */
+  --color-ink-faint: #6f7977;
+  --color-veil: #171d1c;
+  --color-scrim: #000000;
+  --color-on-accent: #ffffff;
+
+  /* Tonal accents (≈ tone 40 for on-light) */
+  --color-teal: #00696b; /* primary */
+  --color-emerald: #1b6b50;
+  --color-emerald-deep: #00504d;
+  --color-mint: #4a7d6f;
+  --color-gold: #7a5900; /* tertiary */
+  --color-gold-soft: #96700f;
+  --color-amber: #8a5a00;
+  --color-indigo: #5158c6;
+  --color-sky: #00639b;
+  --color-safe: #1b6b50;
+  --color-warning: #96700f;
+  --color-urgent: #a44b12;
+  --color-critical: #ba1a1a; /* M3 error */
+  --color-imminent: #ba1a1a;
+
+  /* Scene — flat tonal surface, no gradients */
+  --bg-scene: #f4f8f6;
+
+  /* Material — opaque, tonal elevation */
+  --surface-card-bg: #fbfdfb;
+  --surface-card-border: 1px solid transparent;
+  --surface-blur: 0px;
+  --surface-saturate: 100%;
+  --radius-card: 1.75rem; /* M3 large (28px) */
+  --elev-card: 0 1px 2px rgba(23, 29, 28, 0.10), 0 1px 3px 1px rgba(23, 29, 28, 0.08);
+  --surface-specular: 0 0 #0000;
+
+  --arabesque-dot: rgba(0, 105, 107, 0.06);
+  --selection-bg: rgba(0, 105, 107, 0.2);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* M3 standard easing */
+
+  /* Tab bar — M3 navigation bar: tonal, docked, pill active indicator */
+  --tabbar-bg: #e7eeec;
+  --tabbar-border: 1px solid transparent;
+  --tabbar-radius: 0px;
+  --tabbar-inset: 0px;
+  --tabbar-shadow: 0 -1px 3px rgba(23, 29, 28, 0.08);
+  --tab-ink: #3f4947;
+  --tab-active-ink: #00201f; /* on-secondary-container */
+  --tab-active-bg: #cce8e5; /* secondary-container */
+}

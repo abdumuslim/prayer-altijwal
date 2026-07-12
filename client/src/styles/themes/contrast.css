@@ -1,0 +1,84 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Theme: contrast — high-contrast accessibility (docs/V2_REDESIGN_SPEC.md §5).
+   Pure-black scene, solid near-black surfaces, ZERO transparency/blur/glow,
+   2px solid borders everywhere a hairline existed, brightened accents,
+   thicker focus rings. Doubles as the reduced-transparency perf fallback.
+   DRAFT for the Phase-2 preview loop — AAA contrast audit lands in Phase 8.
+   ───────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="contrast"] {
+  /* Palette — black base, white ink, bright accents */
+  --color-night: #000000;
+  --color-night-2: #000000;
+  --color-surface: #0d0d0d;
+  --color-surface-2: #161616;
+  --color-border: #9fb3af;
+  --color-border-soft: #6e807c;
+  --color-ink: #ffffff;
+  --color-ink-dim: #d5dedb;
+  --color-ink-faint: #aebbb8;
+  --color-veil: #ffffff;
+  --color-scrim: #000000;
+  --color-on-accent: #001413; /* dark ink on the bright accent discs */
+
+  --color-teal: #5eead4;
+  --color-emerald: #6ee7b7;
+  --color-emerald-deep: #34d399;
+  --color-mint: #99f6e4;
+  --color-gold: #ffd54a;
+  --color-gold-soft: #ffe694;
+  --color-amber: #ffb938;
+  --color-indigo: #b4bcff;
+  --color-sky: #7dd3fc;
+  --color-safe: #6ee7b7;
+  --color-warning: #ffd54a;
+  --color-urgent: #ffa94d;
+  --color-critical: #ff8080;
+  --color-imminent: #ff8080;
+
+  /* Scene — pure black, no texture */
+  --bg-scene: #000000;
+
+  /* Material — solid, ruled, flat */
+  --surface-card-bg: #0d0d0d;
+  --surface-card-border: 2px solid #6e807c;
+  --surface-blur: 0px;
+  --surface-saturate: 100%;
+  --radius-card: 0.875rem;
+  --elev-card: 0 0 #0000;
+  --surface-specular: 0 0 #0000;
+
+  --arabesque-dot: transparent;
+  --selection-bg: rgba(255, 213, 74, 0.4);
+  --focus-ring-width: 3px;
+  --focus-ring-color: #ffd54a;
+
+  /* Tab bar — ruled black bar, inverted active pill */
+  --tabbar-bg: #000000;
+  --tabbar-border: 2px solid #6e807c;
+  --tabbar-radius: 0px;
+  --tabbar-inset: 0px;
+  --tabbar-shadow: 0 0 #0000;
+  --tab-ink: #d5dedb;
+  --tab-active-ink: #ffffff; /* label under the pill stays white */
+  --tab-pill-ink: #000000; /* icon inside the inverted white pill */
+  --tab-active-bg: #ffffff;
+}
+
+/* No decorative glow/breath in high contrast — they blur edges and halve
+   legibility for exactly the users this theme serves. */
+html[data-theme="contrast"] .halo-breath {
+  opacity: 0 !important;
+}
+html[data-theme="contrast"] .breath-glow,
+html[data-theme="contrast"] .satellite-glow {
+  box-shadow: none !important;
+}
+html[data-theme="contrast"] .shimmer-text {
+  animation: none;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  -webkit-text-fill-color: currentColor;
+  color: var(--color-gold);
+}

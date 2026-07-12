@@ -1,0 +1,77 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Theme: glass — Apple iOS-26 "Liquid Glass" replica (docs/V2_REDESIGN_SPEC.md §5).
+   Highly translucent layered surfaces over a light, airy scene (glass needs
+   content behind it to read): heavy backdrop blur + saturation, specular
+   top-edge highlights, hairline white rims, soft wide shadows, large
+   concentric radii, and a FLOATING detached pill tab bar. Brand hues stay
+   (teal/emerald/gold) but tuned darker for legibility on light glass.
+   DRAFT for the Phase-2 preview loop — refraction filter + final contrast
+   pass land in Phase 7.
+   ───────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="glass"] {
+  /* Palette — light base, dark ink */
+  --color-night: #dfe9f2;
+  --color-night-2: #e8eef5;
+  --color-surface: #f2f6fa;
+  --color-surface-2: #ffffff;
+  --color-border: rgba(255, 255, 255, 0.75);
+  --color-border-soft: rgba(255, 255, 255, 0.55);
+  --color-ink: #16303a;
+  --color-ink-dim: #4e6b78;
+  --color-ink-faint: #7d95a0;
+  --color-veil: #10222b; /* subtle fills flip to dark-on-light */
+  --color-scrim: #223240;
+  --color-on-accent: #ffffff;
+
+  /* Brand accents, darkened for light-surface contrast */
+  --color-teal: #0d9488;
+  --color-emerald: #059669;
+  --color-emerald-deep: #0f766e;
+  --color-mint: #0f766e;
+  --color-gold: #b97b12;
+  --color-gold-soft: #a16207;
+  --color-amber: #d97706;
+  --color-indigo: #6366f1;
+  --color-sky: #0284c7;
+  --color-safe: #059669;
+  --color-warning: #b45309;
+  --color-urgent: #c2410c;
+  --color-critical: #dc2626;
+  --color-imminent: #dc2626;
+
+  /* Scene — pearl sky with soft brand-hue blobs the glass can refract */
+  --bg-scene:
+    radial-gradient(circle at 82% -8%, rgba(45, 212, 191, 0.35), transparent 42%),
+    radial-gradient(circle at -10% 30%, rgba(125, 211, 252, 0.42), transparent 46%),
+    radial-gradient(circle at 55% 115%, rgba(245, 196, 81, 0.30), transparent 46%),
+    linear-gradient(180deg, #eff5fa 0%, #dfe9f2 55%, #d6e3ee 100%);
+
+  /* Material — the Liquid Glass recipe */
+  --surface-card-bg: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.60),
+    rgba(255, 255, 255, 0.34)
+  );
+  --surface-card-border: 1px solid rgba(255, 255, 255, 0.72);
+  --surface-blur: 24px;
+  --surface-saturate: 180%;
+  --radius-card: 1.75rem;
+  --elev-card: 0 16px 40px -18px rgba(31, 56, 77, 0.35);
+  --surface-specular:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+
+  --arabesque-dot: rgba(13, 148, 136, 0.10);
+  --selection-bg: rgba(13, 148, 136, 0.25);
+
+  /* Tab bar — floating detached glass pill */
+  --tabbar-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.38));
+  --tabbar-border: 1px solid rgba(255, 255, 255, 0.75);
+  --tabbar-radius: 2rem;
+  --tabbar-inset: 0.75rem;
+  --tabbar-shadow: 0 18px 38px -16px rgba(31, 56, 77, 0.45);
+  --tab-ink: #4e6b78;
+  --tab-active-ink: #0f5c54;
+  --tab-active-bg: rgba(255, 255, 255, 0.85);
+}

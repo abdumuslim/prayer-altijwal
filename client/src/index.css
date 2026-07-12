@@ -1,7 +1,14 @@
 @import "tailwindcss";
 /* Theme system layer 2 — surface-recipe contract + shared chrome classes
-   (docs/V2_REDESIGN_SPEC.md §3). Night defaults live on :root there. */
+   (docs/V2_REDESIGN_SPEC.md §3). Night defaults live on :root there; each
+   theme file is one html[data-theme=X] override block (a design language,
+   not a recolor). */
 @import "./styles/surfaces.css";
+@import "./styles/themes/glass.css";
+@import "./styles/themes/material.css";
+@import "./styles/themes/contrast.css";
+/* Brand exploration (preview-only until approved): lapis/kashi identity. */
+@import "./styles/themes/kashi.css";
 
 /* ─────────────────────────────────────────────────────────────────────────
    Theme — refined Islamic palette: deep night → teal → emerald, warm gold.

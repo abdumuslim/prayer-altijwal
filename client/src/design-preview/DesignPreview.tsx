@@ -6,6 +6,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { AdhkarChecklistSheet, AdhkarSheet, RawatibSheet, StatsSheet } from "./sheets";
 import { Variant1, Variant2, Variant3, Variant4 } from "./variants";
+import { V2Shell } from "./v2-shell";
 
 const SCREENS = [
   { n: 1, title: "الزوايا الأربع + تسجيل في البطاقات", el: <Variant1 /> },
@@ -16,16 +17,19 @@ const SCREENS = [
   { n: 6, title: "لوحة السجل والنقاط (منبثق)", el: <StatsSheet /> },
   { n: 7, title: "تفاصيل الرواتب (منبثق)", el: <RawatibSheet /> },
   { n: 8, title: "قائمة الأذكار (منبثق)", el: <AdhkarChecklistSheet /> },
+  // v2 redesign (docs/V2_REDESIGN_SPEC.md Phase 2). Key "0" opens 10.
+  { n: 9, title: "هيكل v2: التبويبات الأربعة", el: <V2Shell /> },
+  { n: 10, title: "v2 + معرض المظاهر (وزر T يبدّل)", el: <V2Shell themeChips /> },
 ];
 
 export default function DesignPreview({ initial }: { initial: number }) {
   const [n, setN] = useState(() => (initial >= 1 && initial <= SCREENS.length ? initial : 1));
   const screen = SCREENS[n - 1];
 
-  // Number keys 1..8 switch screens (kept in the URL for reload/share).
+  // Number keys switch screens ("0" → screen 10; kept in the URL for reload/share).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const next = Number(e.key);
+      const next = e.key === "0" ? 10 : Number(e.key);
       if (!Number.isInteger(next) || next < 1 || next > SCREENS.length) return;
       setN(next);
       const url = new URL(window.location.href);

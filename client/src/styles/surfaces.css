@@ -40,6 +40,50 @@
 
   /* Motion feel (Material overrides with snappier/springier curves) */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Bottom tab bar (the per-theme signature — docs/V2_REDESIGN_SPEC.md §5).
+     night: docked frosted bar, hairline top edge. Themes override shape,
+     material, and the active-item pill. */
+  --tabbar-bg: linear-gradient(160deg, rgba(14, 58, 54, 0.88), rgba(6, 35, 31, 0.94));
+  --tabbar-border: 1px solid var(--color-border-soft);
+  --tabbar-radius: 0px;
+  --tabbar-inset: 0px;
+  --tabbar-shadow: 0 -8px 30px -18px rgba(0, 0, 0, 0.6);
+  --tab-ink: var(--color-ink-dim);
+  --tab-active-ink: var(--color-gold);
+  --tab-active-bg: color-mix(in srgb, var(--color-gold) 13%, transparent);
+}
+
+@layer components {
+  /* Bottom navigation surface. Docked by default; themes float/reshape it via
+     the vars above (glass: inset pill; material: tonal bar; contrast: ruled). */
+  .tab-bar {
+    background: var(--tabbar-bg);
+    backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
+    -webkit-backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
+    border: var(--tabbar-border);
+    border-radius: var(--tabbar-radius);
+    margin-inline: var(--tabbar-inset);
+    margin-bottom: var(--tabbar-inset);
+    box-shadow: var(--surface-specular), var(--tabbar-shadow);
+  }
+  .tab-item {
+    color: var(--tab-ink);
+  }
+  .tab-item[aria-current] {
+    color: var(--tab-active-ink);
+  }
+  .tab-item .tab-pill {
+    border-radius: 9999px;
+    background: transparent;
+    transition: background 200ms var(--ease-standard);
+  }
+  .tab-item[aria-current] .tab-pill {
+    background: var(--tab-active-bg);
+    /* Inverted-pill themes (contrast) need a different ink INSIDE the pill
+       than on the label below it. Defaults to the active ink. */
+    color: var(--tab-pill-ink, var(--tab-active-ink));
+  }
 }
 
 @layer components {
