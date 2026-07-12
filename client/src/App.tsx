@@ -65,9 +65,12 @@ function App() {
 
   // Apply the persisted theme's side effects once on boot: index.html already
   // stamped data-theme pre-paint, but the theme-color meta + native system-bar
-  // style + font scale attribute are applied here (lib/theme.ts).
+  // style + font scale attribute are applied here (lib/theme.ts). A DEV
+  // `?theme=` override (main.tsx) wins — don't clobber it with the persisted one.
   useEffect(() => {
-    applyTheme(settings.theme);
+    const devOverride =
+      import.meta.env.DEV && new URLSearchParams(window.location.search).has("theme");
+    if (!devOverride) applyTheme(settings.theme);
     applyFontScale(settings.fontScale);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

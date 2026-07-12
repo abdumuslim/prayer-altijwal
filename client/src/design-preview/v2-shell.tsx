@@ -124,21 +124,22 @@ function HomeTab() {
   );
 }
 
-/** Horizontal 6-cell strip replacing the 2-col list on Home (list → Times). */
+/** 3×2 prayer grid replacing the 2-col list on Home (list → Times) — matches
+    the real components/PrayerStrip.tsx (two rows, user-approved). */
 function PrayerStripMock() {
   return (
-    <section className="card grid grid-cols-6 gap-0.5 px-2 py-2.5">
+    <section className="card grid grid-cols-3 gap-1 px-2 py-2">
       {PRAYERS.map((p) => (
         <div
           key={p.name}
           className={
-            "flex flex-col items-center gap-1 rounded-xl py-1.5 " +
+            "flex flex-col items-center gap-1 rounded-xl py-2 " +
             (p.isNext ? "breath-glow bg-veil/[0.06]" : "")
           }
         >
           <span
             className={
-              "text-[12px] font-semibold leading-none " +
+              "text-[13px] font-semibold leading-none " +
               (p.isNext ? "text-gold" : p.passed ? "text-ink-faint" : "text-ink-dim")
             }
           >
@@ -146,8 +147,8 @@ function PrayerStripMock() {
           </span>
           <span
             className={
-              "tnum text-[13px] font-bold leading-none " +
-              (p.isNext ? "text-ink" : p.passed ? "text-ink-faint" : "text-ink")
+              "tnum text-[15px] font-bold leading-none " +
+              (p.passed && !p.isNext ? "text-ink-faint" : "text-ink")
             }
           >
             {p.time.replace(/ [صم]$/, "")}
