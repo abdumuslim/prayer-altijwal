@@ -204,9 +204,7 @@ export const en = {
   "adhkar.morningNow": "Morning now",
   "adhkar.eveningNow": "Evening now",
 
-  // Worship tracker — stats
-  "stats.title": "Worship Record",
-  "stats.of": "of {n}",
+  // Worship tracker — stats (shared by the Reports tab components)
   "stats.streakDays": "{n} consecutive days",
   "stats.best": "Best day:",
   "stats.fard": "Obligatory",
@@ -217,6 +215,19 @@ export const en = {
   "stats.week": "Week",
   "stats.month": "Month",
   "stats.months": "Months",
+
+  // Reports tab (v2 Phase 6 — AR wording user-approved via ?design=9 + spec §6)
+  "reports.trendTitle": "Progress",
+  "reports.heatmapTitle": "Last 62 days",
+  "reports.perPrayerTitle": "Prayer log (last 62 days)",
+  "reports.lifetime": "Lifetime totals",
+  "reports.points": "Points",
+  "reports.daysLogged": "Days",
+  "reports.perfectDays": "Perfect days",
+  "reports.bestDay": "Best day",
+  "reports.emptyTitle": "Record is off",
+  "reports.emptyBody": "Enable the Record feature to track your prayers and daily points",
+  "reports.enableRecord": "Enable Record",
 
   // Worship features (Settings opt-in — all off by default)
   "worship.settings.title": "Additional Features",

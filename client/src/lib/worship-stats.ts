@@ -5,12 +5,15 @@
 
 import { addDays, monthKeyOf, prevDayKey } from "@/lib/civil-day";
 import {
+  FARD_PRAYERS,
+  RETAIN_DAYS,
   WORSHIP_SECTIONS,
   isPerfectDay,
   scoreDay,
   sectionComplete,
   type DayKey,
   type DayLog,
+  type FardPrayer,
   type MonthAggregate,
   type MonthKey,
   type PrefixStreak,
@@ -37,11 +40,24 @@ export interface DayScore {
   score: number;
 }
 
-/** One month's bar in the months chart series. */
+/** One month's bar/row in the months series (folds + retained days merged). */
 export interface MonthScore {
   monthKey: MonthKey;
   points: number;
   daysLogged: number;
+  perfectDays: number;
+  masjid: number;
+  home: number;
+  missed: number;
+  /** Best single-day score inside the month (max of fold + retained days). */
+  bestDayScore: number;
+}
+
+/** Per-fard outcome counts over the retained (≤ RETAIN_DAYS) window. */
+export interface PerPrayerCounts {
+  masjid: number;
+  home: number;
+  missed: number;
 }
 
 export interface WorshipStats {
@@ -55,6 +71,10 @@ export interface WorshipStats {
   last7: DayScore[];
   /** Exactly 30 entries, oldest → newest (today last), zero-filled. */
   last30: DayScore[];
+  /** Exactly RETAIN_DAYS entries, oldest → newest (today last), zero-filled. */
+  heatmap62: DayScore[];
+  /** Retained-days-only fard outcomes (month folds excluded by design). */
+  perPrayer62: Record<FardPrayer, PerPrayerCounts>;
   /** Up to 12 most-recent months, oldest → newest (folds + retained days). */
   monthly: MonthScore[];
   totals: WorshipTotals;
@@ -133,7 +153,11 @@ export function deriveStats(state: WorshipState, todayKey: DayKey): WorshipStats
   let bestDayScore = 0;
   let bestDayKey: DayKey | null = null;
 
-  for (const m of Object.values(state.months)) {
+  // Month folds seed the monthly map too (a month can straddle the compaction
+  // horizon, so retained days merge into the same entry below).
+  const monthMap = new Map<MonthKey, Omit<MonthScore, "monthKey">>();
+
+  for (const [mk, m] of Object.entries(state.months)) {
     totals.points += m.totalPoints;
     totals.daysLogged += m.daysLogged;
     totals.perfectDays += m.perfectDays;
@@ -148,7 +172,21 @@ export function deriveStats(state: WorshipState, todayKey: DayKey): WorshipStats
       bestDayScore = m.bestDayScore;
       bestDayKey = null; // the record lives in a fold — no day key survives
     }
+    monthMap.set(mk, {
+      points: m.totalPoints,
+      daysLogged: m.daysLogged,
+      perfectDays: m.perfectDays,
+      masjid: m.masjid,
+      home: m.home,
+      missed: m.missed,
+      bestDayScore: m.bestDayScore,
+    });
   }
+
+  const perPrayer62 = Object.fromEntries(
+    FARD_PRAYERS.map((p) => [p, { masjid: 0, home: 0, missed: 0 }]),
+  ) as Record<FardPrayer, PerPrayerCounts>;
+
   for (const [dayKey, log] of Object.entries(state.days)) {
     const c = dayContribution(log);
     totals.points += c.totalPoints;
@@ -165,31 +203,58 @@ export function deriveStats(state: WorshipState, todayKey: DayKey): WorshipStats
       bestDayScore = c.bestDayScore;
       bestDayKey = dayKey;
     }
+    for (const p of FARD_PRAYERS) {
+      const st = log.fard[p];
+      if (st !== "unmarked") perPrayer62[p][st]++;
+    }
+    const mk = monthKeyOf(dayKey);
+    const prev = monthMap.get(mk) ?? {
+      points: 0,
+      daysLogged: 0,
+      perfectDays: 0,
+      masjid: 0,
+      home: 0,
+      missed: 0,
+      bestDayScore: 0,
+    };
+    monthMap.set(mk, {
+      points: prev.points + c.totalPoints,
+      daysLogged: prev.daysLogged + c.daysLogged,
+      perfectDays: prev.perfectDays + c.perfectDays,
+      masjid: prev.masjid + c.masjid,
+      home: prev.home + c.home,
+      missed: prev.missed + c.missed,
+      bestDayScore: Math.max(prev.bestDayScore, c.bestDayScore),
+    });
   }
 
   const dayScore = (dayKey: DayKey): DayScore => {
     const log = state.days[dayKey];
     return { dayKey, score: log ? scoreDay(log) : 0 };
   };
-  const last7 = Array.from({ length: 7 }, (_, i) => dayScore(addDays(todayKey, i - 6)));
-  const last30 = Array.from({ length: 30 }, (_, i) => dayScore(addDays(todayKey, i - 29)));
+  // The 62-day heatmap series is the master daily series; the shorter chart
+  // views are its tail so the three can never disagree.
+  const heatmap62 = Array.from({ length: RETAIN_DAYS }, (_, i) =>
+    dayScore(addDays(todayKey, i - (RETAIN_DAYS - 1))),
+  );
+  const last7 = heatmap62.slice(-7);
+  const last30 = heatmap62.slice(-30);
 
-  // Monthly series: month folds plus retained days grouped by month (a month can
-  // straddle the compaction horizon), the 12 most recent, oldest → newest.
-  const monthMap = new Map<MonthKey, { points: number; daysLogged: number }>();
-  for (const [mk, m] of Object.entries(state.months)) {
-    monthMap.set(mk, { points: m.totalPoints, daysLogged: m.daysLogged });
-  }
-  for (const [dayKey, log] of Object.entries(state.days)) {
-    const mk = monthKeyOf(dayKey);
-    const c = dayContribution(log);
-    const prev = monthMap.get(mk) ?? { points: 0, daysLogged: 0 };
-    monthMap.set(mk, { points: prev.points + c.totalPoints, daysLogged: prev.daysLogged + c.daysLogged });
-  }
   const monthly: MonthScore[] = [...monthMap.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .slice(-12)
-    .map(([monthKey, v]) => ({ monthKey, points: v.points, daysLogged: v.daysLogged }));
+    .map(([monthKey, v]) => ({ monthKey, ...v }));
 
-  return { todayScore, streaks, bestDayScore, bestDayKey, last7, last30, monthly, totals };
+  return {
+    todayScore,
+    streaks,
+    bestDayScore,
+    bestDayKey,
+    last7,
+    last30,
+    heatmap62,
+    perPrayer62,
+    monthly,
+    totals,
+  };
 }

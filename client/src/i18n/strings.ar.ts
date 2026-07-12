@@ -208,8 +208,6 @@ export const ar: Record<StringKey, string> = {
   "adhkar.eveningNow": "المساء الآن",
 
   // Worship tracker — stats
-  "stats.title": "سجل العبادة",
-  "stats.of": "من {n}",
   "stats.streakDays": "{n} أيام متتالية",
   "stats.best": "أفضل يوم:",
   "stats.fard": "الفرائض",
@@ -220,6 +218,19 @@ export const ar: Record<StringKey, string> = {
   "stats.week": "أسبوع",
   "stats.month": "شهر",
   "stats.months": "أشهر",
+
+  // Reports tab (v2 Phase 6 — wording user-approved via ?design=9 + spec §6)
+  "reports.trendTitle": "التقدّم",
+  "reports.heatmapTitle": "آخر 62 يومًا",
+  "reports.perPrayerTitle": "سجل الصلوات (آخر 62 يومًا)",
+  "reports.lifetime": "الإجمالي الكلي",
+  "reports.points": "النقاط",
+  "reports.daysLogged": "يومًا",
+  "reports.perfectDays": "أيام كاملة",
+  "reports.bestDay": "أفضل يوم",
+  "reports.emptyTitle": "السجل غير مفعّل",
+  "reports.emptyBody": "فعّل ميزة السجل لتتبّع صلواتك ونقاطك اليومية",
+  "reports.enableRecord": "تفعيل السجل",
 
   // Worship features (Settings opt-in — all off by default)
   "worship.settings.title": "المزايا الاضافية",

@@ -39,7 +39,6 @@ import { CitySearch } from "@/components/CitySearch";
 import { RawatibSheet } from "@/components/RawatibSheet";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { AdhkarReader } from "@/components/AdhkarReader";
-import { StatsSheet } from "@/components/StatsSheet";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
 import type { HeroWorship } from "@/components/NextPrayerCountdown";
 import type { CardCheckin } from "@/components/CheckinControl";
@@ -54,7 +53,7 @@ const AFTER_SLOT: Record<FardPrayer, AdhkarSlot> = {
   isha: "afterIsha",
 };
 
-type WorshipSheet = null | "rawatib" | "adhkar" | "stats" | { reader: AdhkarSlot };
+type WorshipSheet = null | "rawatib" | "adhkar" | { reader: AdhkarSlot };
 
 function App() {
   const { lang } = useI18n();
@@ -187,7 +186,7 @@ function App() {
       pill: {
         points: worship.stats.todayScore,
         streak: worship.stats.streaks.fard,
-        onOpen: () => setSheet("stats"),
+        onOpen: () => setTab("reports"), // the record now lives on its own tab
       },
       rawatib: {
         ...deriveRawatibCorner(worship.today, worship.canMark),
@@ -279,7 +278,12 @@ function App() {
         />
       </div>
       <div className={pageClass("reports", true)}>
-        <ReportsPage />
+        <ReportsPage
+          stats={worship.stats}
+          today={worship.today}
+          features={settings.features}
+          onEnableRecord={() => settings.setFeature("record", true)}
+        />
       </div>
       <div className={pageClass("settings", true)}>
         <SettingsPage
@@ -339,13 +343,6 @@ function App() {
           isFriday={isFriday}
         />
       )}
-      <StatsSheet
-        open={sheet === "stats"}
-        onClose={() => setSheet(null)}
-        stats={worship.stats}
-        today={worship.today}
-      />
-
       {alarm.alarm && (
         <AlarmOverlay
           title={alarm.alarm.title}

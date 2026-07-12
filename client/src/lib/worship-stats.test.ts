@@ -4,6 +4,7 @@ import {
   DEFAULT_WORSHIP_STATE,
   FARD_PRAYERS,
   RAWATIB_SLOTS,
+  RETAIN_DAYS,
   applyMark,
   emptyDayLog,
   emptyPrefixStreaks,
@@ -194,8 +195,18 @@ describe("deriveStats — series and totals", () => {
     );
     const { monthly } = deriveStats(s, TODAY);
     expect(monthly.map((m) => m.monthKey)).toEqual(["2026-06", "2026-07"]);
-    // July fold (10) + two retained July days (3 + 3) = 16.
-    expect(monthly[1]).toEqual({ monthKey: "2026-07", points: 16, daysLogged: 4 });
+    // July fold (10) + two retained July days (3 + 3) = 16; the two retained
+    // fajr-masjid days add 2 masjid; fold bestDayScore 8 beats the 3s.
+    expect(monthly[1]).toEqual({
+      monthKey: "2026-07",
+      points: 16,
+      daysLogged: 4,
+      perfectDays: 0,
+      masjid: 2,
+      home: 0,
+      missed: 0,
+      bestDayScore: 8,
+    });
   });
 
   test("monthly keeps only the 12 most-recent months", () => {
@@ -251,5 +262,97 @@ describe("deriveStats — series and totals", () => {
     const stats = deriveStats(s, TODAY);
     expect(stats.bestDayScore).toBe(9);
     expect(stats.bestDayKey).toBe("2026-07-01");
+  });
+});
+
+describe("deriveStats — heatmap62 + perPrayer62 (Reports, Phase 6)", () => {
+  const positiveDay = (): DayLog => dayWith([{ kind: "fard", prayer: "fajr", state: "masjid" }]);
+
+  test("heatmap62 spans RETAIN_DAYS, zero-filled, oldest → newest, today last", () => {
+    const s = stateWith({ [TODAY]: positiveDay(), "2026-06-01": positiveDay() });
+    const { heatmap62 } = deriveStats(s, TODAY);
+    expect(heatmap62).toHaveLength(RETAIN_DAYS);
+    expect(heatmap62[0].dayKey).toBe("2026-05-03"); // TODAY − 61
+    expect(heatmap62[RETAIN_DAYS - 1]).toEqual({ dayKey: TODAY, score: 3 });
+    expect(heatmap62[29]).toEqual({ dayKey: "2026-06-01", score: 3 });
+    expect(heatmap62.filter((d) => d.score !== 0)).toHaveLength(2);
+  });
+
+  test("last7 and last30 are exactly the heatmap's tail", () => {
+    const s = stateWith({ [TODAY]: positiveDay(), "2026-07-01": completeAll() });
+    const stats = deriveStats(s, TODAY);
+    expect(stats.last7).toEqual(stats.heatmap62.slice(-7));
+    expect(stats.last30).toEqual(stats.heatmap62.slice(-30));
+  });
+
+  test("perPrayer62 counts each outcome per fard, ignoring unmarked", () => {
+    const s = stateWith({
+      [TODAY]: dayWith([
+        { kind: "fard", prayer: "fajr", state: "masjid" },
+        { kind: "fard", prayer: "dhuhr", state: "home" },
+        { kind: "fard", prayer: "asr", state: "missed" },
+      ]),
+      "2026-07-02": dayWith([{ kind: "fard", prayer: "fajr", state: "masjid" }]),
+      "2026-07-01": dayWith([{ kind: "fard", prayer: "fajr", state: "home" }]),
+    });
+    const { perPrayer62 } = deriveStats(s, TODAY);
+    expect(perPrayer62.fajr).toEqual({ masjid: 2, home: 1, missed: 0 });
+    expect(perPrayer62.dhuhr).toEqual({ masjid: 0, home: 1, missed: 0 });
+    expect(perPrayer62.asr).toEqual({ masjid: 0, home: 0, missed: 1 });
+    expect(perPrayer62.maghrib).toEqual({ masjid: 0, home: 0, missed: 0 });
+    expect(perPrayer62.isha).toEqual({ masjid: 0, home: 0, missed: 0 });
+  });
+
+  test("perPrayer62 excludes month folds (retained days only)", () => {
+    const s = stateWith(
+      { [TODAY]: positiveDay() },
+      {
+        months: {
+          "2026-04": {
+            daysLogged: 30,
+            totalPoints: 200,
+            perfectDays: 2,
+            bestDayScore: 29,
+            masjid: 60,
+            home: 40,
+            missed: 5,
+            rawatib: 50,
+            adhkar: 55,
+            duha: 20,
+            qiyam: 10,
+          },
+        },
+      },
+    );
+    const stats = deriveStats(s, TODAY);
+    expect(stats.perPrayer62.fajr).toEqual({ masjid: 1, home: 0, missed: 0 });
+    expect(stats.totals.masjid).toBe(61); // totals still include the fold
+  });
+
+  test("enriched monthly straddling the horizon merges counts and maxes bestDayScore", () => {
+    const s = stateWith(
+      { [TODAY]: completeAll(), "2026-07-01": dayWith([{ kind: "fard", prayer: "fajr", state: "home" }]) },
+      {
+        months: {
+          "2026-07": { daysLogged: 2, totalPoints: 10, perfectDays: 1, bestDayScore: 8, masjid: 4, home: 2, missed: 1, rawatib: 0, adhkar: 0, duha: 0, qiyam: 0 },
+        },
+      },
+    );
+    const { monthly } = deriveStats(s, TODAY);
+    // completeAll scores 24 (15 fard + 5 rawatib + 2 daily adhkar + duha +
+    // qiyam) — NOT perfect (perfect = 29, needs all 7 adhkar slots), so only
+    // the fold's perfect day counts. fold(10) + completeAll(24) + fajr-home(2)
+    // = 36 pts over 4 logged days; 24 > fold's bestDayScore 8.
+    expect(monthly).toHaveLength(1);
+    expect(monthly[0]).toEqual({
+      monthKey: "2026-07",
+      points: 36,
+      daysLogged: 4,
+      perfectDays: 1,
+      masjid: 9,
+      home: 3,
+      missed: 1,
+      bestDayScore: 24,
+    });
   });
 });
