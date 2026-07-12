@@ -49,8 +49,17 @@ function reusedEngineResolver() {
   }
 }
 
+// Semver source of truth (docs/V2_REDESIGN_SPEC.md Phase 0): package.json's
+// version is baked into the bundle as __APP_VERSION__ (Settings → About).
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')) as {
+  version: string
+}
+
 export default defineConfig({
   plugins: [reusedEngineResolver(), react(), tailwindcss()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -243,3 +243,24 @@ reversing ADR-003's "not configurable" note for the satellites.
 **Consequences.** The `record` switch bundles check-in + points + history (they're one gamification
 unit); rawatib/adhkar completions still feed the internal score even when the `record` pill is hidden
 (invisible until enabled). Regression covered by `client/src/lib/storage.test.ts`.
+
+## ADR-008 — Semantic versioning from v2.0.0 (client package.json = source of truth) ✅
+
+**Decision (2026-07-12).** Adopt **semver** for the app starting at **2.0.0** (the v2 redesign —
+`docs/V2_REDESIGN_SPEC.md`). `client/package.json` `version` is the single source of truth, baked
+into the bundle as `__APP_VERSION__` (Vite `define`) and shown in Settings → About. Android
+`versionName` mirrors it manually; `versionCode` is a plain monotonic **+1 per Play upload**
+(unrelated to semver — Play only requires "greater than last"). The server keeps its own
+independent `package.json` version (separate release train). Every release adds a `CHANGELOG.md`
+entry.
+
+**Increment rule.** MAJOR = UX overhaul / breaking behavior change; MINOR = new user-facing
+feature; PATCH = fixes/tuning. The v2 redesign (tabs + themes + reports) is a MAJOR → 2.0.0,
+versionCode 2.
+
+**Why.** v1.0 shipped to the Play closed track with a hardcoded `versionCode 1 / versionName "1.0"`
+and a dead `0.0.0` in package.json — no discipline for the updates that closed testing now forces
+(every upload needs a bumped versionCode). One authoritative number, surfaced in-app, keeps store
+listings, bug reports, and docs in sync. Deliberately NOT wired: gradle reading package.json at
+build time (over-engineering; versionCode ≠ semver anyway) and CI automation (manual releases for
+now — procedure in `PLAY_RELEASE.md` §Post-launch).

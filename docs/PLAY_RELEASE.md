@@ -85,8 +85,10 @@ uploads with your own *upload key*). [Play App Signing](https://support.google.c
    ```
 5. Sanity: `npm test` green; `findstr /m astronomy ..\dist\assets\*.js` → only the `api-*.js` chunk.
 
-**Every later update:** bump `versionCode` (+1) and `versionName` in `app/build.gradle`, rebuild,
-upload the new AAB.
+**Every later update (semver from 2.0.0 — ADR-008, `docs/V2_REDESIGN_SPEC.md`):** bump
+`client/package.json` `version` (increment level matches the change: MAJOR = UX overhaul/breaking,
+MINOR = new feature, PATCH = fix), mirror it into `versionName` and bump `versionCode` (+1) in
+`app/build.gradle`, add a `CHANGELOG.md` entry, rebuild, upload the new AAB.
 
 ## Phase 2 — Privacy policy (BLOCKER — must be a live URL before review)
 
@@ -283,10 +285,12 @@ declarations.
 ## Post-launch updates
 
 ```powershell
-# bump versionCode (+1) + versionName in client/android/app/build.gradle, then:
+# 1. bump client/package.json version (semver — MAJOR/MINOR/PATCH by change size)
+# 2. mirror into versionName + bump versionCode (+1) in client/android/app/build.gradle
+# 3. add the CHANGELOG.md entry, then:
 cd D:\dev\prayer\client; npm run build; npx cap sync android
 cd android; .\gradlew.bat bundleRelease
-# upload app-release.aab to Production → roll out
+# upload app-release.aab to the target track → roll out
 ```
 
 ## 2025/2026 changes already handled / not applicable
