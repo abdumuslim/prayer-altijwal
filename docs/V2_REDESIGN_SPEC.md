@@ -1,12 +1,41 @@
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
-> **Status: SPEC — approved 2026-07-12, implementation starts Phase 0.** Written to be executed
-> phase-by-phase by any implementer; each phase ends with commands that must pass. Read
-> `FRONTEND.md` (current UI + gotchas), `PRAYER_TIMES_API.md` (payload), `NATIVE_ALARM_SPEC.md`
-> (native plugin patterns), `PLAY_RELEASE.md` (release train) first. Android Auto research +
-> deferral rationale: `DECISIONS.md` ADR-011 (this spec's Phase 10 adds it).
-> Branch: `feat/v2-redesign`. v1.0 (versionCode 1) is live on the Play closed track — do not
-> disturb it; v2 uploads as versionCode 2 to the same track when done.
+> **Status (CHECKPOINT 2026-07-12, end of session 1): Phases 0–5 BUILT + user-reviewed on web;
+> parts of 7/8 pulled forward. NEXT: Phase 6 (Reports tab).** Branch `feat/v2-redesign`
+> (12 commits, `38c23db..a450f0c`). All gates green at checkpoint: client build + 89 tests,
+> server 138 tests (8 new month tests), engine findstr gate, assembleDebug.
+>
+> **Done:** P0 versioning (2.0.0/versionCode 2, CHANGELOG, ADR-008) · P1 theme engine (token
+> sweep, surfaces.css contract, pre-paint boot, reduced-motion, native setAppearance) · P2
+> previews `?design=9/10/11` (approved; themes went through a replica-quality round after the
+> first drafts were rejected as recolors) · P3 shell (App split into pages/, TabBar, keep-mounted
+> tabs, tab-aware back, alarm-stop→Home) · P4 Home (3×2 PrayerStrip, ring 192→172 + h-5 spacer,
+> no-scroll at 390×844+360×740) · P5 Times tab (shared `month-payload.ts` + `/api/prayer-times/month`
+> + offline `native/month.ts` + MonthTable/MonthNav w/ Levantine month names; today section =
+> strip WITH embedded check-ins — PrayerList/PrayerCard RETIRED) · pulled forward: Settings
+> theme gallery + font-size control (`AppearanceSettings.tsx`), themed AlarmOverlay with the
+> APK-matching countdown-to-adhan (+ `?a=` deep-link param, AlarmActivity appends it).
+>
+> **Session-1 user decisions (binding, not in the original spec):** themes must be replica-grade
+> design languages (glass got vivid scene + multi-edge specular + capsule float; material got
+> tonal blocking + tall nav; tightened glass shadows — no shadow bleed in card gaps) · active tab
+> pill wraps icon+label · `kashi` lapis brand exploration exists as a 5th preview-only theme
+> (styles/themes/kashi.css, NOT in the shipping registry — user hasn't decided) · alarm screens
+> follow the theme AND show the countdown-to-adhan exactly like the APK's AlarmActivity (stacked
+> gold label + MM:SS between clock and body) · stopping an alarm lands on Home · Times today
+> section = compact strip with check-ins (vertical space is precious).
+>
+> **Remaining:** P6 Reports (deriveStats extensions + components — §Phase 6) · P7 theme polish
+> (material Duha-disc tone split, glass refraction filter + perf pass, kashi decision, native
+> AlarmActivity theming via AppearanceStore) · P8 a11y audit (ARIA sweep, ≥48px targets, axe
+> contrast per theme, system font scale, TalkBack) · P9 widget · P10 docs sweep + closed-track
+> upload · security review (task #12) · consolidated EMULATOR pass still owed: back-chain,
+> airplane-mode month table, alarm `?a=` deep link, first-run flows.
+>
+> Written to be executed phase-by-phase by any implementer; each phase ends with commands that
+> must pass. Read `FRONTEND.md` (v1 UI + gotchas), `PRAYER_TIMES_API.md`, `NATIVE_ALARM_SPEC.md`,
+> `PLAY_RELEASE.md` first. v1.0 (versionCode 1) is live on the Play closed track — do not disturb
+> it; v2 uploads as versionCode 2 to the same track when done.
 
 ## 1. Goal
 

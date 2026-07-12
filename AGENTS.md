@@ -7,6 +7,9 @@ guess details that live in a topic doc — read the doc.
 > **Status: implemented (MVP) and deployed** at https://prayer.altijwal.com. Code lives in `server/`
 > (Express 5) and `client/` (React 19); the layout follows `docs/ARCHITECTURE.md`. Tests are green
 > (`npm --prefix server test`) and the container runs on the shared VPS behind Traefik (`prayer.*`).
+> **v1.0 is on the Google Play closed track (12 testers); the v2.0.0 redesign (4-tab shell, theme
+> gallery, reports, a11y, widget) is IN PROGRESS on `feat/v2-redesign` — status + remaining phases
+> in `docs/V2_REDESIGN_SPEC.md`'s header (read it before any v2 work).**
 
 ## What this is
 
@@ -54,6 +57,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | Location resolution: GeoNames cities dataset, reverse/forward, country→method detection | `docs/GEOCODING.md` |
 | Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, alarm kind + full-screen overlay + tone picker, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
 | Native (Capacitor) alarm — real closed-app **offline** ringing; **Android first, iOS (AlarmKit) deferred** | `docs/NATIVE_ALARM_SPEC.md` (build) + `docs/NATIVE_ALARM_PLAN.md` (research/verdict) + `docs/NATIVE_ALARM_FIXES_SPEC.md` (emulator-verified fix round: shared rules store, hardware-back handler, AlarmActivity dark theme, brand launcher icon) |
+| **v2.0.0 redesign** — 4-tab shell, theme engine/gallery (Liquid Glass, Material, contrast, kashi exploration), monthly table, reports, a11y, widget; versioning policy | `docs/V2_REDESIGN_SPEC.md` (spec + CHECKPOINT status header: phases done, session decisions, what's next) |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
 | Publishing the Android app to Google Play (account, signing/AAB, console forms, testing tracks) | `docs/PLAY_RELEASE.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |
