@@ -14,25 +14,9 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { startAlarm, stopAlarm } from "@/lib/alarm-sound";
 import { cn } from "@/lib/utils";
 
-/** Zero-padded countdown, native-AlarmActivity style: "09:57" / "1:09:57". */
-function mmss(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-}
-
 interface AlarmOverlayProps {
   title: string;
   body: string;
-  /**
-   * The adhan/window instant this alarm anchors to (epoch ms). "Before"
-   * reminders ring ahead of it — the overlay ticks a live countdown to it,
-   * matching the native AlarmActivity (agreed design). Omitted/past → hidden.
-   */
-  anchorAt?: number | null;
   onStop: () => void;
 }
 
@@ -40,10 +24,9 @@ const AUTO_DISMISS_MS = 2 * 60_000; // loop the tone for 2 min, then give up if 
 const VIBRATE_INTERVAL_MS = 2000;
 const VIBRATE_PATTERN = [400, 200, 400, 200, 400];
 
-export function AlarmOverlay({ title, body, anchorAt, onStop }: AlarmOverlayProps) {
+export function AlarmOverlay({ title, body, onStop }: AlarmOverlayProps) {
   const { t, lang } = useI18n();
   const [clock, setClock] = useState(() => clockParts(lang));
-  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let started = false;
@@ -74,10 +57,7 @@ export function AlarmOverlay({ title, body, anchorAt, onStop }: AlarmOverlayProp
       ? setInterval(() => navigator.vibrate(VIBRATE_PATTERN), VIBRATE_INTERVAL_MS)
       : null;
 
-    const clockTimer = setInterval(() => {
-      setClock(clockParts(lang));
-      setNow(Date.now());
-    }, 1000);
+    const clockTimer = setInterval(() => setClock(clockParts(lang)), 1000);
     const autoDismiss = setTimeout(() => onStop(), AUTO_DISMISS_MS);
 
     return () => {
@@ -123,17 +103,6 @@ export function AlarmOverlay({ title, body, anchorAt, onStop }: AlarmOverlayProp
             <span className="text-2xl font-bold text-ink-dim">{clock.period}</span>
           )}
         </div>
-        {/* Countdown to the adhan (before-rules) — EXACTLY the native
-            AlarmActivity layout: small gold label, big gold MM:SS, then the
-            body line below (see scratch_ring_countdown.png). */}
-        {anchorAt != null && anchorAt > now && (
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-base font-semibold text-gold">{t("next.header")}</span>
-            <span className="tnum text-4xl font-extrabold text-gold" dir="ltr">
-              {mmss(anchorAt - now)}
-            </span>
-          </div>
-        )}
         <p className="text-lg text-ink-dim">{body}</p>
       </div>
 

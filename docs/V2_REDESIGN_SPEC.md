@@ -9,20 +9,22 @@
 > sweep, surfaces.css contract, pre-paint boot, reduced-motion, native setAppearance) · P2
 > previews `?design=9/10/11` (approved; themes went through a replica-quality round after the
 > first drafts were rejected as recolors) · P3 shell (App split into pages/, TabBar, keep-mounted
-> tabs, tab-aware back, alarm-stop→Home) · P4 Home (3×2 PrayerStrip, ring 192→172 + h-5 spacer,
+> tabs, tab-aware back) · P4 Home (3×2 PrayerStrip, ring 192→172 + h-5 spacer,
 > no-scroll at 390×844+360×740) · P5 Times tab (shared `month-payload.ts` + `/api/prayer-times/month`
 > + offline `native/month.ts` + MonthTable/MonthNav w/ Levantine month names; today section =
 > strip WITH embedded check-ins — PrayerList/PrayerCard RETIRED) · pulled forward: Settings
-> theme gallery + font-size control (`AppearanceSettings.tsx`), themed AlarmOverlay with the
-> APK-matching countdown-to-adhan (+ `?a=` deep-link param, AlarmActivity appends it).
+> theme gallery + font-size control (`AppearanceSettings.tsx`), themed AlarmOverlay.
+> **Session-2 correction (2026-07-12): the web-overlay countdown-to-adhan (+ `?a=` deep-link
+> param) and the stop→Home navigation were session-1 inventions, NOT user decisions — REVERTED
+> to v1 logic (overlay = v1 layout, themed; stop just closes; native AlarmActivity keeps its own
+> countdown as in the shipped v1 APK).**
 >
 > **Session-1 user decisions (binding, not in the original spec):** themes must be replica-grade
 > design languages (glass got vivid scene + multi-edge specular + capsule float; material got
 > tonal blocking + tall nav; tightened glass shadows — no shadow bleed in card gaps) · active tab
 > pill wraps icon+label · `kashi` lapis brand exploration exists as a 5th preview-only theme
 > (styles/themes/kashi.css, NOT in the shipping registry — user hasn't decided) · alarm screens
-> follow the theme AND show the countdown-to-adhan exactly like the APK's AlarmActivity (stacked
-> gold label + MM:SS between clock and body) · stopping an alarm lands on Home · Times today
+> follow the theme (ONLY that — see the session-2 correction above) · Times today
 > section = compact strip with check-ins (vertical space is precious).
 >
 > **Remaining:** P6 Reports (deriveStats extensions + components — §Phase 6) · P7 theme polish
@@ -30,7 +32,7 @@
 > AlarmActivity theming via AppearanceStore) · P8 a11y audit (ARIA sweep, ≥48px targets, axe
 > contrast per theme, system font scale, TalkBack) · P9 widget · P10 docs sweep + closed-track
 > upload · security review (task #12) · consolidated EMULATOR pass still owed: back-chain,
-> airplane-mode month table, alarm `?a=` deep link, first-run flows.
+> airplane-mode month table, `?alarm=` deep link, first-run flows.
 >
 > Written to be executed phase-by-phase by any implementer; each phase ends with commands that
 > must pass. Read `FRONTEND.md` (v1 UI + gotchas), `PRAYER_TIMES_API.md`, `NATIVE_ALARM_SPEC.md`,

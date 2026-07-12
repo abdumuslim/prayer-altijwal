@@ -96,12 +96,6 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sheet, setSheet] = useState<WorshipSheet>(null);
 
-  // Stopping an alarm always lands on Home (user decision 2026-07-12).
-  const dismissAlarm = () => {
-    alarm.dismiss();
-    setTab("home");
-  };
-
   // Native only: seed the default reminder once at mount so a fresh user gets a
   // reminder without opening Settings first (no-op on web / after first seed).
   useEffect(() => {
@@ -116,7 +110,7 @@ function App() {
   // tab, else minimize the app.
   useAndroidBack(() => {
     if (alarm.alarm) {
-      dismissAlarm();
+      alarm.dismiss();
       return true;
     }
     if (sheet !== null) {
@@ -356,8 +350,7 @@ function App() {
         <AlarmOverlay
           title={alarm.alarm.title}
           body={alarm.alarm.body}
-          anchorAt={alarm.alarm.anchorAt}
-          onStop={dismissAlarm}
+          onStop={alarm.dismiss}
         />
       )}
     </div>

@@ -27,8 +27,7 @@ const SCREENS = [
 ];
 
 /** Screen 11: the real AlarmOverlay, dismissible by the real swipe/tap-to-stop.
-    Stopping lands on the shell's Home (the real app behavior); leave & re-enter
-    the screen (any number key, then "-") to ring again. */
+    Leave & re-enter the screen (any number key, then "-") to ring again. */
 function AlarmPreview() {
   const [ringing, setRinging] = useState(true);
   if (!ringing) return <V2Shell />;
@@ -36,7 +35,6 @@ function AlarmPreview() {
     <AlarmOverlay
       title="أذان المغرب"
       body="بقي 7 دقائق على أذان المغرب في بغداد"
-      anchorAt={Date.now() + 7 * 60_000}
       onStop={() => setRinging(false)}
     />
   );

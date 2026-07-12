@@ -354,10 +354,7 @@ public class AlarmActivity extends Activity {
     private void launchApp(String target, long at) {
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (open == null) return;
-        // `a=` carries the adhan instant so the web AlarmOverlay keeps ticking the
-        // same countdown-to-adhan this screen shows (useAlarm reads it).
-        open.setData(Uri.parse(
-                "https://prayer.altijwal.com/?alarm=" + target + "&t=" + at + "&a=" + anchorAt));
+        open.setData(Uri.parse("https://prayer.altijwal.com/?alarm=" + target + "&t=" + at));
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         stopAlarm();
         startActivity(open);
