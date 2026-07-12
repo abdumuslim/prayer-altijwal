@@ -271,6 +271,18 @@ Gate extra: emulator — add widget, boundary rollover (incl. post-Isha → tomo
 uninstall/reinstall, tap-to-open; `assembleDebug` green.
 Commit: `feat(android): next-prayer home-screen widget`.
 
+### Security gates (cross-cutting — user-mandated)
+- Every server-touching phase (esp. Phase 5): zod at the boundary, no error-detail leaks, and an
+  abuse note — `/api/prayer-times/month` computes ~30 engine days per hit; it sits behind the same
+  public-API posture as `/api/prayer-times` (Cloudflare in front; add an express rate limit for the
+  month route if load testing shows it matters).
+- Native bridge inputs are untrusted JS: `setAppearance` guards `Color.parseColor` (try/catch,
+  ignore malformed); widget store JSON is parsed defensively like `AlarmStore`.
+- No secrets in the repo (CLAUDE.md/OPERATIONS.md stay gitignored; keystore stays in D:\keys);
+  worship/report data never leaves the device (client-only localStorage).
+- **Before the Phase-10 upload: run a security-review pass over the v2 diff** (security-reviewer
+  agent) and fix CRITICAL/HIGH findings.
+
 ### Phase 10 — Docs sweep + release
 1. `docs/FRONTEND.md`: new §App shell & tabs + §Theme engine; rewrite §5/§7/§8/§9 references
    (SettingsPanel→SettingsPage, StatsSheet→ReportsPage, PrayerStrip, layout budget, AlarmActivity
