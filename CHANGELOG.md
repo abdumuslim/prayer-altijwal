@@ -8,13 +8,13 @@ from 2.0.0 (client `package.json` is the source of truth; Android `versionName` 
 ## [2.0.0] — unreleased (versionCode 2)
 
 ### Added
-- (in progress) 4-tab bottom navigation — الرئيسية · المواقيت · التقارير · الإعدادات — replacing
+- 4-tab bottom navigation — الرئيسية · المواقيت · التقارير · الإعدادات — replacing
   the slide-over panels (real-app navigation on web and Android alike).
-- (in progress) Theme gallery of distinct design languages: الليل (default) · Liquid Glass ·
-  Material · high-contrast, runtime-switchable, persisted.
-- (in progress) Dedicated Reports page: 62-day heatmap, per-prayer breakdown, trends, lifetime
-  totals (replaces the stats bottom sheet).
-- (in progress) Monthly prayer-times table (server `GET /api/prayer-times/month`; computed
+- Theme gallery of distinct design languages: الليل (default) · Liquid Glass (luminous light) ·
+  Material (M3 dark from the brand teal seed) · high-contrast, runtime-switchable, persisted.
+- Dedicated Reports page (التقارير): today ring + category bars, trend chart (أسبوع/شهر/أشهر),
+  62-day heatmap, per-prayer breakdown, lifetime totals — replaces the stats bottom sheet.
+- Monthly prayer-times table (server `GET /api/prayer-times/month`; computed
   offline on Android).
 - (in progress) Accessibility package: WCAG contrast, ≥48px targets, ARIA labels, focus states,
   reduced motion, in-app font-size setting, system font scale.

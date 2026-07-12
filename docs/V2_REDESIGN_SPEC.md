@@ -1,9 +1,12 @@
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
-> **Status (CHECKPOINT 2026-07-12, end of session 1): Phases 0–5 BUILT + user-reviewed on web;
-> parts of 7/8 pulled forward. NEXT: Phase 6 (Reports tab).** Branch `feat/v2-redesign`
-> (12 commits, `38c23db..a450f0c`). All gates green at checkpoint: client build + 89 tests,
-> server 138 tests (8 new month tests), engine findstr gate, assembleDebug.
+> **Status (CHECKPOINT 2026-07-12, end of session 2): Phases 0–6 BUILT + user-reviewed on web;
+> glass/material rebuilt (fidelity round 2, approved); alarm drift reverted. NEXT: Phase 7
+> (theme polish remainder — see Remaining).** Branch `feat/v2-redesign` (`38c23db..e7fd855`).
+> All gates green at checkpoint: client build + 94 tests (5 new reports cases), server 138
+> tests, engine findstr gate, assembleDebug. v1 protected: git tag `v1.0` (= `38c23db^`) +
+> AAB archived at `D:\keys\releases\prayer-v1.0-vc1.aab` (the gradle output copy is
+> overwrite-prone).
 >
 > **Done:** P0 versioning (2.0.0/versionCode 2, CHANGELOG, ADR-008) · P1 theme engine (token
 > sweep, surfaces.css contract, pre-paint boot, reduced-motion, native setAppearance) · P2
@@ -12,8 +15,14 @@
 > tabs, tab-aware back) · P4 Home (3×2 PrayerStrip, ring 192→172 + h-5 spacer,
 > no-scroll at 390×844+360×740) · P5 Times tab (shared `month-payload.ts` + `/api/prayer-times/month`
 > + offline `native/month.ts` + MonthTable/MonthNav w/ Levantine month names; today section =
-> strip WITH embedded check-ins — PrayerList/PrayerCard RETIRED) · pulled forward: Settings
+> strip WITH embedded check-ins — PrayerList/PrayerCard RETIRED) · **P6 Reports (session 2):
+> deriveStats `heatmap62`/`perPrayer62`/enriched MonthScore + `components/reports/*` (TodayCard,
+> TrendChart, HeatmapCalendar, PerPrayerBreakdown, LifetimeTotals w/ Levantine best-day date),
+> record-off CTA, ScorePill→tab, StatsSheet DELETED** · pulled forward: Settings
 > theme gallery + font-size control (`AppearanceSettings.tsx`), themed AlarmOverlay.
+> **Theme fidelity round 2 (session 2, user-approved): glass scene rebuilt as a luminous cool
+> sky (mustard wash removed) w/ truly transparent panels; material rebuilt as a real M3 DARK
+> scheme from the brand teal seed (registry `dark:true`, swatches synced).**
 > **Session-2 correction (2026-07-12): the web-overlay countdown-to-adhan (+ `?a=` deep-link
 > param) and the stop→Home navigation were session-1 inventions, NOT user decisions — REVERTED
 > to v1 logic (overlay = v1 layout, themed; stop just closes; native AlarmActivity keeps its own
@@ -27,8 +36,8 @@
 > follow the theme (ONLY that — see the session-2 correction above) · Times today
 > section = compact strip with check-ins (vertical space is precious).
 >
-> **Remaining:** P6 Reports (deriveStats extensions + components — §Phase 6) · P7 theme polish
-> (material Duha-disc tone split, glass refraction filter + perf pass, kashi decision, native
+> **Remaining:** P7 theme polish (material Duha-disc tone split, glass refraction filter + perf
+> pass, kashi decision, native
 > AlarmActivity theming via AppearanceStore) · P8 a11y audit (ARIA sweep, ≥48px targets, axe
 > contrast per theme, system font scale, TalkBack) · P9 widget · P10 docs sweep + closed-track
 > upload · security review (task #12) · consolidated EMULATOR pass still owed: back-chain,
@@ -197,8 +206,8 @@ Commit: `feat(preview): v2 shell + theme gallery design screens`.
    + TabBar. Pages keep-mounted via `hidden`; activation = ~150ms opacity fade class. Body bottom
    safe-area padding moves INTO TabBar (no double count).
 4. Back chain in App's `useAndroidBack` handler: alarm → worship sheet → search → `tab !== "home"`
-   → `setTab("home")` → false (minimize). ScorePill `onOpen` → `setTab("reports")` (StatsSheet
-   still renders until Phase 6 replaces it).
+   → `setTab("home")` → false (minimize). ScorePill `onOpen` → `setTab("reports")` (done —
+   Phase 6 replaced StatsSheet).
 5. Z-order: TabBar `z-40`; sheets/slide-overs (z-50) cover it; AlarmOverlay `z-[100]`.
 Gate extra: emulator back-chain pass; countdown keeps ticking + breath phase-continuous across tab
 switches. Commit: `feat(client): 4-tab app shell (home/times/reports/settings)`.

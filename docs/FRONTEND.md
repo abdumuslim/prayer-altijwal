@@ -300,14 +300,22 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
   on-screen. Body scroll locks; resize/Escape/backdrop close.
 - **Stats: per-section streaks + history views.** `deriveStats.streaks` is a `Record<WorshipSection,
   number>` (fard = all 5 prayed; rawatib = all 5 slots; adhkar = the morning+evening pair; sunan =
-  duha AND qiyam), carried past compaction by per-section `prefixStreaks`. `StatsSheet` shows each
-  category's 🔥 streak inline and a 3-chip switcher — **أسبوع** (7-day), **شهر** (`last30`, day-of-month
-  labels every 5th), **أشهر** (`monthly`: month folds + retained days grouped by month, ≤12, current
-  gold). The hero `ScorePill` flame is now the **fard** streak.
+  duha AND qiyam), carried past compaction by per-section `prefixStreaks`. Since v2 Phase 6
+  `deriveStats` also exposes `heatmap62` (the master 62-day `DayScore` series — `last7`/`last30`
+  are its tail), `perPrayer62` (retained-days-only per-fard masjid/home/missed counts; month folds
+  excluded by design) and an enriched `MonthScore` (`perfectDays`/`masjid`/`home`/`missed`/
+  `bestDayScore` — folds + retained days merged, `Math.max` for best). The **التقارير tab**
+  (`pages/ReportsPage.tsx` + `components/reports/*`) renders it; `TrendChart` keeps the 3-chip
+  switcher — **أسبوع** (7-day), **شهر** (`last30`, day-of-month labels every 5th), **أشهر**
+  (`monthly`, ≤12, current gold). The hero `ScorePill` flame is the **fard** streak.
 
 **UI (design 3 of the numbered preview — `/?design=N` in dev, number keys 1–8):**
-- `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → `StatsSheet` (today ring /29, category
-  bars, streak/best, 7-day chart, today gold).
+- `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → opens the **التقارير tab** (v2 Phase 6;
+  StatsSheet retired): `TodayCard` (ring /29 + feature-gated category rows — disabled categories
+  omitted, never zeroed), `TrendChart`, `HeatmapCalendar` (weeks×7 column grid, emerald score
+  scale, today outlined gold), `PerPrayerBreakdown` (stacked masjid/home/missed bars, check-in trio
+  legend), `LifetimeTotals` (4 tiles + Levantine best-day date when the record is a retained day).
+  `features.record` off → the tab shows only a CTA empty state that enables the record.
 - **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[157px]` so they don't
   move when rows below appear): rawatib bottom-right (**sky**, "x/12" rakaat), adhkar bottom-left
   (**teal**, "x/2" = the daily pair; arc moves per dhikr item). Titles on TOP, caption below
@@ -322,7 +330,7 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
 - **Sheets** (`ui/BottomSheet` — bottom-anchored dialog; `SlideOver` stays for Settings/Search):
   `RawatibSheet` (5 slots, lock → dashed open → check +1), `AdhkarSheet` (daily pair + 5
   after-prayer rows → reader), `AdhkarReader` (tap-to-count: whole current-dhikr card is the tap
-  target, counter ring, done/upcoming lists, auto-award +1 via `slotComplete`), `StatsSheet`.
+  target, counter ring, done/upcoming lists, auto-award +1 via `slotComplete`).
 - `ui/MosqueIcon` — custom simple mosque glyph (lucide has none); masjid=gold, home=teal,
   missed=red everywhere.
 
