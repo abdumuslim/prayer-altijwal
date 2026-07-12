@@ -292,7 +292,7 @@ interface MockHeroProps {
 export function MockHero({ corners, checkinRow, scorePill }: MockHeroProps) {
   const style = proximityStyle("safe");
   return (
-    <section className="card arabesque relative overflow-hidden p-4 sm:p-5">
+    <section className="card card-hero arabesque relative overflow-hidden p-4 sm:p-5">
       <div
         className="halo-breath pointer-events-none absolute -top-24 left-1/2 h-80 w-80 rounded-full blur-3xl"
         style={{ background: style.ring }}

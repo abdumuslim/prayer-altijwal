@@ -97,12 +97,13 @@ function TabBarMock({ tab, onTab }: { tab: TabId; onTab: (t: TabId) => void }) {
             type="button"
             onClick={() => onTab(id)}
             aria-current={tab === id ? "page" : undefined}
-            className="tab-item flex min-h-12 flex-col items-center justify-center gap-0.5"
+            className="tab-item flex min-h-14 items-center justify-center"
           >
-            <span className="tab-pill grid h-7 w-14 place-items-center">
+            {/* The pill covers icon + label together (user-approved shape). */}
+            <span className="tab-pill flex flex-col items-center justify-center gap-1 px-4 py-1.5">
               <Icon className="size-[19px]" strokeWidth={tab === id ? 2.4 : 2} />
+              <span className="text-[11px] font-semibold leading-none">{label}</span>
             </span>
-            <span className="text-[11px] font-semibold leading-none">{label}</span>
           </button>
         ))}
       </div>
