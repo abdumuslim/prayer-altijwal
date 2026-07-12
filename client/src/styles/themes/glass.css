@@ -1,122 +1,121 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Theme: glass — Apple iOS-26 "Liquid Glass" replica (docs/V2_REDESIGN_SPEC.md §5).
-
-   What makes it read as REAL glass (not a white recolor):
-   1. A vivid color field BEHIND the glass — large saturated mesh blobs; the
-      material only reads when there is chroma to blur and saturate.
-   2. Multi-edge specular: a bright top light-catch, a softer side catch, a
-      faint bottom counter-light, and a wide inner glow — glass edges catch
-      light on more than one side.
-   3. Depth: heavy blur (32px) + saturate(200%) + a colored (not gray)
-      drop shadow, as if the scene tints the shadow.
-   4. Capsule geometry: big concentric radii; the tab bar is a FLOATING
-      detached capsule, the signature iOS-26 element.
+   Fidelity round 2 (2026-07-12): the round-1 scene (cyan→lavender→mustard wash)
+   read muddy and the panels too milky. What changed and why:
+   1. Scene = a cool LUMINOUS sky (azure → periwinkle → pale), like an iOS
+      wallpaper: analogous cool hues + one warm whisper — no yellow/brown zone.
+      Glass only reads premium over a scene with clean chroma.
+   2. Panels are MORE transparent (white 0.22–0.42, was 0.28–0.55): real Liquid
+      Glass is see-through with a crisp specular rim, not frosted milk.
+   3. Blur 28px + saturate(180%) — Apple's working range; 32/200 posterized.
+   4. Capsule geometry unchanged: floating detached tab capsule, concentric
+      radii, tight low-alpha shadows (no shadow bleed in 12px card gaps).
    ───────────────────────────────────────────────────────────────────────── */
 
 html[data-theme="glass"] {
   /* Palette — light base, deep slate ink */
-  --color-night: #e3ecf5;
-  --color-night-2: #eaf1f8;
-  --color-surface: #f2f6fa;
+  --color-night: #dfe9f6;
+  --color-night-2: #e7eef8;
+  --color-surface: #f0f5fb;
   --color-surface-2: #ffffff;
   --color-border: rgba(255, 255, 255, 0.85);
   --color-border-soft: rgba(255, 255, 255, 0.6);
-  --color-ink: #13293a;
-  --color-ink-dim: #47657a;
-  --color-ink-faint: #7b93a6;
+  --color-ink: #10263a;
+  --color-ink-dim: #3f5d75;
+  --color-ink-faint: #7089a0;
   --color-veil: #0d2233; /* subtle fills flip to dark-on-light */
-  --color-scrim: #24384a;
+  --color-scrim: #22364a;
   --color-on-accent: #ffffff;
 
-  /* Brand accents — kept vivid (glass wants chroma), darkened just enough */
-  --color-teal: #0c9c8d;
-  --color-emerald: #08996b;
+  /* Brand accents — vivid but cool-leaning (glass wants clean chroma) */
+  --color-teal: #0b9488;
+  --color-emerald: #0a9469;
   --color-emerald-deep: #0f766e;
   --color-mint: #0f766e;
-  --color-gold: #c07f0e;
-  --color-gold-soft: #a16207;
-  --color-amber: #e28a00;
+  --color-gold: #b07a10;
+  --color-gold-soft: #96650a;
+  --color-amber: #d98a06;
   --color-indigo: #5b64f2;
-  --color-sky: #0b8bd7;
-  --color-safe: #08996b;
-  --color-warning: #b45309;
+  --color-sky: #0a84d0;
+  --color-safe: #0a9469;
+  --color-warning: #a8650b;
   --color-urgent: #cf4708;
   --color-critical: #e11d48;
   --color-imminent: #e11d48;
 
-  /* Scene — large saturated mesh blobs for the glass to drink from */
+  /* Scene — luminous cool sky, one warm whisper, no mustard */
   --bg-scene:
-    radial-gradient(42% 36% at 88% -2%, rgba(56, 189, 248, 0.55), transparent),
-    radial-gradient(50% 42% at 2% 24%, rgba(45, 212, 191, 0.52), transparent),
-    radial-gradient(46% 40% at 82% 86%, rgba(251, 191, 36, 0.4), transparent),
-    radial-gradient(58% 50% at 24% 104%, rgba(129, 140, 248, 0.38), transparent),
-    linear-gradient(180deg, #f2f7fb 0%, #e3ecf5 60%, #dbe6f1 100%);
+    radial-gradient(52% 40% at 86% -6%, rgba(59, 130, 246, 0.42), transparent),
+    radial-gradient(44% 36% at 4% 16%, rgba(45, 212, 191, 0.34), transparent),
+    radial-gradient(38% 32% at 82% 58%, rgba(129, 140, 248, 0.26), transparent),
+    radial-gradient(46% 40% at 14% 98%, rgba(240, 171, 202, 0.24), transparent),
+    linear-gradient(180deg, #cfe0f4 0%, #dde8f6 46%, #ecf1f9 100%);
 
-  /* Material — layered liquid glass */
+  /* Material — layered liquid glass (see-through, not milk) */
   --surface-card-bg: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.28) 45%,
-    rgba(255, 255, 255, 0.42) 100%
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.22) 45%,
+    rgba(255, 255, 255, 0.34) 100%
   );
-  --surface-card-border: 1px solid rgba(255, 255, 255, 0.7);
-  --surface-blur: 32px;
-  --surface-saturate: 200%;
+  --surface-card-border: 1px solid rgba(255, 255, 255, 0.65);
+  --surface-blur: 28px;
+  --surface-saturate: 180%;
   --radius-card: 2rem;
   /* Tight, low-alpha shadows: at 12px card gaps, anything larger paints a
      visible "shadow canvas" edge into the gap between stacked cards. */
   --elev-card:
-    0 10px 24px -14px rgba(24, 52, 84, 0.22),
-    0 2px 6px -3px rgba(24, 52, 84, 0.1);
+    0 10px 24px -14px rgba(21, 48, 82, 0.24),
+    0 2px 6px -3px rgba(21, 48, 82, 0.1);
   --surface-specular:
     inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
-    inset 1.5px 0 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 0 24px rgba(255, 255, 255, 0.18);
+    inset 1.5px 0 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 24px rgba(255, 255, 255, 0.14);
 
-  --arabesque-dot: rgba(12, 156, 141, 0.08);
-  --selection-bg: rgba(12, 156, 141, 0.25);
+  --arabesque-dot: rgba(11, 148, 136, 0.07);
+  --selection-bg: rgba(11, 148, 136, 0.25);
 
   /* Tab bar — the floating glass capsule (signature) */
   --tabbar-bg: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.6) 0%,
-    rgba(255, 255, 255, 0.34) 55%,
-    rgba(255, 255, 255, 0.5) 100%
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.26) 55%,
+    rgba(255, 255, 255, 0.4) 100%
   );
-  --tabbar-border: 1px solid rgba(255, 255, 255, 0.75);
+  --tabbar-border: 1px solid rgba(255, 255, 255, 0.7);
   --tabbar-radius: 2.25rem;
   --tabbar-inset: 0.875rem;
   --tabbar-shadow:
-    0 24px 44px -16px rgba(24, 52, 84, 0.45),
-    0 6px 14px -8px rgba(24, 52, 84, 0.2);
-  --tab-ink: #47657a;
+    0 24px 44px -16px rgba(21, 48, 82, 0.42),
+    0 6px 14px -8px rgba(21, 48, 82, 0.18);
+  --tab-ink: #3f5d75;
   --tab-active-ink: #0b4f48;
-  --tab-active-bg: rgba(255, 255, 255, 0.92);
+  --tab-active-bg: rgba(255, 255, 255, 0.9);
 }
 
 /* Hero card — one glass layer higher: clearer, brighter rim, deeper glow. */
 html[data-theme="glass"] .card-hero {
   background: linear-gradient(
     150deg,
-    rgba(255, 255, 255, 0.62) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    rgba(255, 255, 255, 0.48) 100%
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.24) 50%,
+    rgba(255, 255, 255, 0.4) 100%
   );
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 1),
-    inset 2px 0 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 0 34px rgba(255, 255, 255, 0.22),
-    0 12px 26px -16px rgba(24, 52, 84, 0.28),
-    0 3px 8px -4px rgba(24, 52, 84, 0.12);
+    inset 2px 0 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 34px rgba(255, 255, 255, 0.18),
+    0 12px 26px -16px rgba(21, 48, 82, 0.28),
+    0 3px 8px -4px rgba(21, 48, 82, 0.12);
 }
 
 /* The active tab's pill is itself a small glass lens with a specular rim. */
 html[data-theme="glass"] .tab-item[aria-current] .tab-pill {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 4px 10px -4px rgba(24, 52, 84, 0.35);
+    0 4px 10px -4px rgba(21, 48, 82, 0.35);
 }
 
 /* Frosted chips/fills inside glass read brighter than the dark-theme veil. */

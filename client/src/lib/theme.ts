@@ -22,10 +22,9 @@ export interface ThemeMeta {
 /** Registry — adding a theme = one CSS block + one entry here. */
 export const THEMES: readonly ThemeMeta[] = [
   { id: "night", nameKey: "theme.night", dark: true, themeColor: "#06231f" },
-  // themeColor values for the three v2 themes are finalized in Phase 7 with
-  // their CSS; placeholders match each theme's intended page background.
-  { id: "glass", nameKey: "theme.glass", dark: false, themeColor: "#e8eef5" },
-  { id: "material", nameKey: "theme.material", dark: false, themeColor: "#f3f7f5" },
+  { id: "glass", nameKey: "theme.glass", dark: false, themeColor: "#dbe7f5" },
+  // material = M3 DARK scheme (fidelity round 2) — system bars follow.
+  { id: "material", nameKey: "theme.material", dark: true, themeColor: "#0f1513" },
   { id: "contrast", nameKey: "theme.contrast", dark: true, themeColor: "#000000" },
 ] as const;
 

@@ -26,16 +26,16 @@ const SWATCHES: Record<ThemeId, { bg: string; card: string; border: string; dots
     dots: ["#f5c451", "#2dd4bf", "#34d399"],
   },
   glass: {
-    bg: "linear-gradient(160deg,#eef4f9,#d6e3ee)",
-    card: "rgba(255,255,255,0.6)",
+    bg: "linear-gradient(160deg,#cfe0f4,#e5edf8)",
+    card: "rgba(255,255,255,0.5)",
     border: "rgba(255,255,255,0.9)",
-    dots: ["#c07f0e", "#0c9c8d", "#08996b"],
+    dots: ["#b07a10", "#0b9488", "#0a9469"],
   },
   material: {
-    bg: "#f3f7f5",
-    card: "#ffffff",
-    border: "#e0e9e6",
-    dots: ["#785900", "#006a6b", "#206c4f"],
+    bg: "#0f1513",
+    card: "#1c2320",
+    border: "#262d2a",
+    dots: ["#e6c36c", "#80d5c8", "#5bc98f"],
   },
   contrast: {
     bg: "#000000",

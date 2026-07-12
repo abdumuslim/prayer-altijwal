@@ -1,78 +1,79 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Theme: material — Google Material 3 / Expressive (docs/V2_REDESIGN_SPEC.md §5).
-
-   What makes it read as REAL M3 (not a bleached recolor):
-   1. Tonal blocking — surfaces live on a tonal ladder (surface < container <
-      container-high < primary-container); the hero sits on PRIMARY CONTAINER,
-      ordinary cards on container tones. Elevation is tone first, shadow second.
-   2. Zero hairlines, zero transparency, zero blur — filled rounded shapes
-      (28px large radius) carry all structure.
-   3. The navigation bar is taller, tonal, with the pill active indicator —
-      the M3 signature — and bolder label type.
-   4. Expressive type: section titles and key numbers go heavier.
+   Fidelity round 2 (2026-07-12): round 1 was an M3 LIGHT scheme — technically
+   tonal but it read bleached against this app's gold numerals and rings. Now a
+   real M3 DARK scheme generated from the brand teal seed (#006a6b) with the
+   gold as tertiary — the Pixel-app dark look:
+   1. Tonal ladder on DARK neutrals with a teal cast: surface #0f1513 →
+      container #1c2320 → container-high #262d2a; hero on primary-container.
+   2. Accents at tone ~80 (light-on-dark): primary #80d5c8, tertiary gold
+      #e6c36c, error #ffb4ab — exact M3 dark-scheme roles.
+   3. Zero hairlines, zero transparency, zero blur; filled 28px shapes; the
+      nav bar is tonal with the secondary-container pill indicator.
+   4. Expressive type: headings/numerals heavier; snappier standard easing.
    ───────────────────────────────────────────────────────────────────────── */
 
 html[data-theme="material"] {
-  /* Palette — M3 tonal light scheme from the brand hues */
-  --color-night: #f3f7f5; /* surface */
-  --color-night-2: #edf2f0;
-  --color-surface: #e2eae7; /* surface-container */
-  --color-surface-2: #ffffff;
+  /* Palette — M3 dark scheme from the brand teal seed */
+  --color-night: #0f1513; /* surface */
+  --color-night-2: #141a18; /* surface-container-low */
+  --color-surface: #1c2320; /* surface-container */
+  --color-surface-2: #262d2a; /* surface-container-high */
   --color-border: transparent;
   --color-border-soft: transparent;
-  --color-ink: #151d1b; /* on-surface */
-  --color-ink-dim: #3d4946; /* on-surface-variant */
-  --color-ink-faint: #66736f;
-  --color-veil: #151d1b;
+  --color-ink: #dee4e0; /* on-surface */
+  --color-ink-dim: #bcc9c4; /* on-surface-variant */
+  --color-ink-faint: #849490;
+  --color-veil: #dee4e0; /* light veils on dark tonal surfaces */
   --color-scrim: #000000;
-  --color-on-accent: #ffffff;
+  --color-on-accent: #00332d; /* on-primary (dark ink on tone-80 fills) */
 
-  /* Tonal accents (≈ tone 40 on-light) */
-  --color-teal: #006a6b; /* primary */
-  --color-emerald: #206c4f;
-  --color-emerald-deep: #005048;
-  --color-mint: #4a7d6f;
-  --color-gold: #785900; /* tertiary */
-  --color-gold-soft: #93700c;
-  --color-amber: #8a5a00;
-  --color-indigo: #4f57c9;
-  --color-sky: #00639b;
-  --color-safe: #206c4f;
-  --color-warning: #93700c;
-  --color-urgent: #a04100;
-  --color-critical: #ba1a1a; /* M3 error */
-  --color-imminent: #ba1a1a;
+  /* Tonal accents (≈ tone 80 on-dark) */
+  --color-teal: #80d5c8; /* primary */
+  --color-emerald: #5bc98f;
+  --color-emerald-deep: #0e4f43; /* primary-container-ish for deep fills */
+  --color-mint: #7cc7b6;
+  --color-gold: #e6c36c; /* tertiary */
+  --color-gold-soft: #d0ab54;
+  --color-amber: #f0b955;
+  --color-indigo: #a9b3f7;
+  --color-sky: #8fd0f4;
+  --color-safe: #5bc98f;
+  --color-warning: #e0c04f;
+  --color-urgent: #ff9e63;
+  --color-critical: #ffb4ab; /* M3 error (dark) */
+  --color-imminent: #ffb4ab;
 
   /* Scene — flat surface tone; structure comes from container tones */
-  --bg-scene: #f3f7f5;
+  --bg-scene: #0f1513;
 
   /* Material — opaque containers, tone-first elevation */
-  --surface-card-bg: #e9f0ed; /* surface-container */
+  --surface-card-bg: #1c2320; /* surface-container */
   --surface-card-border: 1px solid transparent;
   --surface-blur: 0px;
   --surface-saturate: 100%;
   --radius-card: 1.75rem; /* M3 large (28px) */
-  --elev-card: 0 1px 2px rgba(21, 29, 27, 0.08), 0 2px 6px 2px rgba(21, 29, 27, 0.05);
+  --elev-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
   --surface-specular: 0 0 #0000;
 
-  --arabesque-dot: rgba(0, 106, 107, 0.05);
-  --selection-bg: rgba(0, 106, 107, 0.2);
+  --arabesque-dot: rgba(128, 213, 200, 0.05);
+  --selection-bg: rgba(128, 213, 200, 0.25);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* M3 standard easing */
 
   /* Navigation bar — tonal surface-container, taller, pill indicator */
-  --tabbar-bg: #e2eae7;
+  --tabbar-bg: #171d1b;
   --tabbar-border: 1px solid transparent;
   --tabbar-radius: 0px;
   --tabbar-inset: 0px;
-  --tabbar-shadow: 0 -1px 0 rgba(21, 29, 27, 0.05);
-  --tab-ink: #3d4946;
-  --tab-active-ink: #072019; /* on-secondary-container */
-  --tab-active-bg: #c2e8db; /* secondary-container */
+  --tabbar-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+  --tab-ink: #a5b2ad;
+  --tab-active-ink: #cee9dd; /* on-secondary-container */
+  --tab-active-bg: #364b44; /* secondary-container */
 }
 
 /* Hero on PRIMARY CONTAINER — the M3 tonal statement piece. */
 html[data-theme="material"] .card-hero {
-  background: #cde8e6; /* primary-container */
+  background: #114b44; /* primary-container (dark) */
   box-shadow: none;
 }
 
@@ -97,7 +98,7 @@ html[data-theme="material"] .halo-breath {
   opacity: 0.12 !important;
 }
 html[data-theme="material"] .breath-glow {
-  box-shadow: 0 1px 2px rgba(21, 29, 27, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 html[data-theme="material"] .satellite-glow {
   box-shadow: none !important;
