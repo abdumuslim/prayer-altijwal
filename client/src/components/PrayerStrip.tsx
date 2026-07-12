@@ -6,15 +6,19 @@
 
 import type { CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { CheckinControl, type CardCheckin } from "@/components/CheckinControl";
 import { proximityStyle } from "@/components/ui/proximity";
 import { localizeTimeString, proximityFromMs } from "@/lib/format";
 import { prayerNameKey } from "@/lib/prayer-names";
 import { cn } from "@/lib/utils";
 import type { DerivedPrayer } from "@/hooks/usePrayerTimes";
+import type { PrayerName } from "@/types/api";
 
 interface PrayerStripProps {
   prayers: DerivedPrayer[];
   isFriday?: boolean;
+  /** When provided (المواقيت tab), fard cells embed the check-in control. */
+  checkinFor?: (name: PrayerName) => CardCheckin | null;
 }
 
 /** Strip the day-period suffix (ص/م, AM/PM) — the cell is too small for it. */
@@ -22,7 +26,7 @@ function compactTime(time: string): string {
   return time.replace(/\s*(ص|م|AM|PM)$/i, "");
 }
 
-export function PrayerStrip({ prayers, isFriday }: PrayerStripProps) {
+export function PrayerStrip({ prayers, isFriday, checkinFor }: PrayerStripProps) {
   const { t, lang } = useI18n();
 
   return (
@@ -30,6 +34,7 @@ export function PrayerStrip({ prayers, isFriday }: PrayerStripProps) {
     <section className="card grid grid-cols-3 gap-1 px-2 py-2">
       {prayers.map((p) => {
         const style = p.isNext ? proximityStyle(proximityFromMs(p.msUntil)) : null;
+        const checkin = checkinFor?.(p.name) ?? null;
         return (
           <div
             key={p.name}
@@ -39,13 +44,22 @@ export function PrayerStrip({ prayers, isFriday }: PrayerStripProps) {
             )}
             style={style ? ({ "--prox": style.ring } as CSSProperties) : undefined}
           >
-            <span
-              className={cn(
-                "text-[13px] font-semibold leading-none",
-                p.isNext ? style?.text : p.isPassed ? "text-ink-faint" : "text-ink-dim",
+            <span className="flex items-center gap-1">
+              <span
+                className={cn(
+                  "text-[13px] font-semibold leading-none",
+                  p.isNext ? style?.text : p.isPassed ? "text-ink-faint" : "text-ink-dim",
+                )}
+              >
+                {t(prayerNameKey(p.name, !!isFriday))}
+              </span>
+              {checkin && (
+                <CheckinControl
+                  state={checkin.state}
+                  enabled={checkin.enabled}
+                  onMark={checkin.onMark}
+                />
               )}
-            >
-              {t(prayerNameKey(p.name, !!isFriday))}
             </span>
             <span
               className={cn(

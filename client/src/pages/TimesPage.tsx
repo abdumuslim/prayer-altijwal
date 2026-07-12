@@ -4,13 +4,13 @@
 // offline engine) and is cached per (location, month) for the session.
 
 import { useI18n } from "@/i18n/I18nProvider";
-import { PrayerList } from "@/components/PrayerList";
+import { PrayerStrip } from "@/components/PrayerStrip";
 import { MonthNav } from "@/components/times/MonthNav";
 import { MonthTable } from "@/components/times/MonthTable";
 import { useMonthTimes } from "@/hooks/useMonthTimes";
 import { LoadingState } from "@/components/StatusViews";
 import { localDayKey } from "@/lib/civil-day";
-import type { CardCheckin } from "@/components/PrayerCard";
+import type { CardCheckin } from "@/components/CheckinControl";
 import type { useLocation } from "@/hooks/useLocation";
 import type { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import type { UseSettings } from "@/hooks/useSettings";
@@ -43,12 +43,9 @@ export function TimesPage({ location, times, settings, checkinFor, isFriday, act
   return (
     <>
       <h2 className="text-[13px] font-bold text-ink-dim">{t("times.todayTitle")}</h2>
-      <PrayerList
-        prayers={times.prayers}
-        now={times.now}
-        checkinFor={checkinFor}
-        isFriday={isFriday}
-      />
+      {/* Compact 3×2 strip (like Home) with embedded check-ins — the 6-row
+          list ate too much vertical space above the month table (user). */}
+      <PrayerStrip prayers={times.prayers} isFriday={isFriday} checkinFor={checkinFor} />
 
       <div className="mt-1 flex flex-col gap-2">
         <h2 className="text-[13px] font-bold text-ink-dim">{t("times.monthTitle")}</h2>

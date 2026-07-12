@@ -42,7 +42,7 @@ import { AdhkarReader } from "@/components/AdhkarReader";
 import { StatsSheet } from "@/components/StatsSheet";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
 import type { HeroWorship } from "@/components/NextPrayerCountdown";
-import type { CardCheckin } from "@/components/PrayerCard";
+import type { CardCheckin } from "@/components/CheckinControl";
 import type { AdhkarSlot, FardPrayer } from "@/lib/worship-log";
 import type { AsrMadhab, PrayerName } from "@/types/api";
 

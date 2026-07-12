@@ -151,6 +151,15 @@ interface Rect {
   height: number;
 }
 
+/** Per-prayer check-in view-model (was PrayerCard's CardCheckin — the 2-col
+    card grid was retired for the strip; this control is the surviving user). */
+export interface CardCheckin {
+  state: FardState;
+  /** The mark window is open (adhan passed, still today). */
+  enabled: boolean;
+  onMark: (state: FardState) => void;
+}
+
 interface CheckinControlProps {
   state: FardState;
   /** The mark window is open (adhan passed, still today). */
