@@ -58,6 +58,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, alarm kind + full-screen overlay + tone picker, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
 | Native (Capacitor) alarm — real closed-app **offline** ringing; **Android first, iOS (AlarmKit) deferred** | `docs/NATIVE_ALARM_SPEC.md` (build) + `docs/NATIVE_ALARM_PLAN.md` (research/verdict) + `docs/NATIVE_ALARM_FIXES_SPEC.md` (emulator-verified fix round: shared rules store, hardware-back handler, AlarmActivity dark theme, brand launcher icon) |
 | **v2.0.0 redesign** — 4-tab shell, theme engine/gallery (Liquid Glass, Material, contrast, kashi exploration), monthly table, reports, a11y, widget; versioning policy | `docs/V2_REDESIGN_SPEC.md` (spec + CHECKPOINT status header: phases done, session decisions, what's next) |
+| **Qibla + nearest masjid** — accurate compass (native fused sensor + declination), Google Places proxy, Maps/Waze deep links, Times-tab restructure. **SPEC'D, not built** | `docs/QIBLA_MASJID_SPEC.md` |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
 | Publishing the Android app to Google Play (account, signing/AAB, console forms, testing tracks) | `docs/PLAY_RELEASE.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |

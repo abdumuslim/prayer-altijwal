@@ -137,7 +137,10 @@ toggle set into the multi-rule model above.
   Isha orange→red; Fajr walks the full palette). The main ring + name + countdown were shrunk one
   step (224→208, etc.) to make room.
 
-🔭 **Deferred (future, documented hooks only):** Qibla compass, monthly times table.
+🔭 **Deferred (future, documented hooks only):** Qibla compass, monthly times table. *(Both since
+picked up: the monthly table shipped with v2 — Times tab, `V2_REDESIGN_SPEC.md` Phase 5; Qibla is
+spec'd — expanded with a nearest-masjid finder — in `QIBLA_MASJID_SPEC.md`, 2026-07-13, not yet
+built.)*
 
 **Why.** Matches the user's selection. Notifications + city-search are the two features that change
 the architecture (backend + DB + geocoding), so they are scoped in deliberately; Qibla/monthly are
