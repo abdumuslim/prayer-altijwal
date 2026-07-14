@@ -5,11 +5,11 @@ import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,17 +37,26 @@ import java.util.Locale;
  * The full-screen ringing screen shown over the lock screen when an alarm fires
  * (docs/NATIVE_ALARM_SPEC.md §3f). Built programmatically to avoid adding
  * user-visible text resources, and styled to MATCH the web AlarmOverlay
- * (docs/FRONTEND.md §9): night background with a warm gold radial glow, a gold
- * ringing label (alarm icon + prayer title), a huge live 12-hour clock with the
- * Arabic day-period, the body line, and the round translucent ✕ stop control
- * (swipe up or tap — language-neutral). Tapping the title opens the app into the
- * web AlarmOverlay via the existing ?alarm=<target>&t=<at> deep link.
+ * (docs/FRONTEND.md §9): theme background with a warm accent radial glow, an
+ * accent ringing label (alarm icon + prayer title), a huge live 12-hour clock
+ * with the Arabic day-period, the body line, and the round translucent ✕ stop
+ * control (swipe up or tap — language-neutral). Tapping the title opens the app
+ * into the web AlarmOverlay via the existing ?alarm=<target>&t=<at> deep link.
+ * Colors come from AppearanceStore (the active theme's palette, persisted by
+ * setAppearance — docs/V2_REDESIGN_SPEC.md Phase 7); the v1 night palette is
+ * the fallback, so a fresh install looks exactly like the shipped v1 screen.
  */
 public class AlarmActivity extends Activity {
-    // Web theme tokens (client/src/index.css): night/gold/ink/ink-dim.
-    private static final int COLOR_GOLD = Color.parseColor("#F5C451");
-    private static final int COLOR_INK = Color.parseColor("#EAFAF6");
-    private static final int COLOR_INK_DIM = Color.parseColor("#8FB3AD");
+    // Night fallbacks — the v1 web theme tokens (client/src/index.css).
+    private static final int NIGHT_BG = 0xFF04181A;
+    private static final int NIGHT_ACCENT = 0xFFF5C451; // gold
+    private static final int NIGHT_INK = 0xFFEAFAF6;
+    private static final int NIGHT_INK_DIM = 0xFF8FB3AD;
+
+    private int colorBg;
+    private int colorAccent;
+    private int colorInk;
+    private int colorInkDim;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView clock;
@@ -93,10 +102,17 @@ public class AlarmActivity extends Activity {
         final long at = getIntent().getLongExtra("at", System.currentTimeMillis());
         anchorAt = getIntent().getLongExtra("anchorAt", at);
 
-        LinearLayout root = new GlowLayout(this);
+        // Active theme's palette (persisted by setAppearance; night on fallback).
+        AppearanceStore appearance = new AppearanceStore(this);
+        colorBg = appearance.bg(NIGHT_BG);
+        colorAccent = appearance.accent(NIGHT_ACCENT);
+        colorInk = appearance.ink(NIGHT_INK);
+        colorInkDim = appearance.inkDim(NIGHT_INK_DIM);
+
+        LinearLayout root = new GlowLayout(this, colorAccent);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(Color.parseColor("#04181A")); // night (web --color-night)
+        root.setBackgroundColor(colorBg);
         root.setPadding(dp(24), dp(64), dp(24), dp(48));
 
         // ── Ringing label: pulsing gold alarm icon + prayer title ──
@@ -106,6 +122,7 @@ public class AlarmActivity extends Activity {
 
         ImageView bell = new ImageView(this);
         bell.setImageResource(R.drawable.ic_alarm_clock);
+        bell.setColorFilter(colorAccent); // vector ships gold; retint to the theme accent
         AlphaAnimation pulse = new AlphaAnimation(1f, 0.45f);
         pulse.setDuration(900);
         pulse.setRepeatMode(Animation.REVERSE);
@@ -114,7 +131,7 @@ public class AlarmActivity extends Activity {
         label.addView(bell, new LinearLayout.LayoutParams(dp(24), dp(24)));
 
         TextView titleView = new TextView(this);
-        titleView.setTextColor(COLOR_GOLD);
+        titleView.setTextColor(colorAccent);
         titleView.setTextSize(18);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setText(title);
@@ -143,14 +160,14 @@ public class AlarmActivity extends Activity {
         clockRow.setGravity(Gravity.CENTER);
 
         clock = new TextView(this);
-        clock.setTextColor(COLOR_INK);
+        clock.setTextColor(colorInk);
         clock.setTextSize(84);
         clock.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
         clock.setIncludeFontPadding(false);
         clockRow.addView(clock);
 
         period = new TextView(this);
-        period.setTextColor(COLOR_INK_DIM);
+        period.setTextColor(colorInkDim);
         period.setTextSize(24);
         period.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams periodLp = new LinearLayout.LayoutParams(
@@ -166,7 +183,7 @@ public class AlarmActivity extends Activity {
         // (or for at-time/after rules where anchorAt <= at).
         if (!untilLabel.isEmpty() && anchorAt > System.currentTimeMillis()) {
             untilLabelView = new TextView(this);
-            untilLabelView.setTextColor(COLOR_GOLD & 0x00FFFFFF | 0xB3000000); // gold @ 70%
+            untilLabelView.setTextColor(colorAccent & 0x00FFFFFF | 0xB3000000); // accent @ 70%
             untilLabelView.setTextSize(14);
             untilLabelView.setTypeface(Typeface.DEFAULT_BOLD);
             untilLabelView.setText(untilLabel);
@@ -177,7 +194,7 @@ public class AlarmActivity extends Activity {
             center.addView(untilLabelView, ulLp);
 
             untilView = new TextView(this);
-            untilView.setTextColor(COLOR_GOLD);
+            untilView.setTextColor(colorAccent);
             untilView.setTextSize(32);
             untilView.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
             untilView.setFontFeatureSettings("'tnum'"); // fixed-width digits — no jitter
@@ -192,7 +209,7 @@ public class AlarmActivity extends Activity {
 
         if (!body.isEmpty()) {
             TextView bodyView = new TextView(this);
-            bodyView.setTextColor(COLOR_INK_DIM);
+            bodyView.setTextColor(colorInkDim);
             bodyView.setTextSize(18);
             bodyView.setGravity(Gravity.CENTER);
             bodyView.setText(body);
@@ -207,6 +224,8 @@ public class AlarmActivity extends Activity {
         // ── Bottom: bouncing gold chevrons + round translucent ✕ stop ──
         ImageView chevrons = new ImageView(this);
         chevrons.setImageResource(R.drawable.ic_chevrons_up);
+        // SRC_ATOP keeps the drawable's baked 70% alpha while swapping the hue.
+        chevrons.setColorFilter(colorAccent);
         TranslateAnimation bounce = new TranslateAnimation(0, 0, 0, -dp(8));
         bounce.setDuration(600);
         bounce.setRepeatMode(Animation.REVERSE);
@@ -217,9 +236,16 @@ public class AlarmActivity extends Activity {
         root.addView(chevrons, chevLp);
 
         FrameLayout stop = new FrameLayout(this);
-        stop.setBackgroundResource(R.drawable.bg_stop_button);
+        // Programmatic oval (was bg_stop_button.xml): ink @ 10% fill / 20% stroke,
+        // so the control follows the theme (white-based on night, slate on glass).
+        GradientDrawable stopBg = new GradientDrawable();
+        stopBg.setShape(GradientDrawable.OVAL);
+        stopBg.setColor(colorInk & 0x00FFFFFF | 0x1A000000);
+        stopBg.setStroke(dp(1), colorInk & 0x00FFFFFF | 0x33000000);
+        stop.setBackground(stopBg);
         ImageView x = new ImageView(this);
         x.setImageResource(R.drawable.ic_x);
+        x.setColorFilter(colorInk);
         FrameLayout.LayoutParams xLp = new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER);
         stop.addView(x, xLp);
         LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(dp(64), dp(64));
@@ -233,16 +259,18 @@ public class AlarmActivity extends Activity {
     }
 
     /**
-     * Root layout that paints the web overlay's warm gold radial glow with a
+     * Root layout that paints the web overlay's warm accent radial glow with a
      * DITHERED shader — the XML GradientDrawable equivalent shows visible
      * banding rings (Android doesn't dither drawable gradients; Chrome does,
-     * which is why the web overlay looks smooth).
+     * which is why the web overlay looks smooth). Tint = the theme accent.
      */
     private static class GlowLayout extends LinearLayout {
         private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int tint;
 
-        GlowLayout(Context context) {
+        GlowLayout(Context context, int tint) {
             super(context);
+            this.tint = tint;
             setWillNotDraw(false);
             glow.setDither(true);
         }
@@ -251,10 +279,11 @@ public class AlarmActivity extends Activity {
         protected void onSizeChanged(int w, int h, int oldW, int oldH) {
             super.onSizeChanged(w, h, oldW, oldH);
             if (w <= 0 || h <= 0) return;
-            // radial-gradient(circle at 50% 32%, rgba(245,196,81,.16), transparent 58%)
+            // radial-gradient(circle at 50% 32%, accent @ 16%, transparent 58%)
             glow.setShader(new RadialGradient(
                     w / 2f, h * 0.32f, Math.max(1f, h * 0.58f),
-                    new int[]{0x29F5C451, 0x00F5C451}, null, Shader.TileMode.CLAMP));
+                    new int[]{tint & 0x00FFFFFF | 0x29000000, tint & 0x00FFFFFF},
+                    null, Shader.TileMode.CLAMP));
         }
 
         @Override

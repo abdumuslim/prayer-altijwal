@@ -17,15 +17,46 @@ export interface ThemeMeta {
   dark: boolean;
   /** PWA `theme-color` / native system-bar backdrop for this theme. */
   themeColor: string;
+  /**
+   * Native AlarmActivity palette (Phase 7) — persisted on-device by
+   * setAppearance/AppearanceStore so the full-screen alarm follows the theme
+   * even app-killed. Values mirror the theme CSS: --color-night / --color-ink /
+   * --color-ink-dim / the theme's alarm accent (gold family).
+   */
+  alarm: { bg: string; ink: string; inkDim: string; accent: string };
 }
 
 /** Registry — adding a theme = one CSS block + one entry here. */
 export const THEMES: readonly ThemeMeta[] = [
-  { id: "night", nameKey: "theme.night", dark: true, themeColor: "#06231f" },
-  { id: "glass", nameKey: "theme.glass", dark: false, themeColor: "#dbe7f5" },
+  {
+    id: "night",
+    nameKey: "theme.night",
+    dark: true,
+    themeColor: "#06231f",
+    alarm: { bg: "#04181A", ink: "#EAFAF6", inkDim: "#8FB3AD", accent: "#F5C451" },
+  },
+  {
+    id: "glass",
+    nameKey: "theme.glass",
+    dark: false,
+    themeColor: "#dbe7f5",
+    alarm: { bg: "#dfe9f6", ink: "#10263a", inkDim: "#3f5d75", accent: "#b07a10" },
+  },
   // material = M3 DARK scheme (fidelity round 2) — system bars follow.
-  { id: "material", nameKey: "theme.material", dark: true, themeColor: "#0f1513" },
-  { id: "contrast", nameKey: "theme.contrast", dark: true, themeColor: "#000000" },
+  {
+    id: "material",
+    nameKey: "theme.material",
+    dark: true,
+    themeColor: "#0f1513",
+    alarm: { bg: "#0f1513", ink: "#dee4e0", inkDim: "#bcc9c4", accent: "#e6c36c" },
+  },
+  {
+    id: "contrast",
+    nameKey: "theme.contrast",
+    dark: true,
+    themeColor: "#000000",
+    alarm: { bg: "#000000", ink: "#ffffff", inkDim: "#d5dedb", accent: "#ffd54a" },
+  },
 ] as const;
 
 export const DEFAULT_THEME: ThemeId = "night";
@@ -62,6 +93,7 @@ export function applyTheme(id: ThemeId): void {
     void PrayerAlarm.setAppearance({
       systemBarsLight: !meta.dark,
       bg: meta.themeColor,
+      alarm: meta.alarm,
     }).catch(() => {
       // Older shell without the method — theme still applies inside the WebView.
     });

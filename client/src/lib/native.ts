@@ -72,11 +72,16 @@ export interface PrayerAlarmPlugin {
   previewTone(options: { id: string }): Promise<void>;
   stopTonePreview(): Promise<void>;
   /**
-   * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1): flips the
-   * system-bar icon style at runtime and persists the theme backdrop color so
-   * the native AlarmActivity can match the active theme.
+   * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1 + 7): flips the
+   * system-bar icon style at runtime, sets the window backdrop color, and
+   * persists the theme's alarm-screen palette (AppearanceStore) so the native
+   * AlarmActivity follows the active theme even when the app is killed.
    */
-  setAppearance(options: { systemBarsLight: boolean; bg: string }): Promise<void>;
+  setAppearance(options: {
+    systemBarsLight: boolean;
+    bg: string;
+    alarm?: { bg: string; ink: string; inkDim: string; accent: string };
+  }): Promise<void>;
 }
 
 /**

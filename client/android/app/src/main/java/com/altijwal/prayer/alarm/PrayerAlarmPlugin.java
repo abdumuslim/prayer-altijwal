@@ -134,16 +134,24 @@ public class PrayerAlarmPlugin extends Plugin {
     }
 
     /**
-     * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1): light themes need
-     * dark system-bar icons, and the window backdrop should match the theme so
+     * Theme appearance bridge (docs/V2_REDESIGN_SPEC.md Phase 1 + 7): light themes
+     * need dark system-bar icons, and the window backdrop should match the theme so
      * overscroll/keyboard gaps don't flash night-green. capacitor.config.ts keeps
      * SystemBars DARK as the pre-JS boot default; the web layer calls this after
-     * applying the persisted theme. AlarmActivity deliberately stays night-dark.
+     * applying the persisted theme. The optional `alarm` palette object is persisted
+     * to AppearanceStore so AlarmActivity follows the theme even app-killed (Phase 7;
+     * absent/malformed values fall back to the night palette).
      */
     @PluginMethod
     public void setAppearance(PluginCall call) {
         boolean light = Boolean.TRUE.equals(call.getBoolean("systemBarsLight", false));
         String bg = call.getString("bg");
+        JSObject alarm = call.getObject("alarm", null);
+        new AppearanceStore(getContext()).save(
+                alarm == null ? null : alarm.getString("bg"),
+                alarm == null ? null : alarm.getString("ink"),
+                alarm == null ? null : alarm.getString("inkDim"),
+                alarm == null ? null : alarm.getString("accent"));
         getActivity().runOnUiThread(() -> {
             Window window = getActivity().getWindow();
             WindowInsetsControllerCompat bars =
