@@ -5,7 +5,7 @@
 // The heavy offline engine lives behind a dynamic import (native/boot.ts), NOT
 // here, so importing this file never pulls the engine into the web bundle.
 
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { AsrMadhab, Lang, PrayerTimesResponse } from "@/types/api";
 import type { StoredLocation } from "@/lib/storage";
 import type { LocalAlertRule } from "@/lib/local-alerts";
@@ -90,6 +90,35 @@ export interface PrayerAlarmPlugin {
  * always guard calls with isNative().
  */
 export const PrayerAlarm = registerPlugin<PrayerAlarmPlugin>("PrayerAlarm");
+
+// ── Compass plugin (docs/QIBLA_MASJID_SPEC.md §5b) ───────────────────────────
+
+/** One fused-sensor heading sample from the native CompassPlugin. */
+export interface CompassHeadingEvent {
+  /** Degrees CW from TRUE north (declination applied, display-rotation remapped). */
+  trueHeading: number;
+  magneticHeading: number;
+  declination: number;
+  accuracy: "high" | "medium" | "low" | "unreliable";
+}
+
+export interface CompassPluginContract {
+  /** Start ROTATION_VECTOR heading events (~20 Hz). lat/lon/alt feed declination. */
+  start(options: { lat: number; lon: number; alt?: number }): Promise<void>;
+  stop(): Promise<void>;
+  /** Subtle confirmation haptic for qibla lock-on (no permission needed). */
+  pulse(): Promise<void>;
+  addListener(
+    eventName: "heading",
+    listener: (event: CompassHeadingEvent) => void,
+  ): Promise<PluginListenerHandle>;
+}
+
+/**
+ * The native Compass plugin (app-local Java class, separate from PrayerAlarm —
+ * do not bloat the alarm plugin). Web callers must guard with isNative().
+ */
+export const Compass = registerPlugin<CompassPluginContract>("Compass");
 
 // ── Native offline facade (implemented in the lazy native chunk) ─────────────
 // The heavy offline engine lives in src/native/** (loaded via import.meta.glob so

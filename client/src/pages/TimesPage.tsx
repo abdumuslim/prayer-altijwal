@@ -5,6 +5,7 @@
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { PrayerStrip } from "@/components/PrayerStrip";
+import { QiblaCompass } from "@/components/qibla/QiblaCompass";
 import { MonthNav } from "@/components/times/MonthNav";
 import { MonthTable } from "@/components/times/MonthTable";
 import { useMonthTimes } from "@/hooks/useMonthTimes";
@@ -46,6 +47,10 @@ export function TimesPage({ location, times, settings, checkinFor, isFriday, act
       {/* Compact 3×2 strip (like Home) with embedded check-ins — the 6-row
           list ate too much vertical space above the month table (user). */}
       <PrayerStrip prayers={times.prayers} isFriday={isFriday} checkinFor={checkinFor} />
+
+      {/* Qibla compass (QIBLA_MASJID_SPEC) — final tab order lands in the
+          restructure preview round (strip → qibla → masjids → month collapsed). */}
+      {location.location && <QiblaCompass location={location.location} active={active} />}
 
       <div className="mt-1 flex flex-col gap-2">
         <h2 className="text-[13px] font-bold text-ink-dim">{t("times.monthTitle")}</h2>

@@ -72,6 +72,23 @@ export const en = {
   "times.dayCol": "Day",
   "times.hijriCol": "Hijri",
 
+  // Qibla compass (QIBLA_MASJID_SPEC §7 — mirrors of the proposed AR strings)
+  "qibla.title": "Qibla Direction",
+  "qibla.start": "Start Compass",
+  "qibla.starting": "Starting the compass…",
+  "qibla.bearing": "Qibla",
+  "qibla.distance": "Distance to the Kaaba",
+  "qibla.aligned": "You are facing the Qibla",
+  "qibla.calibrate": "Move your phone in a figure-8 to calibrate",
+  "qibla.holdFlat": "Hold the phone flat",
+  "qibla.static": "Point the top of the phone north, then follow the arrow",
+  "qibla.permission": "Allow access to motion sensors",
+  "qibla.unavailable": "Compass unavailable on this device",
+  "qibla.acc.high": "High accuracy",
+  "qibla.acc.medium": "Medium accuracy",
+  "qibla.acc.low": "Low accuracy",
+  "qibla.acc.unreliable": "Needs calibration",
+
   // Settings
   "settings.title": "Settings",
   "settings.language": "Language",

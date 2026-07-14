@@ -163,6 +163,28 @@ export interface GovernoratesResponse {
   governorates: GovernorateResult[];
 }
 
+export interface DeclinationResponse {
+  /** Magnetic declination in degrees, positive east of true north (WMM). */
+  declinationDeg: number;
+}
+
+/** One nearby mosque from the Places proxy (docs/QIBLA_MASJID_SPEC.md §6a). */
+export interface Masjid {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  address: string | null;
+}
+
+export interface MasjidsResponse {
+  /** False ⇒ no key configured server-side — hide the whole section. */
+  enabled: boolean;
+  masjids: Masjid[];
+  /** Present (true) only when the upstream lookup failed — show the error state. */
+  degraded?: boolean;
+}
+
 export interface VapidKeyResponse {
   publicKey: string;
 }

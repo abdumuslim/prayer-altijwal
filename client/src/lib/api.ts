@@ -5,8 +5,10 @@ import type {
   AlertInput,
   AlertsResponse,
   CitySearchResponse,
+  DeclinationResponse,
   GovernoratesResponse,
   Lang,
+  MasjidsResponse,
   MonthTimesResponse,
   PrayerAlert,
   PrayerTimesResponse,
@@ -156,6 +158,30 @@ export function fetchGovernorates(
 ): Promise<GovernoratesResponse> {
   return request<GovernoratesResponse>(
     `/api/geo/governorates${qs({ country })}`,
+    undefined,
+    signal,
+  );
+}
+
+export function fetchDeclination(
+  lat: number,
+  lon: number,
+  signal?: AbortSignal,
+): Promise<DeclinationResponse> {
+  return request<DeclinationResponse>(
+    `/api/geo/declination${qs({ lat, lon })}`,
+    undefined,
+    signal,
+  );
+}
+
+export function fetchNearbyMasjids(
+  lat: number,
+  lon: number,
+  signal?: AbortSignal,
+): Promise<MasjidsResponse> {
+  return request<MasjidsResponse>(
+    `/api/places/masjids${qs({ lat, lon })}`,
     undefined,
     signal,
   );

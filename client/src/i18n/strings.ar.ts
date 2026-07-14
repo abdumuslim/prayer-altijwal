@@ -75,6 +75,23 @@ export const ar: Record<StringKey, string> = {
   "times.dayCol": "اليوم",
   "times.hijriCol": "هجري",
 
+  // بوصلة القبلة (QIBLA_MASJID_SPEC §7 — PROPOSED strings, pending user approval)
+  "qibla.title": "اتجاه القبلة",
+  "qibla.start": "ابدأ البوصلة",
+  "qibla.starting": "جارٍ تشغيل البوصلة…",
+  "qibla.bearing": "القبلة",
+  "qibla.distance": "المسافة إلى الكعبة",
+  "qibla.aligned": "أنت باتجاه القبلة",
+  "qibla.calibrate": "حرّك الهاتف على شكل 8 لمعايرة البوصلة",
+  "qibla.holdFlat": "أمسك الهاتف أفقيًا",
+  "qibla.static": "وجّه أعلى الهاتف نحو الشمال ثم اتبع السهم",
+  "qibla.permission": "اسمح بالوصول إلى حساسات الحركة",
+  "qibla.unavailable": "البوصلة غير متوفرة على هذا الجهاز",
+  "qibla.acc.high": "دقة عالية",
+  "qibla.acc.medium": "دقة متوسطة",
+  "qibla.acc.low": "دقة منخفضة",
+  "qibla.acc.unreliable": "بحاجة إلى معايرة",
+
   // Settings
   "settings.title": "الإعدادات",
   "settings.language": "اللغة",
