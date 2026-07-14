@@ -153,7 +153,7 @@ export function NearestMasjids({ location, active, compass, onUseGps, resolving 
                   <a
                     href={mapsUrl(m)}
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
                     className="hit-target [--hit-w:calc(100%+4px)] [--hit-h:40px] rounded-full border border-teal/30 bg-teal/[0.07] px-2 py-1 text-[10px] font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
                   >
                     {t("masjid.maps")}
@@ -161,7 +161,7 @@ export function NearestMasjids({ location, active, compass, onUseGps, resolving 
                   <a
                     href={wazeUrl(m)}
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
                     className="hit-target [--hit-w:calc(100%+4px)] [--hit-h:40px] rounded-full border border-sky/30 bg-sky/[0.07] px-2 py-1 text-[10px] font-semibold text-sky transition-colors hover:bg-sky/[0.12]"
                   >
                     {t("masjid.waze")}

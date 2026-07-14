@@ -137,4 +137,22 @@ describe("GET /api/places/masjids", () => {
     expect(await res.json()).toEqual({ enabled: true, masjids: [] });
     await stopServer();
   });
+
+  it("upstream budget breaker: 31st distinct-cell request degrades without calling Google", async () => {
+    await startServer("key");
+    mockSearch.mockResolvedValue([]);
+    // 0.01° steps > the 0.003° grid — every request is a fresh cache miss,
+    // the attack shape the breaker exists for (security review 2026-07-14).
+    for (let i = 0; i < 30; i++) {
+      const res = await fetch(
+        `${base}/api/places/masjids?lat=${(10 + i * 0.01).toFixed(4)}&lon=44`,
+      );
+      const body = await res.json();
+      expect(body.degraded).toBeUndefined();
+    }
+    const res31 = await fetch(`${base}/api/places/masjids?lat=${(10 + 0.3).toFixed(4)}&lon=44`);
+    expect(await res31.json()).toEqual({ enabled: true, masjids: [], degraded: true });
+    expect(mockSearch).toHaveBeenCalledTimes(30);
+    await stopServer();
+  });
 });
