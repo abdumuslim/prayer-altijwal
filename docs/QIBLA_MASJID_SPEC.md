@@ -9,9 +9,16 @@
 > `CompassPlugin.java` (ROTATION_VECTOR + GeomagneticField, display-rotation remap, `pulse()`
 > haptic) · `server/src/places/` proxy per §6a (+`degraded: true` on upstream failure so the
 > client can tell error from empty) · `StoredLocation.source` migration ("gps"|"search"|"default").
-> Layout + all §7 strings user-approved 2026-07-14. **Outstanding:** live proxy verification with
-> the real `GOOGLE_MAPS_API_KEY` (user creates it — §8), real-device compass accuracy (QM3 gate;
-> emulator sensors are synthetic), Maps/Waze chooser check on the emulator.
+> Layout + all §7 strings user-approved 2026-07-14. **Live proxy VERIFIED 2026-07-14**: key
+> received + stored (gitignored `server/.env` + `OPERATIONS.md`); first calls hit two GCP-side
+> 403s — `SERVICE_DISABLED` (Places API (New) not enabled on the project) then
+> `API_KEY_SERVICE_BLOCKED` (the key's API-restriction list predated the enablement) — both fixed
+> by the user in the console; Baghdad + Mecca return real distance-ranked Arabic results (Mecca
+> confirms per-place coordinates; the Baghdad CITY-CENTER point returns a cluster of user-pinned
+> POIs sharing one coordinate — Google's data, not a mapping bug; real GPS fixes are fine).
+> **Outstanding:** real-device compass accuracy (QM3 gate; emulator sensors are synthetic),
+> Maps/Waze chooser check on the emulator, VPS `.env` entry at deploy (+ remove the user's home
+> IP from the key allowlist after).
 
 ## 1. Goal
 
