@@ -77,12 +77,17 @@ DATABASE_URL=postgresql://USER:PASSWORD@rag-postgres-1:5432/prayer
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:admin@altijwal.com
+GOOGLE_MAPS_API_KEY=          # optional — nearest-masjid Places proxy; absent ⇒ feature disabled
 # optional: PORT=8000
 ```
 
 Config is **zod-validated at startup** — the process fails fast if a required secret is missing
 (coding-style: validate at boundaries, never run half-configured). Generate VAPID once with
 `npx web-push generate-vapid-keys`. Real values live only in `OPERATIONS.md` / the VPS `.env`.
+`GOOGLE_MAPS_API_KEY` is **optional even in production** (`docs/QIBLA_MASJID_SPEC.md` Q2): without
+it `/api/places/masjids` returns `{ enabled: false }` and the client hides the section. The key is
+IP-restricted to this VPS + API-restricted to Places API (New), with a daily quota cap (details in
+`OPERATIONS.md`).
 
 ---
 

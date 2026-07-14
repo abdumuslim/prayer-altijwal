@@ -8,6 +8,7 @@ import type { DbStatus } from "./health.js";
 import { createPrayerRouter } from "./prayer/routes.js";
 import { CitiesIndex } from "./geo/cities-index.js";
 import { createGeoRouter } from "./geo/routes.js";
+import { createPlacesRouter } from "./places/routes.js";
 import { createPool, dbHealth } from "./db/pool.js";
 import { initDb } from "./db/schema.js";
 import { PgSubscriptionsRepo } from "./db/repositories/subscriptions.js";
@@ -27,7 +28,12 @@ async function main(): Promise<void> {
   const citiesIndex = CitiesIndex.load();
   log.info(`Loaded cities index (${citiesIndex.size} cities)`);
 
-  const featureRouters = [createPrayerRouter(), createGeoRouter(citiesIndex)];
+  const featureRouters = [
+    createPrayerRouter(),
+    createGeoRouter(citiesIndex),
+    // Always mounted; without a key the route itself reports { enabled: false }.
+    createPlacesRouter({ apiKey: config.googleMapsApiKey }),
+  ];
 
   // DB + push are optional. Degrade to stateless (public prayer-times still
   // works) rather than crash-looping if the SHARED Postgres is briefly down.

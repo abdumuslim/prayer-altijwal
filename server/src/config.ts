@@ -18,6 +18,10 @@ const EnvSchema = z.object({
   VAPID_SUBJECT: z.string().min(1).default("mailto:admin@altijwal.com"),
   // Comma-separated allowlist for CORS; empty = same-origin only (default).
   CORS_ORIGINS: z.string().optional(),
+  // Google Places API (New) key for the nearest-masjid proxy. OPTIONAL even in
+  // production: absent ⇒ /api/places/masjids reports { enabled: false } and the
+  // client hides the section (docs/QIBLA_MASJID_SPEC.md Q2) — never a startup failure.
+  GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
 });
 
 export interface VapidConfig {
@@ -38,6 +42,9 @@ export interface Config {
   dbEnabled: boolean;
   /** Web-push sending is configured (VAPID present). */
   pushEnabled: boolean;
+  /** Google Places proxy (nearest masjid) is configured. */
+  placesEnabled: boolean;
+  googleMapsApiKey: string | undefined;
 }
 
 function load(): Config {
@@ -84,6 +91,9 @@ function load(): Config {
   if (!hasVapid) {
     log.warn("VAPID keys not set — web-push disabled");
   }
+  if (!env.GOOGLE_MAPS_API_KEY) {
+    log.warn("GOOGLE_MAPS_API_KEY not set — nearest-masjid places proxy disabled");
+  }
 
   return {
     nodeEnv: env.NODE_ENV,
@@ -95,6 +105,8 @@ function load(): Config {
     corsOrigins,
     dbEnabled: Boolean(env.DATABASE_URL),
     pushEnabled: Boolean(env.DATABASE_URL) && hasVapid,
+    placesEnabled: Boolean(env.GOOGLE_MAPS_API_KEY),
+    googleMapsApiKey: env.GOOGLE_MAPS_API_KEY,
   };
 }
 
