@@ -16,6 +16,14 @@ export const GeoSearchQuery = z.object({
 
 export type GeoSearchQueryInput = z.infer<typeof GeoSearchQuery>;
 
+/** Query schema for GET /api/geo/declination. Coerces numeric query strings. */
+export const GeoDeclinationQuery = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
+});
+
+export type GeoDeclinationQueryInput = z.infer<typeof GeoDeclinationQuery>;
+
 /** Query schema for GET /api/geo/governorates (a country's admin-1 capitals). */
 export const GeoGovernoratesQuery = z.object({
   country: z.string().trim().length(2),

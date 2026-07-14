@@ -1,7 +1,13 @@
 import { Router, type Request, type Response } from "express";
 import { detectMethod } from "../prayer/method-detect.js";
-import { GeoGovernoratesQuery, GeoReverseQuery, GeoSearchQuery } from "../validation/geo.js";
+import {
+  GeoDeclinationQuery,
+  GeoGovernoratesQuery,
+  GeoReverseQuery,
+  GeoSearchQuery,
+} from "../validation/geo.js";
 import { CitiesIndex, type City } from "./cities-index.js";
+import { declinationDeg } from "./declination.js";
 import { openMeteoSearch, type GeoResult } from "./open-meteo.js";
 
 const SEARCH_LIMIT = 8;
@@ -69,6 +75,18 @@ export function createGeoRouter(index: CitiesIndex): Router {
       offline.length > 0 ? offline : (await openMeteoSearch(q, lang)).slice(0, SEARCH_LIMIT);
 
     res.json({ results });
+  });
+
+  // Magnetic declination (WMM) for the web compass paths — the native app uses
+  // Android's GeomagneticField instead (docs/QIBLA_MASJID_SPEC.md §5c).
+  r.get("/api/geo/declination", (req: Request, res: Response) => {
+    const parsed = GeoDeclinationQuery.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
+      return;
+    }
+    const { lat, lon } = parsed.data;
+    res.json({ declinationDeg: Math.round(declinationDeg(lat, lon) * 100) / 100 });
   });
 
   // A country's governorates (admin-1 capitals) — the location quick-pick that
