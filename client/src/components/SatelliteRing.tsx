@@ -62,10 +62,10 @@ export function SatelliteRing({
       </span>
       {done ? (
         <div
-          className="satellite-glow grid size-[58px] place-items-center rounded-full"
-          style={{ background: color, "--sat": color } as CSSProperties}
+          className="satellite-done satellite-glow grid size-[58px] place-items-center rounded-full"
+          style={{ "--sat": color } as CSSProperties}
         >
-          <Check className="size-8 text-on-accent" strokeWidth={4} />
+          <Check className="size-8" strokeWidth={4} />
         </div>
       ) : (
         <div

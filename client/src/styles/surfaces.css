@@ -52,6 +52,13 @@
   --tab-ink: var(--color-ink-dim);
   --tab-active-ink: var(--color-gold);
   --tab-active-bg: color-mix(in srgb, var(--color-gold) 13%, transparent);
+  /* The tab bar is an OVERLAY (absolute, Phase 7): pages span the full shell
+     height and reserve this much bottom padding so content scrolls clear of —
+     and visibly BEHIND — the bar (required for glass translucency). Value =
+     the bar's rendered footprint per theme (item height + paddings + borders
+     + float inset) + the device safe-area. Home's no-scroll budget depends on
+     it being exact. */
+  --tabbar-clearance: calc(4.125rem + var(--safe-area-inset-bottom, 0px));
 }
 
 @layer components {

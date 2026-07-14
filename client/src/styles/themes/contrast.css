@@ -63,6 +63,8 @@ html[data-theme="contrast"] {
   --tab-active-ink: #ffffff; /* label under the pill stays white */
   --tab-pill-ink: #000000; /* icon inside the inverted white pill */
   --tab-active-bg: #ffffff;
+  /* 2px ruled borders add to the bar footprint. */
+  --tabbar-clearance: calc(4.25rem + var(--safe-area-inset-bottom, 0px));
 }
 
 /* No decorative glow/breath in high contrast — they blur edges and halve

@@ -243,16 +243,19 @@ function App() {
   // Each page keeps living while hidden (state, timers, the breath phase).
   // Conditional classes (NOT the `hidden` attribute — a display class would
   // override it). Home is the no-scroll screen; the others scroll internally.
+  // Bottom padding = the overlay TabBar's per-theme footprint (+ the old 8px
+  // gap), so content scrolls clear of — and visibly BEHIND — the bar (glass
+  // translucency) while Home's no-scroll budget stays what it was in-flow.
   const pageClass = (id: TabId, scroll: boolean): string =>
     cn(
-      "min-h-0 flex-1 flex-col gap-3 px-4 pb-2 pt-3",
+      "min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(var(--tabbar-clearance)+0.5rem)]",
       scroll && "overflow-y-auto overscroll-contain",
       tab === id ? "flex" : "hidden",
     );
 
   return (
     <div
-      className="breath-driver mx-auto flex h-dvh w-full max-w-xl flex-col"
+      className="breath-driver relative mx-auto flex h-dvh w-full max-w-xl flex-col"
       style={{ "--glow-period": `${breathPeriod.toFixed(2)}s` } as CSSProperties}
     >
       <div className={pageClass("home", true)}>

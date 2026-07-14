@@ -1,9 +1,12 @@
-// Bottom tab bar (v2 shell — docs/V2_REDESIGN_SPEC.md Phase 3). The bar's
-// look is entirely theme-driven via the .tab-bar/.tab-item/.tab-pill surface
-// recipes (night: docked frosted bar; glass: floating capsule; material: M3
-// pill indicator; contrast: ruled + inverted pill). The active pill wraps
-// icon + label together (user-approved shape). In-flow (not fixed) at the
-// bottom of the h-dvh shell; owns the bottom safe-area inset.
+// Bottom tab bar (v2 shell — docs/V2_REDESIGN_SPEC.md Phase 3; overlay since
+// Phase 7). The bar's look is entirely theme-driven via the
+// .tab-bar/.tab-item/.tab-pill surface recipes (night: docked frosted bar;
+// glass: floating capsule; material: M3 pill indicator; contrast: ruled +
+// inverted pill). The active pill wraps icon + label together (user-approved
+// shape). ABSOLUTE overlay at the bottom of the relative h-dvh shell — pages
+// span the full height and reserve --tabbar-clearance, so scrolling content
+// passes visibly behind the bar (the glass capsule must refract real content,
+// not empty background). Owns the bottom safe-area inset.
 
 import { CalendarClock, ChartColumnBig, House, Settings2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -27,7 +30,7 @@ export function TabBar({ tab, onChange }: TabBarProps) {
   const { t } = useI18n();
   return (
     <nav
-      className="tab-bar z-40 shrink-0 px-2 pt-1"
+      className="tab-bar absolute inset-x-0 bottom-0 z-40 px-2 pt-1"
       aria-label={t("nav.home")}
       style={{ paddingBottom: "calc(0.25rem + var(--safe-area-inset-bottom, 0px))" }}
     >

@@ -90,7 +90,7 @@ export function NextPrayerCountdown({
 
   if (!next) {
     return (
-      <section className="card arabesque animate-rise-in flex min-h-[220px] items-center justify-center p-8 text-center">
+      <section className="card card-hero arabesque animate-rise-in flex min-h-[220px] items-center justify-center p-8 text-center">
         <p className="text-ink-dim">{t("loading.times")}</p>
       </section>
     );
@@ -101,7 +101,7 @@ export function NextPrayerCountdown({
   const ringProgress = 1 - progress; // depletes as time passes
 
   return (
-    <section className="card arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5">
+    <section className="card card-hero arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5">
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
           centred under both LTR and RTL. Breathes (scale + opacity) off the shared
           --breath so it stays in lockstep with the next-prayer card. */}

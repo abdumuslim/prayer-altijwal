@@ -69,6 +69,8 @@ html[data-theme="material"] {
   --tab-ink: #a5b2ad;
   --tab-active-ink: #cee9dd; /* on-secondary-container */
   --tab-active-bg: #364b44; /* secondary-container */
+  /* Taller M3 nav (4rem items) → bigger overlay clearance. */
+  --tabbar-clearance: calc(4.625rem + var(--safe-area-inset-bottom, 0px));
 }
 
 /* Hero on PRIMARY CONTAINER — the M3 tonal statement piece. */
@@ -102,4 +104,14 @@ html[data-theme="material"] .breath-glow {
 }
 html[data-theme="material"] .satellite-glow {
   box-shadow: none !important;
+}
+
+/* Done discs (Duha/Qiyam satellites + corner rings) — M3 tone split: instead of
+   a raw tone-80 accent fill with the teal on-accent ink (wrong pairing on the
+   amber/indigo discs), derive a container tone from each disc's own --sat and
+   put a pale on-container check on it (tertiary-container / on-tertiary-
+   container pattern). ≥6:1 check-on-disc contrast for every accent. */
+html[data-theme="material"] .satellite-done {
+  background: color-mix(in srgb, var(--sat, var(--color-gold)) 28%, var(--color-night));
+  color: color-mix(in srgb, var(--sat, var(--color-gold)) 72%, #ffffff);
 }

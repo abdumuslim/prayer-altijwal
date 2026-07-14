@@ -7,8 +7,7 @@
 @import "./styles/themes/glass.css";
 @import "./styles/themes/material.css";
 @import "./styles/themes/contrast.css";
-/* Brand exploration (preview-only until approved): lapis/kashi identity. */
-@import "./styles/themes/kashi.css";
+/* kashi (lapis brand exploration) was DROPPED by user decision 2026-07-13. */
 
 /* ─────────────────────────────────────────────────────────────────────────
    Theme — refined Islamic palette: deep night → teal → emerald, warm gold.
@@ -256,6 +255,14 @@
   /* Active satellite glow — tinted by its --sat color, like .breath-glow's --prox. */
   .satellite-glow {
     box-shadow: 0 0 12px -3px color-mix(in srgb, var(--sat, var(--color-gold)) 60%, transparent);
+  }
+
+  /* Done disc (satellites + corner rings): flat accent fill + on-accent check.
+     Kept as a class (not inline) so themes can re-split fill/ink — material
+     turns it into an M3 container/on-container pair derived from --sat. */
+  .satellite-done {
+    background: var(--sat, var(--color-gold));
+    color: var(--color-on-accent);
   }
 
   /* Iqama bar pulse during the final minute. */

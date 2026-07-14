@@ -30,12 +30,11 @@ const TABS: { id: TabId; label: string; icon: typeof House }[] = [
   { id: "settings", label: "الإعدادات", icon: Settings2 },
 ];
 
-const THEME_IDS = ["night", "kashi", "glass", "material", "contrast"] as const;
-/** Draft theme display names — NEEDS-USER-APPROVAL (spec §6). kashi is a
-    brand-color exploration (lapis tilework identity), preview-only. */
+const THEME_IDS = ["night", "glass", "material", "contrast"] as const;
+/** Draft theme display names — NEEDS-USER-APPROVAL (spec §6). kashi (lapis
+    exploration) was dropped by user decision 2026-07-13. */
 const THEME_NAMES: Record<(typeof THEME_IDS)[number], string> = {
   night: "الليل",
-  kashi: "كاشي",
   glass: "الزجاج",
   material: "ماتيريال",
   contrast: "تباين عالٍ",
@@ -471,12 +470,6 @@ function ThemeSwatch({ id }: { id: (typeof THEME_IDS)[number] }) {
       card: "rgba(14,58,54,0.7)",
       border: "rgba(22,80,74,0.8)",
       dots: ["#f5c451", "#2dd4bf", "#34d399"],
-    },
-    kashi: {
-      bg: "linear-gradient(160deg,#0b1533,#060d24)",
-      card: "rgba(22,41,92,0.7)",
-      border: "rgba(35,64,124,0.8)",
-      dots: ["#e0a458", "#45d5c8", "#3ddc97"],
     },
     glass: {
       bg: "linear-gradient(160deg,#eef4f9,#d6e3ee)",

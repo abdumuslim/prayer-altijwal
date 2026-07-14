@@ -18,7 +18,7 @@ const designParam = import.meta.env.DEV
 // ANY screen — the approval loop for the Phase-2/7 skins. Production ignores both.
 if (import.meta.env.DEV) {
   const themeParam = new URLSearchParams(window.location.search).get("theme");
-  const ids = ["night", "glass", "material", "contrast", "kashi"];
+  const ids = ["night", "glass", "material", "contrast"];
   if (themeParam && ids.includes(themeParam)) {
     document.documentElement.dataset.theme = themeParam;
   }
@@ -28,6 +28,15 @@ if (import.meta.env.DEV) {
     const cur = ids.indexOf(el.dataset.theme ?? "night");
     el.dataset.theme = ids[(cur + 1) % ids.length];
   });
+}
+
+// Liquid-Glass lensing gate: `backdrop-filter: url(#svg-filter)` renders ONLY in
+// Chromium (Android WebView + Chrome — our native shell and dominant web target;
+// WebKit bug 245510 / Firefox no-op silently LOSE the blur if fed url()). The
+// glass theme scopes its feDisplacementMap rules to html[data-lens="1"] so other
+// engines keep the plain blur+saturate recipe untouched.
+if (/Chrom(e|ium)|Edg\//.test(navigator.userAgent)) {
+  document.documentElement.dataset.lens = "1";
 }
 
 // Register the service worker (push + offline shell). Best-effort. Skipped in the
