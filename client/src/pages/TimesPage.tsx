@@ -1,13 +1,21 @@
-// المواقيت tab (docs/V2_REDESIGN_SPEC.md Phase 5): today's full prayer list
-// (with check-ins — moved here from Home) + the monthly table with month
-// navigation. Month data loads lazily on first visit (web endpoint / native
-// offline engine) and is cached per (location, month) for the session.
+// المواقيت tab — restructured for the qibla + nearest-masjid feature pair
+// (docs/QIBLA_MASJID_SPEC.md §7): today strip (kept) → qibla compass → nearest
+// masjids → month table DEMOTED into a collapsed section («الجدول الشهري»,
+// default closed — useMonthTimes is gated on section-open so no request fires
+// while it's closed). The compass heading hook lives HERE so the qibla card and
+// the masjid bearing arrows share one sensor stream; sensors stop whenever the
+// tab is hidden (keep-mounted tabs).
 
+import { useEffect, useState } from "react";
+import { CalendarDays } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { PrayerStrip } from "@/components/PrayerStrip";
 import { QiblaCompass } from "@/components/qibla/QiblaCompass";
+import { NearestMasjids } from "@/components/masjid/NearestMasjids";
 import { MonthNav } from "@/components/times/MonthNav";
 import { MonthTable } from "@/components/times/MonthTable";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { useCompassHeading } from "@/hooks/useCompassHeading";
 import { useMonthTimes } from "@/hooks/useMonthTimes";
 import { LoadingState } from "@/components/StatusViews";
 import { localDayKey } from "@/lib/civil-day";
@@ -23,23 +31,38 @@ interface TimesPageProps {
   settings: UseSettings;
   checkinFor: (name: PrayerName) => CardCheckin | null;
   isFriday: boolean;
-  /** Tab visibility (pages are keep-mounted) — gates the lazy month load. */
+  /** Tab visibility (pages are keep-mounted) — gates sensors + lazy loads. */
   active: boolean;
 }
 
 export function TimesPage({ location, times, settings, checkinFor, isFriday, active }: TimesPageProps) {
   const { t, lang } = useI18n();
+  const [monthOpen, setMonthOpen] = useState(false);
+
+  const loc = location.location;
+  const compass = useCompassHeading(
+    loc ? { lat: loc.lat, lon: loc.lon, elevation: loc.elevation } : null,
+  );
+  const { stop: stopCompass } = compass;
+
+  // Keep-mounted tabs: sensors must not run while the user sits on another tab.
+  useEffect(() => {
+    if (!active) stopCompass();
+  }, [active, stopCompass]);
+
   const month = useMonthTimes({
-    location: location.location,
+    location: loc,
     lang,
     method: settings.method,
     methodAuto: settings.methodAuto,
     asr: settings.asr,
-    active,
+    // The collapsed month section defers its (web) request / (native) compute
+    // until the user actually opens it.
+    active: active && monthOpen,
   });
 
   if (!times.data) return null;
-  const todayKey = location.location ? localDayKey(location.location.tz, times.now) : "";
+  const todayKey = loc ? localDayKey(loc.tz, times.now) : "";
 
   return (
     <>
@@ -48,29 +71,46 @@ export function TimesPage({ location, times, settings, checkinFor, isFriday, act
           list ate too much vertical space above the month table (user). */}
       <PrayerStrip prayers={times.prayers} isFriday={isFriday} checkinFor={checkinFor} />
 
-      {/* Qibla compass (QIBLA_MASJID_SPEC) — final tab order lands in the
-          restructure preview round (strip → qibla → masjids → month collapsed). */}
-      {location.location && <QiblaCompass location={location.location} active={active} />}
+      {loc && (
+        <>
+          <QiblaCompass location={loc} compass={compass} />
+          <NearestMasjids
+            location={loc}
+            active={active}
+            compass={compass}
+            onUseGps={() =>
+              void location.requestGps({ enableHighAccuracy: true, maximumAge: 0 })
+            }
+            resolving={location.resolving}
+          />
+        </>
+      )}
 
-      <div className="mt-1 flex flex-col gap-2">
-        <h2 className="text-[13px] font-bold text-ink-dim">{t("times.monthTitle")}</h2>
-        <MonthNav
-          monthKey={month.monthKey}
-          data={month.data}
-          isCurrentMonth={month.isCurrentMonth}
-          onPrev={month.prevMonth}
-          onNext={month.nextMonth}
-          onReset={month.resetMonth}
-        />
-      </div>
-
-      {month.data ? (
-        <MonthTable days={month.data.days} todayKey={todayKey} />
-      ) : month.loading ? (
-        <LoadingState />
-      ) : month.error ? (
-        <p className="text-center text-sm text-imminent/80">{month.error}</p>
-      ) : null}
+      <CollapsibleSection
+        icon={<CalendarDays className="size-5" />}
+        iconClass="bg-teal/10 text-teal"
+        title={t("times.monthTitle")}
+        open={monthOpen}
+        onToggle={setMonthOpen}
+      >
+        <div className="flex flex-col gap-2">
+          <MonthNav
+            monthKey={month.monthKey}
+            data={month.data}
+            isCurrentMonth={month.isCurrentMonth}
+            onPrev={month.prevMonth}
+            onNext={month.nextMonth}
+            onReset={month.resetMonth}
+          />
+          {month.data ? (
+            <MonthTable days={month.data.days} todayKey={todayKey} />
+          ) : month.loading ? (
+            <LoadingState />
+          ) : month.error ? (
+            <p className="text-center text-sm text-imminent/80">{month.error}</p>
+          ) : null}
+        </div>
+      </CollapsibleSection>
     </>
   );
 }

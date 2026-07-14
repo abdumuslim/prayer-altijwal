@@ -18,6 +18,10 @@ interface CollapsibleSectionProps {
   title: string;
   subtitle?: string;
   defaultOpen?: boolean;
+  /** Controlled mode (with onToggle) — lets callers gate lazy work on `open`
+   *  (e.g. the Times month table fetches only while its section is open). */
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
   children: ReactNode;
 }
 
@@ -27,16 +31,22 @@ export function CollapsibleSection({
   title,
   subtitle,
   defaultOpen = false,
+  open: controlledOpen,
+  onToggle,
   children,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
   const bodyId = useId();
 
   return (
     <section className="rounded-2xl border border-border-soft/70 bg-veil/[0.015]">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (onToggle) onToggle(!open);
+          else setOpen((v) => !v);
+        }}
         aria-expanded={open}
         aria-controls={bodyId}
         className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-3 text-start transition-colors hover:bg-veil/[0.02]"

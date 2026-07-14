@@ -28,7 +28,9 @@ export interface UseLocation {
   status: LocationStatus;
   /** Whether we are still resolving the very first location. */
   resolving: boolean;
-  requestGps: () => Promise<void>;
+  /** Options override e.g. { enableHighAccuracy: true, maximumAge: 0 } for the
+   *  nearest-masjid precise fix (docs/QIBLA_MASJID_SPEC.md §6b). */
+  requestGps: (options?: PositionOptions) => Promise<void>;
   setLocation: (loc: StoredLocation, detectedMethod?: string | null) => void;
   errorKind: "denied" | "unavailable" | "timeout" | "fetch" | null;
 }
@@ -46,6 +48,7 @@ const BAGHDAD_DEFAULT: StoredLocation = {
   lat: 33.34058,
   lon: 44.40088,
   elevation: 41,
+  source: "default",
 };
 
 /** The previous default (pre-calibration). Used once to migrate stale persisted
@@ -64,20 +67,23 @@ export function useLocation(): UseLocation {
 
   const setLocation = useCallback(
     (loc: StoredLocation, method: string | null = null) => {
-      setLocationState(loc);
+      // City-search / governorate picks — stamp the source unless the caller
+      // already labeled it (the masjid GPS gate keys off "gps").
+      const stamped: StoredLocation = { ...loc, source: loc.source ?? "search" };
+      setLocationState(stamped);
       setDetectedMethod(method);
       setStatus("ready");
       setErrorKind(null);
-      patchState({ location: loc });
+      patchState({ location: stamped });
     },
     [],
   );
 
-  const requestGps = useCallback(async () => {
+  const requestGps = useCallback(async (options?: PositionOptions) => {
     setStatus("loading");
     setErrorKind(null);
     try {
-      const coords = await getCurrentPosition();
+      const coords = await getCurrentPosition(options);
       try {
         const rev = await reverseGeocode(coords.lat, coords.lon);
         const loc: StoredLocation = {
@@ -88,6 +94,7 @@ export function useLocation(): UseLocation {
           lat: coords.lat,
           lon: coords.lon,
           elevation: rev.elevation,
+          source: "gps",
         };
         setLocationState(loc);
         setDetectedMethod(rev.method ?? null);
@@ -102,6 +109,7 @@ export function useLocation(): UseLocation {
           lat: coords.lat,
           lon: coords.lon,
           elevation: null,
+          source: "gps",
         };
         setLocationState(loc);
         setStatus("ready");

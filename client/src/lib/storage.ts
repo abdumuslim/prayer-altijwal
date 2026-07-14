@@ -16,6 +16,11 @@ import {
 const STORAGE_KEY = "prayer.app.v1";
 const CURRENT_VERSION = 1 as const;
 
+/** How the stored location was obtained. The nearest-masjid section requires a
+ *  real "gps" fix — searching from the Baghdad default would mislead
+ *  (docs/QIBLA_MASJID_SPEC.md Q5). Absent on pre-existing state. */
+export type LocationSource = "gps" | "search" | "default";
+
 export interface StoredLocation {
   city: string | null;
   /** Arabic-script city name when known (shown in Arabic mode). */
@@ -25,6 +30,7 @@ export interface StoredLocation {
   lat: number;
   lon: number;
   elevation: number | null;
+  source?: LocationSource;
 }
 
 export interface ReminderPrefs {
@@ -145,6 +151,15 @@ function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
 }
 
+/** Coerce a stored location, sanitizing the additive `source` field. */
+function coerceLocation(raw: Record<string, unknown>): StoredLocation {
+  const src = raw.source;
+  return {
+    ...(raw as unknown as StoredLocation),
+    source: src === "gps" || src === "search" || src === "default" ? src : undefined,
+  };
+}
+
 /** Migrate any older/partial envelope to the current AppState shape. */
 function migrate(raw: unknown): AppState {
   if (!isRecord(raw)) return { ...DEFAULT_STATE };
@@ -154,9 +169,7 @@ function migrate(raw: unknown): AppState {
 
   return {
     v: CURRENT_VERSION,
-    location: isRecord(raw.location)
-      ? (raw.location as unknown as StoredLocation)
-      : null,
+    location: isRecord(raw.location) ? coerceLocation(raw.location) : null,
     method: typeof raw.method === "string" ? raw.method : null,
     methodAuto: typeof raw.methodAuto === "boolean" ? raw.methodAuto : true,
     asr:

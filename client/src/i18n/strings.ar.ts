@@ -92,6 +92,15 @@ export const ar: Record<StringKey, string> = {
   "qibla.acc.low": "دقة منخفضة",
   "qibla.acc.unreliable": "بحاجة إلى معايرة",
 
+  // أقرب المساجد (QIBLA_MASJID_SPEC §7 — PROPOSED strings, pending user approval)
+  "masjid.title": "أقرب المساجد",
+  "masjid.gpsPrompt": "لإيجاد أقرب المساجد فعّل تحديد موقعك الدقيق",
+  "masjid.gpsButton": "استخدام موقعي",
+  "masjid.none": "لا توجد مساجد قريبة ضمن 5 كم",
+  "masjid.error": "تعذّر جلب المساجد القريبة",
+  "masjid.maps": "خرائط Google",
+  "masjid.waze": "Waze",
+
   // Settings
   "settings.title": "الإعدادات",
   "settings.language": "اللغة",

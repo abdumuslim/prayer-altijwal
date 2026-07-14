@@ -76,6 +76,37 @@ describe("worship features", () => {
   });
 });
 
+describe("location source migration (QIBLA_MASJID_SPEC §6b)", () => {
+  const BASE_LOCATION = {
+    city: "Baghdad",
+    country: "IQ",
+    tz: "Asia/Baghdad",
+    lat: 33.34058,
+    lon: 44.40088,
+    elevation: 41,
+  };
+
+  test("pre-existing location without source → source stays undefined", () => {
+    seed({ v: 1, location: BASE_LOCATION });
+    expect(loadState().location?.source).toBeUndefined();
+  });
+
+  test("valid source values survive the round-trip", () => {
+    for (const source of ["gps", "search", "default"] as const) {
+      seed({ v: 1, location: { ...BASE_LOCATION, source } });
+      expect(loadState().location?.source).toBe(source);
+    }
+  });
+
+  test("garbage source is dropped, location otherwise intact", () => {
+    seed({ v: 1, location: { ...BASE_LOCATION, source: "satellite" } });
+    const loc = loadState().location;
+    expect(loc?.source).toBeUndefined();
+    expect(loc?.city).toBe("Baghdad");
+    expect(loc?.lat).toBe(33.34058);
+  });
+});
+
 describe("alarmSound coercion", () => {
   test("keeps bundled tone ids", () => {
     seed({ v: 1, alarmSound: "classic" });

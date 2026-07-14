@@ -89,6 +89,15 @@ export const en = {
   "qibla.acc.low": "Low accuracy",
   "qibla.acc.unreliable": "Needs calibration",
 
+  // Nearest masjids (QIBLA_MASJID_SPEC §7 — mirrors of the proposed AR strings)
+  "masjid.title": "Nearest Masjids",
+  "masjid.gpsPrompt": "Enable precise location to find the nearest masjids",
+  "masjid.gpsButton": "Use My Location",
+  "masjid.none": "No masjids found within 5 km",
+  "masjid.error": "Couldn't load nearby masjids",
+  "masjid.maps": "Google Maps",
+  "masjid.waze": "Waze",
+
   // Settings
   "settings.title": "Settings",
   "settings.language": "Language",

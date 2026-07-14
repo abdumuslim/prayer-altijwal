@@ -7,7 +7,7 @@
 import { useEffect, useRef } from "react";
 import { Compass as CompassIcon, Loader2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { useCompassHeading, type CompassAccuracy } from "@/hooks/useCompassHeading";
+import type { CompassAccuracy, UseCompassHeading } from "@/hooks/useCompassHeading";
 import { bearingToKaaba, distanceToKaabaKm } from "@/lib/qibla";
 import { Compass, isNative } from "@/lib/native";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,8 @@ import type { StoredLocation } from "@/lib/storage";
 
 interface QiblaCompassProps {
   location: StoredLocation;
-  /** Times-tab visibility (keep-mounted tabs) — sensors stop when hidden. */
-  active: boolean;
+  /** Shared heading state — owned by TimesPage so the masjid arrows reuse it. */
+  compass: UseCompassHeading;
 }
 
 /** Lock-on window around the exact bearing (spec: ±3°). */
@@ -41,14 +41,9 @@ function accuracyTone(acc: CompassAccuracy): string {
   return "border-critical/40 text-critical";
 }
 
-export function QiblaCompass({ location, active }: QiblaCompassProps) {
+export function QiblaCompass({ location, compass }: QiblaCompassProps) {
   const { t } = useI18n();
-  const compass = useCompassHeading({
-    lat: location.lat,
-    lon: location.lon,
-    elevation: location.elevation,
-  });
-  const { status, trueHeading, accuracy, tilt, start, stop } = compass;
+  const { status, trueHeading, accuracy, tilt, start } = compass;
 
   const bearing = bearingToKaaba(location.lat, location.lon);
   const distanceKm = distanceToKaabaKm(location.lat, location.lon);
@@ -95,11 +90,6 @@ export function QiblaCompass({ location, active }: QiblaCompassProps) {
     wasAlignedRef.current = aligned;
   }, [aligned]);
 
-  // Keep-mounted tabs: stop the sensors whenever the Times tab is hidden.
-  useEffect(() => {
-    if (!active) stop();
-  }, [active, stop]);
-
   const showCalibrate = live && (accuracy === "low" || accuracy === "unreliable");
   const showHoldFlat =
     live &&
@@ -141,12 +131,15 @@ export function QiblaCompass({ location, active }: QiblaCompassProps) {
           style={{ borderBottomWidth: 0 }}
         />
 
-        {/* Rotating rose (identity rotation in static/idle mode) */}
+        {/* Rotating rose (identity rotation in static/idle mode). No own fill —
+            it inherits the card surface so ink tokens stay readable per theme. */}
         <div
           className={cn(
-            "absolute inset-0 rounded-full border bg-veil",
+            "absolute inset-0 rounded-full border",
             rotTransition,
-            aligned ? "border-gold/60 shadow-[0_0_16px_-4px_var(--color-gold)]" : "border-veil-strong",
+            aligned
+              ? "border-gold/60 shadow-[0_0_16px_-4px_var(--color-gold)]"
+              : "border-ink-faint/30",
           )}
           style={{ transform: `rotate(${-rot}deg)` }}
         >
@@ -186,7 +179,7 @@ export function QiblaCompass({ location, active }: QiblaCompassProps) {
                   rotTransition,
                   aligned
                     ? "border-gold bg-gold/20 text-gold"
-                    : "border-teal/40 bg-veil-strong text-teal",
+                    : "border-teal/40 bg-teal/10 text-teal",
                 )}
                 style={{ transform: `rotate(${rot - bearing}deg)` }}
               >
