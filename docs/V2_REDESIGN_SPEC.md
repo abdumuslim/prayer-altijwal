@@ -2,7 +2,7 @@
 
 > **Status (CHECKPOINT 2026-07-14, session 3): Phases 0–7 BUILT. P7 shipped
 > (`cd021b9` + `1d76780`): glass fidelity ROUND 3 (real translucency + edge lensing + depth —
-> built against live user feedback; final user verdict on the finished round still pending),
+> built against live user feedback; **translucency APPROVED by the user 2026-07-14**),
 > material tonal fixes, kashi DROPPED, tab bar became an OVERLAY, native AlarmActivity theming
 > emulator-verified. NEXT: Phase 8 (a11y) — carry into it: the full axe pass (P7 did a
 > token-level spot-check; glass gold already darkened to AA 4.9:1), glass proximity-amber
