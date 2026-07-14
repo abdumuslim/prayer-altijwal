@@ -42,7 +42,9 @@
   /* Text */
   --color-ink: #eafaf6;
   --color-ink-dim: #8fb3ad;
-  --color-ink-faint: #5c8079;
+  /* P8 (user-approved lighten): was #5c8079 — 3.3:1 on the card composite;
+     #75988f clears 4.5:1 on card + scene while keeping the muted sage hue. */
+  --color-ink-faint: #75988f;
 
   /* Semantic overlay inks (theme-flippable — docs/V2_REDESIGN_SPEC.md Phase 1).
      veil = the "subtle raised surface" base used at low alphas (bg-veil/[0.04]…):
