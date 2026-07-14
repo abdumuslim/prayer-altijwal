@@ -100,8 +100,12 @@ export function applyTheme(id: ThemeId): void {
   }
 }
 
-/** Apply the font-scale attribute (CSS: html[data-font-scale] font-size steps). */
+/** Apply the font-scale attribute (CSS: html[data-font-scale] font-size steps).
+ *  When the Android SYSTEM font scale is already zooming the WebView
+ *  (data-syszoom, stamped in main.tsx), the CSS step is suppressed so the two
+ *  never stack past the ~130% combined tolerance (spec Phase 8.5). */
 export function applyFontScale(scale: FontScale): void {
-  if (scale === 1) delete document.documentElement.dataset.fontScale;
-  else document.documentElement.dataset.fontScale = String(scale);
+  const el = document.documentElement;
+  if (scale === 1 || el.dataset.syszoom === "high") delete el.dataset.fontScale;
+  else el.dataset.fontScale = String(scale);
 }

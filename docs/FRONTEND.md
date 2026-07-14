@@ -455,7 +455,12 @@ Order (user-approved): today strip (with check-ins) → `qibla/QiblaCompass` →
   px-fixed hero/TopBar/event rows pin their type via `fs125-*` classes (index.css, unlayered) and
   page cards get `flex-shrink: 0` — the extreme state scrolls instead of clipping (acceptance is
   "unclipped" at أكبر; strict no-scroll holds at normal scale). Android: MainActivity caps WebView
-  `textZoom` at 130% of the system scale.
+  `textZoom` at 130% of the system scale, and main.tsx MEASURES the effective zoom (DOM width vs
+  canvas width — canvas text ignores textZoom) to stamp `data-syszoom="high"`: the fs125-*
+  compensations then apply (at pulled-down values — textZoom re-zooms rem text), the hero gets
+  EXTRA bottom padding (textZoom grows even px-sized corner-ring captions), and `applyFontScale`
+  suppresses the in-app CSS step so the two scales never stack past ~130% (emulator-verified at
+  system font_scale 2.0).
 - **Per-theme contrast**: axe (devDep `axe-core`, injected via Playwright MCP `/@fs/`) must stay at
   ZERO violations; translucent themes file contrast as "incomplete" — resolve at TOKEN level
   against composited backdrops (glass mid = #dfe9f6). Every glass accent is AA-darkened; contrast

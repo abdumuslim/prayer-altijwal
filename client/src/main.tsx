@@ -39,6 +39,37 @@ if (/Chrom(e|ium)|Edg\//.test(navigator.userAgent)) {
   document.documentElement.dataset.lens = "1";
 }
 
+// Android system font scale (native only): MainActivity applies it as WebView
+// textZoom (capped 130%), which scales RENDERED text without touching CSS —
+// the px-fixed hero/TopBar geometry would wrap/collide with no compensation.
+// Detect the effective zoom (DOM width vs canvas width — canvas text ignores
+// textZoom) and stamp data-syszoom so the same fs125-* layout compensations
+// apply, and applyFontScale suppresses the in-app CSS step (combined ≤ ~130%,
+// docs/V2_REDESIGN_SPEC.md Phase 8.5).
+if (isNative()) {
+  try {
+    const probe = document.createElement("span");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;white-space:nowrap;font:16px monospace;";
+    probe.textContent = "0123456789abcdef";
+    document.body.appendChild(probe);
+    const domWidth = probe.getBoundingClientRect().width;
+    probe.remove();
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx && domWidth > 0) {
+      ctx.font = "16px monospace";
+      const zoom = domWidth / ctx.measureText("0123456789abcdef").width;
+      if (zoom > 1.15) {
+        document.documentElement.dataset.syszoom = "high";
+        // System zoom already scales everything — never stack the CSS step on top.
+        delete document.documentElement.dataset.fontScale;
+      }
+    }
+  } catch {
+    // measurement is best-effort; worst case the compensations just don't apply
+  }
+}
+
 // Register the service worker (push + offline shell). Best-effort. Skipped in the
 // native (Capacitor) app, which uses on-device scheduling instead of web push.
 // The offline engine + alarm scheduler load lazily via loadNativeFacade() (see
