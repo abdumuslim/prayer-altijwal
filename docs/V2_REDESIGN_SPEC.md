@@ -1,12 +1,39 @@
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
-> **Status (CHECKPOINT 2026-07-12, end of session 2): Phases 0–6 BUILT + user-reviewed on web;
-> glass/material rebuilt (fidelity round 2, approved); alarm drift reverted. NEXT: Phase 7
-> (theme polish remainder — see Remaining).** Branch `feat/v2-redesign` (`38c23db..e7fd855`).
-> All gates green at checkpoint: client build + 94 tests (5 new reports cases), server 138
-> tests, engine findstr gate, assembleDebug. v1 protected: git tag `v1.0` (= `38c23db^`) +
-> AAB archived at `D:\keys\releases\prayer-v1.0-vc1.aab` (the gradle output copy is
-> overwrite-prone).
+> **Status (CHECKPOINT 2026-07-14, session 3): Phases 0–7 BUILT. P7 shipped
+> (`cd021b9` + `1d76780`): glass fidelity ROUND 3 (real translucency + edge lensing + depth —
+> built against live user feedback; final user verdict on the finished round still pending),
+> material tonal fixes, kashi DROPPED, tab bar became an OVERLAY, native AlarmActivity theming
+> emulator-verified. NEXT: Phase 8 (a11y) — carry into it: the full axe pass (P7 did a
+> token-level spot-check; glass gold already darkened to AA 4.9:1), glass proximity-amber
+> contrast on light surfaces, and a real-device glass perf spot-check (emulator: 3.19% janky
+> frames on Reports fling).** Branch `feat/v2-redesign`. Gates green at checkpoint: client
+> build, server 138 tests, engine findstr gate, assembleDebug, and an emulator round (install →
+> Settings theme switch → app-killed themed alarm via the documented FIRE_ALARM broadcast —
+> `NATIVE_ALARM_FIXES_SPEC.md` §appendix has the AVD/broadcast how-to). v1 protected: git tag
+> `v1.0` (= `38c23db^`) + AAB archived at `D:\keys\releases\prayer-v1.0-vc1.aab` (the gradle
+> output copy is overwrite-prone).
+>
+> **Session-3 user decisions (2026-07-13/14, binding):** kashi **dropped** (css + preview hooks
+> deleted) · material keeps the tonal primary-container hero + the container/on-container "tone
+> split" on done-discs · glass round 2 was REJECTED ("doesn't feel like the actual design; not
+> translucent; no depth; too much color; fake glass at the tab bar") → round 3 rebuilt it (see
+> §5) · Qibla + nearest-masjid feature pair SPEC'D for a future session in
+> `QIBLA_MASJID_SPEC.md` (Google Places w/ a NEW key; hosted in a repurposed Times tab) — doc
+> only, no feature code.
+>
+> **P7 architecture notes (durable):** TabBar is an `absolute` OVERLAY; every page reserves
+> `--tabbar-clearance` (exact per-theme footprint values in `surfaces.css` + theme files —
+> Home's no-scroll budget depends on them; verified 390×844 + 360×740 all themes). The real
+> hero now carries `card-hero` (it was preview-only before — theme hero overrides silently
+> never applied to the app). Done-discs style via the `.satellite-done` recipe (index.css;
+> material overrides it). Glass lensing: `client/scripts/build-glass-lens.mjs` generates SDF
+> displacement maps → `public/glass-lens-*.png` → SVG filter defs in `index.html` →
+> `backdrop-filter: url(#…)` scoped to `html[data-lens="1"]`, stamped by `main.tsx` ONLY on
+> Chromium (WebKit/Firefox would silently drop the whole backdrop incl. blur). Native alarm
+> theming: `setAppearance` carries per-theme `alarm:{bg,ink,inkDim,accent}` (`theme.ts`
+> registry) → `AppearanceStore.java` (SharedPreferences) → `AlarmActivity` builds from the
+> stored palette (night fallback; parse guarded).
 >
 > **Done:** P0 versioning (2.0.0/versionCode 2, CHANGELOG, ADR-008) · P1 theme engine (token
 > sweep, surfaces.css contract, pre-paint boot, reduced-motion, native setAppearance) · P2
@@ -31,17 +58,16 @@
 > **Session-1 user decisions (binding, not in the original spec):** themes must be replica-grade
 > design languages (glass got vivid scene + multi-edge specular + capsule float; material got
 > tonal blocking + tall nav; tightened glass shadows — no shadow bleed in card gaps) · active tab
-> pill wraps icon+label · `kashi` lapis brand exploration exists as a 5th preview-only theme
-> (styles/themes/kashi.css, NOT in the shipping registry — user hasn't decided) · alarm screens
+> pill wraps icon+label · `kashi` lapis brand exploration was a 5th preview-only theme
+> (**dropped in session 3** — css + preview hooks deleted) · alarm screens
 > follow the theme (ONLY that — see the session-2 correction above) · Times today
 > section = compact strip with check-ins (vertical space is precious).
 >
-> **Remaining:** P7 theme polish (material Duha-disc tone split, glass refraction filter + perf
-> pass, kashi decision, native
-> AlarmActivity theming via AppearanceStore) · P8 a11y audit (ARIA sweep, ≥48px targets, axe
-> contrast per theme, system font scale, TalkBack) · P9 widget · P10 docs sweep + closed-track
-> upload · security review (task #12) · consolidated EMULATOR pass still owed: back-chain,
-> airplane-mode month table, `?alarm=` deep link, first-run flows.
+> **Remaining:** P8 a11y audit (ARIA sweep, ≥48px targets, axe contrast per theme + the P7
+> carry-ins above, system font scale, TalkBack) · P9 widget · P10 docs sweep (FRONTEND §shell/
+> §theme-engine rewrite incl. the P7 architecture notes above) + closed-track upload · security
+> review (task #12) · consolidated EMULATOR pass still owed: back-chain, airplane-mode month
+> table, `?alarm=` deep link, first-run flows.
 >
 > Written to be executed phase-by-phase by any implementer; each phase ends with commands that
 > must pass. Read `FRONTEND.md` (v1 UI + gotchas), `PRAYER_TIMES_API.md`, `NATIVE_ALARM_SPEC.md`,
@@ -348,16 +374,22 @@ and (where needed) the surface recipes. No per-theme React forks unless flagged 
 
 - **night (default)** — exactly the current look (Phase 1 froze it into tokens); minor polish only
   with user approval.
-- **glass (Liquid Glass, Apple iOS 26)** — translucent layered surfaces over a light-leaning
-  colorful gradient-blob background scene (glass needs content behind it to read):
-  `backdrop-filter: blur(20–28px) saturate(170–180%)`; fills `rgba(255,255,255,0.10–0.16)`
-  (adaptive darker variant for text-heavy cards); multi-layer shadows = inset 1px top specular
-  highlight (`rgba(255,255,255,0.55)`), hairline rim border, soft wide outer drop shadow;
-  **floating detached pill TabBar** (inset from edges, not edge-pinned); concentric corner radii
-  (child = parent − inset); optional refraction on hero ring chrome + TabBar via SVG
-  `feDisplacementMap` used as `backdrop-filter: url(#…)` — Chromium-only, which covers Android
-  WebView + Chrome; wrap in `@supports` with the plain-blur fallback. Perf: `contain: layout paint`,
-  `will-change: transform` on glass nodes, keep filtered areas small.
+- **glass (Liquid Glass, Apple iOS 26)** — AS BUILT in round 3 (2026-07-14, after two user
+  rejections; research basis: WWDC25 §219 "lensing is how the material defines itself" + the
+  MIT shuding/rdev implementations): clear-glass fills — a 135° SHEEN gradient
+  `rgba(255,255,255,0.40→0.06)` averaging ~0.15 (past ~0.25 the effect dies into "milk") —
+  with `backdrop-filter: blur(14px) saturate(185%)` (28px read as fog); **edge lensing** on the
+  hero + tab capsule via generated SDF displacement maps (`scripts/build-glass-lens.mjs` →
+  `public/glass-lens-*.png` → `index.html` filter defs → `backdrop-filter: url(#…)`, scoped to
+  the `html[data-lens="1"]` Chromium gate set in `main.tsx` — a naked `@supports` can't detect
+  render support and WebKit/Firefox would silently lose even the blur); depth = layered
+  key+ambient shadows w/ strong negative spread (no bleed into 12px card gaps), a bright top
+  entry rim + faint dark bottom EXIT rim (slab thickness), and a scene vignette; scene =
+  RESTRAINED single cool family (azure→blue-teal→blue-indigo) with structure from LUMINANCE
+  (white light-pool, luminance-varied blobs) — "too much color" was rejected; the app's
+  gold/teal content is the only warm counterpoint. **Floating detached pill TabBar** is an
+  overlay so real content scrolls (and refracts) behind it. Gold darkened to `#8f6209`
+  (AA 4.9:1 on the light surface). Perf: lens on 2 elements only; emulator 3.19% jank.
 - **material (Google Material 3 / Expressive)** — fully opaque **tonal** surfaces derived from the
   brand teal/emerald/gold as an M3-style tonal palette; elevation via tone shift + subtle shadow
   (no blur/transparency anywhere); TabBar = M3 navigation bar with a **pill active indicator**
