@@ -7,6 +7,7 @@ import { BookOpenText, ChevronLeft } from "lucide-react";
 import {
   CheckinIconTrio,
   CHECKIN_TONES,
+  TipLiveRegion,
   TransientTip,
   useTransientText,
 } from "@/components/CheckinControl";
@@ -43,6 +44,7 @@ export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar
             showTip(t(CHECKIN_TONES[k].tipKey));
           }}
         />
+        <TipLiveRegion text={tip} />
         {tip && <TransientTip text={tip} className="-top-3 left-1/2 -translate-x-1/2" />}
       </div>
     );
@@ -55,12 +57,13 @@ export function HeroCheckinRow({ prayer, state, adhkarDone, onMark, onOpenAdhkar
       <button
         type="button"
         onClick={onOpenAdhkar}
-        className="flex items-center gap-1.5 rounded-full border border-teal/40 bg-teal/[0.06] px-3 py-1.5 text-[12px] font-bold leading-none text-teal transition-colors hover:bg-teal/10"
+        className="hit-target flex items-center gap-1.5 rounded-full border border-teal/40 bg-teal/[0.06] px-3 py-1.5 text-[12px] font-bold leading-none text-teal transition-colors hover:bg-teal/10"
       >
         <BookOpenText className="size-4" />
         {t("track.adhkarChip")}
         <ChevronLeft className="size-3.5 rtl:block ltr:hidden" />
       </button>
+      <TipLiveRegion text={tip} />
       {tip && <TransientTip text={tip} className="-top-9 left-1/2 -translate-x-1/2" />}
     </div>
   );

@@ -65,6 +65,9 @@ export const ar: Record<StringKey, string> = {
   "nav.times": "المواقيت",
   "nav.reports": "التقارير",
   "nav.settings": "الإعدادات",
+  // A11y (Phase 8 — PROPOSED, pending user approval): the nav landmark name;
+  // it was mislabeled with nav.home («الرئيسية») before.
+  "nav.label": "التنقل",
 
   // المواقيت tab (strings user-approved in the v2 preview)
   "times.todayTitle": "مواقيت اليوم",
@@ -139,6 +142,8 @@ export const ar: Record<StringKey, string> = {
   "notify.kindNotification": "إشعار",
   "notify.kindAlarm": "منبه",
   "notify.alarmSound": "نغمة المنبّه",
+  // A11y (Phase 8 — PROPOSED, pending user approval): preview-button name.
+  "notify.preview": "معاينة النغمة",
   "notify.tonesApp": "نغمات التطبيق",
   "notify.tonesDevice": "نغمات الجهاز",
   "notify.sunnahTargets": "السنن والأذكار",
@@ -206,6 +211,8 @@ export const ar: Record<StringKey, string> = {
   "track.logPrayer": "سجّل الصلاة",
   "track.adhkarChip": "أذكار بعد الصلاة",
   "track.done": "اكتمل",
+  // A11y (Phase 8 — PROPOSED, pending user approval): ScorePill accessible name.
+  "track.scoreLabel": "نقاط اليوم {points} · {streak} يوم متتالي",
 
   // Worship tracker — rawatib
   "rawatib.label": "الرواتب",

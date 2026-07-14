@@ -223,7 +223,11 @@ export function NextPrayerCountdown({
             <span className="text-2xl font-bold leading-none text-gold">
               {t(prayerNameKey(next.name as PrayerName, !!isFriday))}
             </span>
+            {/* A11y (Phase 8): the per-second clock is hidden from screen
+                readers — the prayer name above + clock time below announce the
+                same information without a re-announce every tick. */}
             <span
+              aria-hidden="true"
               className={cn(
                 "tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
                 style.text,

@@ -102,7 +102,7 @@ export function NearestMasjids({ location, active, compass, onUseGps, resolving 
           <button
             type="button"
             onClick={onUseGps}
-            className="flex items-center justify-center gap-2 rounded-xl border border-emerald/30 bg-emerald/[0.07] px-4 py-2.5 text-sm font-semibold text-emerald transition-colors hover:bg-emerald/[0.12]"
+            className="hit-target flex items-center justify-center gap-2 rounded-xl border border-emerald/30 bg-emerald/[0.07] px-4 py-2.5 text-sm font-semibold text-emerald transition-colors hover:bg-emerald/[0.12]"
           >
             {resolving ? (
               <Loader2 className="size-4 animate-spin" />
@@ -149,11 +149,12 @@ export function NearestMasjids({ location, active, compass, onUseGps, resolving 
                   aria-hidden="true"
                 />
                 <span className="flex shrink-0 items-center gap-1">
+                  {/* Hit areas capped: two chips 4px apart inside ~50px rows. */}
                   <a
                     href={mapsUrl(m)}
                     target="_blank"
                     rel="noopener"
-                    className="rounded-full border border-teal/30 bg-teal/[0.07] px-2 py-1 text-[10px] font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
+                    className="hit-target [--hit-w:calc(100%+4px)] [--hit-h:40px] rounded-full border border-teal/30 bg-teal/[0.07] px-2 py-1 text-[10px] font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
                   >
                     {t("masjid.maps")}
                   </a>
@@ -161,7 +162,7 @@ export function NearestMasjids({ location, active, compass, onUseGps, resolving 
                     href={wazeUrl(m)}
                     target="_blank"
                     rel="noopener"
-                    className="rounded-full border border-sky/30 bg-sky/[0.07] px-2 py-1 text-[10px] font-semibold text-sky transition-colors hover:bg-sky/[0.12]"
+                    className="hit-target [--hit-w:calc(100%+4px)] [--hit-h:40px] rounded-full border border-sky/30 bg-sky/[0.07] px-2 py-1 text-[10px] font-semibold text-sky transition-colors hover:bg-sky/[0.12]"
                   >
                     {t("masjid.waze")}
                   </a>

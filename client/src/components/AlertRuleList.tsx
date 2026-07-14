@@ -86,11 +86,13 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
             <span className="min-w-0 flex-1 truncate text-sm text-ink">
               {describeRule(a, t, lang)}
             </span>
+            {/* Width expansion capped at half the 8px gap: delete (no confirm)
+                must never swallow taps aimed at edit. */}
             <button
               type="button"
               aria-label={t("notify.edit")}
               onClick={() => setEditing(a.id)}
-              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-teal"
+              className="hit-target [--hit-w:calc(100%+8px)] grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-teal"
             >
               <Pencil className="size-3.5" />
             </button>
@@ -98,7 +100,7 @@ export function AlertRuleList({ rules, loading, onCreate, onUpdate, onRemove }: 
               type="button"
               aria-label={t("notify.delete")}
               onClick={() => void onRemove(a.id)}
-              className="grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-imminent"
+              className="hit-target [--hit-w:calc(100%+8px)] grid size-7 place-items-center rounded-lg text-ink-dim transition-colors hover:bg-veil/[0.06] hover:text-imminent"
             >
               <Trash2 className="size-3.5" />
             </button>

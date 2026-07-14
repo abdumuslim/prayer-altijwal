@@ -27,17 +27,24 @@ export function IqamaBar({ state, now, isFriday }: IqamaBarProps) {
   const style = proximityStyle(proximityFromMs(state.msUntil));
 
   return (
-    <div className={cn("mt-2 w-full max-w-[320px] px-1", state.blinking && "iqama-blink")}>
+    // A11y (Phase 8): a stable-named timer — the per-second countdown text and
+    // the progress bar are aria-hidden so TalkBack announces the bar ONCE
+    // («توقيت الإقامة — العصر»), not every tick.
+    <div
+      role="timer"
+      aria-label={`${t("iqama.title")} — ${t(prayerNameKey(state.prayer, !!isFriday))}`}
+      className={cn("mt-2 w-full max-w-[320px] px-1", state.blinking && "iqama-blink")}
+    >
       <div className="mb-1.5 flex items-center justify-between text-[13px] font-semibold leading-none">
         <span className="flex items-center gap-1.5 text-ink-dim">
           <Icon className={cn("size-4", style.text)} />
           {t(prayerNameKey(state.prayer, !!isFriday))}
         </span>
-        <span className={cn("tnum", style.text)}>
+        <span aria-hidden="true" className={cn("tnum", style.text)}>
           {t("iqama.in", { time: formatCountdown(state.iqamaTs, now, lang) })}
         </span>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-veil/[0.08]">
+      <div aria-hidden="true" className="h-2.5 w-full overflow-hidden rounded-full bg-veil/[0.08]">
         <div
           className="h-full rounded-full"
           style={{

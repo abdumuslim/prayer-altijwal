@@ -3,7 +3,7 @@
 // overlay click) in a bottom-anchored, rounded-top shell that matches the
 // design-preview mock. SlideOver stays the side panel for Settings/Search.
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -18,6 +18,7 @@ interface BottomSheetProps {
 
 export function BottomSheet({ open, onClose, title, badge, children }: BottomSheetProps) {
   const { t } = useI18n();
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -27,9 +28,13 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // A11y (Phase 8): move focus into the dialog on open, restore on close.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus();
     };
   }, [open, onClose]);
 
@@ -58,10 +63,11 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
           <div className="flex items-center gap-2">
             {badge}
             <button
+              ref={closeRef}
               type="button"
               onClick={onClose}
               aria-label={t("common.close")}
-              className="grid size-7 place-items-center rounded-lg bg-veil/5 text-ink-dim transition-colors hover:bg-veil/10 hover:text-ink"
+              className="hit-target grid size-7 place-items-center rounded-lg bg-veil/5 text-ink-dim transition-colors hover:bg-veil/10 hover:text-ink"
             >
               <X className="size-4" />
             </button>

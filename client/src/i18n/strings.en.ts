@@ -57,6 +57,8 @@ export const en = {
   "search.hint": "Search for any city worldwide",
   "search.governoratesIn": "Cities in {country}",
 
+  "nav.label": "Navigation",
+
   // Bottom navigation (v2 shell — labels user-approved)
   "nav.home": "Home",
   "nav.times": "Times",
@@ -136,6 +138,7 @@ export const en = {
   "notify.kindNotification": "Notification",
   "notify.kindAlarm": "Alarm",
   "notify.alarmSound": "Alarm tone",
+  "notify.preview": "Preview tone",
   "notify.tonesApp": "App tones",
   "notify.tonesDevice": "Device tones",
   "notify.sunnahTargets": "Sunnah & adhkar",
@@ -203,6 +206,7 @@ export const en = {
   "track.logPrayer": "Log this prayer",
   "track.adhkarChip": "Post-prayer adhkar",
   "track.done": "Done",
+  "track.scoreLabel": "Today's points {points} · {streak}-day streak",
 
   // Worship tracker — rawatib
   "rawatib.label": "Rawatib",

@@ -118,7 +118,7 @@ export function AppearanceSettings({
               onClick={() => onChangeFontScale(value)}
               aria-pressed={fontScale === value}
               className={cn(
-                "flex-1 rounded-xl py-2 text-center text-[13px] font-semibold transition-colors",
+                "hit-target flex-1 rounded-xl py-2 text-center text-[13px] font-semibold transition-colors",
                 fontScale === value ? "bg-gold/15 text-gold" : "text-ink-dim",
               )}
             >

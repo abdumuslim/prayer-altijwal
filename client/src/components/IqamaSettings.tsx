@@ -39,7 +39,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
                   aria-label={t("iqama.decrease")}
                   onClick={() => onChange(name, val - 1)}
                   disabled={val <= 0}
-                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
+                  className="hit-target grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
                 >
                   <Minus className="size-3.5" />
                 </button>
@@ -51,7 +51,7 @@ export function IqamaSettings({ iqamaMinutes, onChange }: IqamaSettingsProps) {
                   aria-label={t("iqama.increase")}
                   onClick={() => onChange(name, val + 1)}
                   disabled={val >= 60}
-                  className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
+                  className="hit-target grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-teal disabled:opacity-40"
                 >
                   <Plus className="size-3.5" />
                 </button>

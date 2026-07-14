@@ -117,7 +117,7 @@ export function AdhkarSheet({ open, onClose, today, canMark, onOpenReader, mark,
                   aria-pressed={done}
                   onClick={() => mark({ kind: "adhkar", slot, done: !done })}
                   className={cn(
-                    "grid size-8 shrink-0 place-items-center rounded-full border transition-transform active:scale-90",
+                    "hit-target grid size-8 shrink-0 place-items-center rounded-full border transition-transform active:scale-90",
                     done ? "border-teal/60 bg-teal/10 text-teal" : "border-border text-ink-faint",
                   )}
                 >

@@ -75,6 +75,7 @@ export function AlarmOverlay({ title, body, onStop }: AlarmOverlayProps) {
   return (
     <div
       role="alertdialog"
+      aria-modal="true"
       aria-label={title}
       className="animate-overlay-in fixed inset-0 z-[100] flex flex-col items-center px-6 text-center"
       style={{
@@ -93,9 +94,10 @@ export function AlarmOverlay({ title, body, onStop }: AlarmOverlayProps) {
         <span className="text-sm font-semibold tracking-wide">{title}</span>
       </div>
 
-      {/* Huge live clock — the mobile-alarm centerpiece */}
+      {/* Huge live clock — the mobile-alarm centerpiece. aria-hidden: it ticks
+          every second; title + body already announce the alarm (Phase 8). */}
       <div className="flex flex-1 flex-col items-center justify-center gap-3">
-        <div className="flex items-baseline gap-2" dir="ltr">
+        <div className="flex items-baseline gap-2" dir="ltr" aria-hidden="true">
           <span className="tnum text-[5.5rem] font-extrabold leading-none text-ink">
             {clock.time}
           </span>

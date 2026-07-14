@@ -21,8 +21,8 @@ export function Toggle({ checked, onChange, labelId }: ToggleProps) {
       aria-labelledby={labelId}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/50",
+        // Focus ring comes from the global token-driven :focus-visible rule.
+        "hit-target relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors",
         checked
           ? "border-emerald/60 bg-emerald/80"
           : "border-border-soft bg-veil/[0.06]",

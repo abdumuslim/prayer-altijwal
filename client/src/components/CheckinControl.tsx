@@ -34,9 +34,11 @@ export const CHECKIN_TONES: Record<Exclude<FardState, "unmarked">, CheckinTone> 
 
 export const CHECKIN_ORDER = ["masjid", "home", "missed"] as const;
 
-/** Fixed size of the trio popover (3× size-8 buttons + gaps + padding + border). */
-const POP_W = 122;
-const POP_H = 46;
+/** Fixed size of the trio popover (3× size-10 buttons + gaps + padding + border).
+    Phase 8: the popover trio was enlarged sm→md — it's a transient overlay, so
+    bigger visuals cost no page layout and beat overlapping hit-area expansions. */
+const POP_W = 158;
+const POP_H = 54;
 
 /** Transient text that auto-hides (tooltip semantics). */
 export function useTransientText(ms = 2500): [string | null, (t: string) => void] {
@@ -58,7 +60,9 @@ export function useTransientText(ms = 2500): [string | null, (t: string) => void
 
 export function TransientTip({ text, className }: { text: string; className?: string }) {
   return (
+    // Visual only — the confirmation is announced by TipLiveRegion (Phase 8).
     <span
+      aria-hidden="true"
       className={cn(
         "pointer-events-none absolute z-30 whitespace-nowrap rounded-lg border border-border bg-night px-2 py-1",
         "animate-fade-in text-[11px] font-bold leading-none text-ink shadow-xl",
@@ -66,6 +70,19 @@ export function TransientTip({ text, className }: { text: string; className?: st
       )}
     >
       {text}
+    </span>
+  );
+}
+
+/** Persistent polite live region announcing the check-in confirmation to screen
+    readers («في المسجد +3» …). Always mounted — swapping text into an existing
+    region is announced reliably, a freshly-inserted region often is not. This is
+    the app's ONLY live region: every other changing text is a countdown, which
+    Phase 8 deliberately silences. */
+export function TipLiveRegion({ text }: { text: string | null }) {
+  return (
+    <span role="status" className="sr-only">
+      {text ?? ""}
     </span>
   );
 }
@@ -93,12 +110,13 @@ export function CheckinIconTrio({
             key={k}
             type="button"
             aria-label={t(tone.labelKey)}
+            aria-pressed={current === k}
             onClick={(e) => {
               e.stopPropagation();
               onPick(k);
             }}
             className={cn(
-              "grid place-items-center rounded-full border transition-transform active:scale-90",
+              "hit-target grid place-items-center rounded-full border transition-transform active:scale-90",
               btn,
               tone.cls,
               current === k && "ring-2 ring-current",
@@ -112,23 +130,31 @@ export function CheckinIconTrio({
   );
 }
 
-/** The small round trigger icon — state's coloured icon, or a dashed placeholder. */
+/** The small round trigger icon — state's coloured icon, or a dashed placeholder.
+    Popover semantics (haspopup/expanded) only on the real trigger, not the
+    pointer-events-none clone rendered inside the portal. */
 function TriggerButton({
   tone,
   onClick,
+  expanded,
 }: {
   tone: CheckinTone | null;
   onClick?: () => void;
+  expanded?: boolean;
 }) {
   const { t } = useI18n();
   const Icon = tone?.icon;
+  const popupProps = onClick
+    ? ({ "aria-haspopup": "dialog", "aria-expanded": expanded === true } as const)
+    : {};
   if (tone && Icon) {
     return (
       <button
         type="button"
         aria-label={t(tone.tipKey)}
+        {...popupProps}
         onClick={onClick}
-        className={cn("grid size-6 place-items-center rounded-full border", tone.cls)}
+        className={cn("hit-target grid size-6 place-items-center rounded-full border", tone.cls)}
       >
         <Icon className="size-3.5" />
       </button>
@@ -138,8 +164,9 @@ function TriggerButton({
     <button
       type="button"
       aria-label={t("track.logPrayer")}
+      {...popupProps}
       onClick={onClick}
-      className="size-6 rounded-full border-2 border-dashed border-warning/60 transition-colors hover:border-warning"
+      className="hit-target size-6 rounded-full border-2 border-dashed border-warning/60 transition-colors hover:border-warning"
     />
   );
 }
@@ -173,10 +200,13 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
   const [rect, setRect] = useState<Rect | null>(null);
   const [tip, showTip] = useTransientText();
   const rootRef = useRef<HTMLSpanElement>(null);
+  const popRef = useRef<HTMLSpanElement>(null);
 
   // While open: Escape closes; lock body scroll and close on resize — the popover
   // is positioned from a rect measured once at open time, so a scroll/resize
-  // would otherwise detach it from the icon.
+  // would otherwise detach it from the icon. Focus moves to the current-state
+  // trio button on open and back to the trigger on close (Phase 8) — no full
+  // trap: three buttons, Escape and backdrop both close.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -188,11 +218,18 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
     window.addEventListener("orientationchange", onResize);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const trio = popRef.current;
+    (
+      trio?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]') ??
+      trio?.querySelector<HTMLButtonElement>("button")
+    )?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
       document.body.style.overflow = prevOverflow;
+      if (opener?.isConnected) opener.focus();
     };
   }, [open]);
 
@@ -232,7 +269,12 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
 
   return (
     <span ref={rootRef} className="relative inline-flex shrink-0">
-      <TriggerButton tone={tone} onClick={() => (open ? setOpen(false) : openPopover())} />
+      <TriggerButton
+        tone={tone}
+        expanded={open}
+        onClick={() => (open ? setOpen(false) : openPopover())}
+      />
+      <TipLiveRegion text={tip} />
       {tip && !open && <TransientTip text={tip} className="-top-9 left-1/2 -translate-x-1/2" />}
       {open &&
         rect &&
@@ -257,10 +299,13 @@ export function CheckinControl({ state, enabled, onMark }: CheckinControlProps) 
             </div>
             {/* The 3-icon trio, centred on the icon and clamped on-screen. */}
             <span
+              ref={popRef}
+              role="dialog"
+              aria-label={t("track.logPrayer")}
               className="card fixed z-10 flex items-center rounded-xl px-1.5 py-1.5"
               style={{ top: pos.top, left: pos.left }}
             >
-              <CheckinIconTrio size="sm" current={state} onPick={pick} />
+              <CheckinIconTrio current={state} onPick={pick} />
             </span>
           </div>,
           document.body,

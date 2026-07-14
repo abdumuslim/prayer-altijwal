@@ -104,3 +104,25 @@
     box-shadow: var(--surface-specular), var(--elev-card);
   }
 }
+
+/* ─── A11y (Phase 8): token-driven visible focus ────────────────────────────
+   Deliberately UNLAYERED: unlayered author styles beat every @layer rule, so
+   no utility (outline-none etc.) can silently suppress the ring. Wrapped in
+   :where() for zero specificity, letting the explicit opt-outs below win.
+   :focus-visible fires only for keyboard/switch/TalkBack navigation — touch
+   and mouse visuals are unchanged. Themes tune the two tokens (contrast
+   thickens to 3px #ffd54a). */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+/* Wrapper-styled inputs (CitySearch): the ring lands on the styled wrapper;
+   the inner transparent input opts out with .focus-ring-none. */
+.focus-ring-within:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+.focus-ring-none:focus-visible {
+  outline: none;
+}

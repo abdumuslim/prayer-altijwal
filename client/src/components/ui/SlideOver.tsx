@@ -1,7 +1,7 @@
 // RTL-aware slide-over sheet used by Settings / Search / Notifications.
 // Anchors to the inline-end edge (right in LTR, left in RTL) and animates in.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ interface SlideOverProps {
 
 export function SlideOver({ open, onClose, title, icon, children }: SlideOverProps) {
   const { t } = useI18n();
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,9 +26,14 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // A11y (Phase 8): move focus into the dialog on open, restore on close.
+    // (CitySearch re-focuses its own input right after — later focus wins.)
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus();
     };
   }, [open, onClose]);
 
@@ -62,10 +68,11 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
           )}
           <h2 className="text-base font-bold text-ink">{title}</h2>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="ms-auto grid size-9 place-items-center rounded-xl text-ink-dim transition-colors hover:bg-veil/5 hover:text-ink"
+            className="hit-target ms-auto grid size-9 place-items-center rounded-xl text-ink-dim transition-colors hover:bg-veil/5 hover:text-ink"
           >
             <X className="size-5" />
           </button>

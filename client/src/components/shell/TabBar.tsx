@@ -31,7 +31,7 @@ export function TabBar({ tab, onChange }: TabBarProps) {
   return (
     <nav
       className="tab-bar absolute inset-x-0 bottom-0 z-40 px-2 pt-1"
-      aria-label={t("nav.home")}
+      aria-label={t("nav.label")}
       style={{ paddingBottom: "calc(0.25rem + var(--safe-area-inset-bottom, 0px))" }}
     >
       <div className="mx-auto grid w-full max-w-xl grid-cols-4">

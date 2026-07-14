@@ -212,7 +212,7 @@ export function QiblaCompass({ location, compass }: QiblaCompassProps) {
         <button
           type="button"
           onClick={() => void start()}
-          className="flex items-center justify-center gap-2 rounded-xl border border-teal/30 bg-teal/[0.07] px-4 py-2.5 text-sm font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
+          className="hit-target flex items-center justify-center gap-2 rounded-xl border border-teal/30 bg-teal/[0.07] px-4 py-2.5 text-sm font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
         >
           <CompassIcon className="size-4" />
           {t("qibla.start")}

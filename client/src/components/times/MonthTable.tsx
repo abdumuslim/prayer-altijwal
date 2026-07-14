@@ -29,16 +29,21 @@ export function MonthTable({ days, todayKey }: MonthTableProps) {
     <section className="card overflow-hidden">
       <div className="max-h-[60dvh] overflow-y-auto overscroll-contain">
         <table className="w-full text-center text-[12px]">
+          <caption className="sr-only">{t("times.monthTitle")}</caption>
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="text-ink-dim">
-              <th className="border-b border-border-soft/60 px-1 py-2 font-semibold">
+              <th scope="col" className="border-b border-border-soft/60 px-1 py-2 font-semibold">
                 {t("times.dayCol")}
               </th>
-              <th className="border-b border-border-soft/60 px-1 py-2 font-semibold">
+              <th scope="col" className="border-b border-border-soft/60 px-1 py-2 font-semibold">
                 {t("times.hijriCol")}
               </th>
               {TIME_COLS.map((name) => (
-                <th key={name} className="border-b border-border-soft/60 px-1 py-2 font-semibold">
+                <th
+                  key={name}
+                  scope="col"
+                  className="border-b border-border-soft/60 px-1 py-2 font-semibold"
+                >
                   {t(prayerNameKey(name, false))}
                 </th>
               ))}
@@ -50,6 +55,8 @@ export function MonthTable({ days, todayKey }: MonthTableProps) {
               return (
                 <tr
                   key={row.date}
+                  // aria-current marks today for AT users (color was the only cue).
+                  aria-current={isToday ? "date" : undefined}
                   className={cn(
                     isToday
                       ? "bg-gold/15 font-bold text-gold"

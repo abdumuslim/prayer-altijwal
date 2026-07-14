@@ -274,6 +274,23 @@
   .alarm-pulse {
     animation: alarm-pulse 1s ease-in-out infinite;
   }
+
+  /* ≥48px touch target via transparent hit-area expansion — visuals unchanged
+     (docs/V2_REDESIGN_SPEC.md Phase 8.3: pad hit areas, not visuals). Cap per
+     site with --hit-w/--hit-h where a real interactive neighbor sits closer
+     than the full expansion (e.g. paired chips, delete-next-to-edit). */
+  .hit-target {
+    position: relative;
+  }
+  .hit-target::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--hit-w, max(100%, 48px));
+    height: var(--hit-h, max(100%, 48px));
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -290,7 +307,23 @@
   .alarm-pulse,
   .animate-shimmer,
   .animate-float,
-  .animate-spin-slow {
+  .animate-spin-slow,
+  .animate-bounce {
     animation: none !important;
+  }
+
+  /* Entrance transitions swap motion for their opacity-only variants instead
+     of animation:none — feedback stays, movement goes. Loader spinners
+     (animate-spin) deliberately keep spinning: a frozen spinner reads as a
+     hang, and progress indication is essential, not decorative. */
+  .animate-rise-in {
+    animation-name: fade-in !important;
+  }
+  .animate-panel-in {
+    animation-name: overlay-in !important;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }

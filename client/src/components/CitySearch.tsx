@@ -101,14 +101,17 @@ export function CitySearch({ open, onClose, onSelect, country, onUseGps, resolvi
       icon={<Search className="size-5" />}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2.5 rounded-2xl border border-border-soft bg-veil/[0.04] px-3.5 py-2.5 focus-within:border-teal/50">
+        {/* The focus ring lands on the styled wrapper (focus-ring-within); the
+            transparent inner input opts out so no box draws inside it. */}
+        <div className="focus-ring-within flex items-center gap-2.5 rounded-2xl border border-border-soft bg-veil/[0.04] px-3.5 py-2.5 focus-within:border-teal/50">
           <Search className="size-4.5 shrink-0 text-ink-dim" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("search.placeholder")}
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
+            aria-label={t("search.title")}
+            className="focus-ring-none w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
             autoComplete="off"
             spellCheck={false}
           />

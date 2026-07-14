@@ -192,8 +192,9 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                     setIsCustom(false);
                     setMinutes(m);
                   }}
+                  // Height expansion capped: preset chips wrap onto rows 6px apart.
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    "hit-target [--hit-h:calc(100%+6px)] rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     active
                       ? "border-gold/50 bg-gold/10 text-gold"
                       : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
@@ -209,7 +210,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
               type="button"
               onClick={() => setIsCustom(true)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                "hit-target [--hit-h:calc(100%+6px)] rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 isCustom
                   ? "border-gold/50 bg-gold/10 text-gold"
                   : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:text-ink",
@@ -226,26 +227,27 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
                 aria-label={t("iqama.decrease")}
                 onClick={() => setMinutes((v) => clampMinutes(v - CUSTOM_STEP))}
                 disabled={minutes <= MIN_CUSTOM}
-                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+                className="hit-target grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
               >
                 <Minus className="size-3.5" />
               </button>
               <input
                 type="text"
                 inputMode="numeric"
+                aria-label={timing === "before" ? t("notify.leadTime") : t("notify.leadTimeAfter")}
                 value={localizeNumber(minutes, lang)}
                 onChange={(e) => {
                   const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
                   if (Number.isFinite(n)) setMinutes(clampMinutes(n));
                 }}
-                className="tnum w-16 rounded-lg border border-border-soft bg-veil/[0.03] py-1.5 text-center text-sm font-semibold text-ink outline-none focus:border-gold/50"
+                className="tnum w-16 rounded-lg border border-border-soft bg-veil/[0.03] py-1.5 text-center text-sm font-semibold text-ink focus:border-gold/50"
               />
               <button
                 type="button"
                 aria-label={t("iqama.increase")}
                 onClick={() => setMinutes((v) => clampMinutes(v + CUSTOM_STEP))}
                 disabled={minutes >= MAX_CUSTOM}
-                className="grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
+                className="hit-target grid size-7 place-items-center rounded-lg border border-border-soft bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold disabled:opacity-40"
               >
                 <Plus className="size-3.5" />
               </button>
@@ -263,7 +265,7 @@ export function AlertForm({ initial, busy, onSave, onCancel }: AlertFormProps) {
           <button
             type="button"
             onClick={toggleAllFard}
-            className="text-[11px] font-semibold text-teal hover:underline"
+            className="hit-target text-[11px] font-semibold text-teal hover:underline"
           >
             {allFardOn ? t("notify.clearAll") : t("notify.selectAll")}
           </button>

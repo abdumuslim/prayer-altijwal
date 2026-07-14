@@ -55,7 +55,12 @@ export function SatelliteRing({
         side === "right" ? "right-1" : "left-1",
         !active && !done && "opacity-50 grayscale-[0.35]",
       )}
-      aria-label={`${label}: ${time}`}
+      // A11y (Phase 8): STABLE name — the old `label: time` interpolation made
+      // TalkBack re-announce every second. The ticking span below is aria-hidden,
+      // so the visible label names the element; div-mode carries no widget
+      // semantics (a labeled non-interactive div is a dangling label).
+      aria-label={onClick ? label : undefined}
+      aria-pressed={onClick ? !!done : undefined}
     >
       <span className="text-[11px] font-bold leading-none" style={{ color }}>
         {label}
@@ -85,6 +90,7 @@ export function SatelliteRing({
       {/* When the window isn't active the time points at the NEXT day's window —
           keep it disabled-looking even when the disc itself shows done. */}
       <span
+        aria-hidden="true"
         className={cn(
           "tnum whitespace-nowrap text-[11px] font-bold leading-none",
           !active && "opacity-50",

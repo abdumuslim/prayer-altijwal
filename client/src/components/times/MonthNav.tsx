@@ -63,7 +63,7 @@ export function MonthNav({ monthKey, data, isCurrentMonth, onPrev, onNext, onRes
           <button
             type="button"
             onClick={onReset}
-            className="rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-semibold text-gold"
+            className="hit-target rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-semibold text-gold"
           >
             {t("times.thisMonth")}
           </button>
@@ -92,7 +92,7 @@ function NavBtn({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-xl border border-border-soft/60",
+        "hit-target grid size-9 shrink-0 place-items-center rounded-xl border border-border-soft/60",
         "bg-veil/[0.03] text-ink-dim transition-colors hover:text-gold",
       )}
     >

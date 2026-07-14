@@ -111,9 +111,10 @@ export function AlarmSoundPicker({ selected, onSelect }: AlarmSoundPickerProps) 
         <button
           type="button"
           onClick={onPreviewToggle}
-          aria-label={t("notify.alarmSound")}
+          aria-label={t("notify.preview")}
+          aria-pressed={isPlaying}
           className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-xl border transition-colors",
+            "hit-target [--hit-w:calc(100%+8px)] grid size-9 shrink-0 place-items-center rounded-xl border transition-colors",
             isPlaying
               ? "border-gold/50 bg-gold/15 text-gold"
               : "border-border-soft/60 bg-veil/[0.02] text-ink-dim hover:bg-veil/[0.05]",
