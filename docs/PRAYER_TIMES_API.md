@@ -90,10 +90,32 @@ GET /api/geo/search?q={text}&lang={ar|en}
 
 GET /api/geo/governorates?country={ISO-2}
   → { governorates: [ { name, nameAr, country, admin1, tz, lat, lon, elevation, population } ] }   // one capital per admin-1
+
+GET /api/geo/declination?lat={n}&lon={n}
+  → { declinationDeg }   // magnetic declination, +E of true north (WMM-2025 via `geomagnetism`)
 ```
 
 `cityAr`/`nameAr` are the Arabic-script names (or `null`). `governorates` is the quick-pick that
 replaced the manual method override (most-populous city per admin-1 division). Detail in `GEOCODING.md`.
+`declination` feeds the WEB qibla-compass paths only (the native app uses Android's built-in
+`GeomagneticField`); the client caches it per ~10 km grid in localStorage — stale beats none
+(`docs/QIBLA_MASJID_SPEC.md` §5c). Tested against NOAA's official WMM-2025 test vectors.
+
+---
+
+## Places endpoints (nearest masjid — `QIBLA_MASJID_SPEC.md` §6a)
+
+```
+GET /api/places/masjids?lat={n}&lon={n}
+  → { enabled: false, masjids: [] }                    // no GOOGLE_MAPS_API_KEY configured server-side
+  → { enabled: true,  masjids: [ { id, name, lat, lon, address } ] }   // ≤10, distance-ranked, 5 km circle
+  → { enabled: true,  masjids: [], degraded: true }    // upstream failure/timeout — NOT cached, client shows error
+```
+
+Server-side proxy over Google Places API (New) `places:searchNearby` (`includedTypes: ["mosque"]`,
+`languageCode: ar`, 5 s timeout, minimal field mask) — **the key never reaches the client**.
+Responses are cached in-memory per ~300 m grid cell (TTL 24 h, LRU-capped 500 entries) to bound the
+paid-SKU spend. Invalid lat/lon → 400. The client hides the whole section when `enabled: false`.
 
 ---
 

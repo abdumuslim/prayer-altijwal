@@ -409,3 +409,54 @@ compute. Full detail: `NATIVE_ALARM_SPEC.md`. Frontend-relevant pieces:
 - The full-screen **ring** is a **native `AlarmActivity`** (not the web `AlarmOverlay`); the web overlay
   (§9) still handles the in-app foreground case and is opened from the native activity's `?alarm=` deep
   link.
+
+## 11. Times tab: qibla + nearest masjid (2026-07-14 — `QIBLA_MASJID_SPEC.md`)
+
+Order (user-approved): today strip (with check-ins) → `qibla/QiblaCompass` → `masjid/NearestMasjids`
+→ month table DEMOTED into a collapsed `CollapsibleSection` («الجدول الشهري», default closed).
+`CollapsibleSection` grew a controlled mode (`open`/`onToggle`) so `useMonthTimes` is gated on
+`active && monthOpen` — nothing fetches while the section is closed.
+
+- **`useCompassHeading` lives in TimesPage** (ONE sensor stream shared by the compass card and the
+  masjid bearing arrows) and stops whenever the tab loses `active` (keep-mounted tabs) or the
+  document hides. Accuracy chain: native `Compass` plugin (fused ROTATION_VECTOR + GeomagneticField,
+  display-rotation remapped, ~20 Hz) → `deviceorientationabsolute` (W3C tilt-compensated formula +
+  `/api/geo/declination`, cached per ~10 km in `prayer.declination.v1`) → iOS `webkitCompassHeading`
+  (requestPermission MUST run inside the start-button tap — it is the FIRST await in `start()`) →
+  `unavailable` = static mode (fixed rose, arrow at true bearing — never a needle from relative
+  sensors). Headings smoothed on the unit circle (sin/cos EMA), emitted ≤20 Hz; the component
+  unwraps angles so CSS transitions never spin the long way at 359→0.
+- **`lib/qibla.ts`** is pure math (KAABA const, great-circle `bearingToKaaba` — Baghdad ≈ 199.8°,
+  `haversineKm` mirroring `server/src/util/geo-distance.ts`). Lock-on at ±3°: gold ring + one
+  haptic per alignment entry (`Compass.pulse()` native / `navigator.vibrate` web) + an aria-live
+  announcement.
+- **`NearestMasjids`** is gated on `location.source === "gps"` (additive `StoredLocation.source`
+  migration; `requestGps` now accepts `PositionOptions` — the section passes
+  `{enableHighAccuracy:true, maximumAge:0}`). `enabled:false` from the proxy hides the section
+  entirely; `degraded:true` shows the error state and clears the fetch memo so the next visit
+  retries. Rows: distance («850 م» / «1.2 كم», Latin digits), live bearing arrow, Maps/Waze deep
+  links (`<a target="_blank" rel="noopener">`).
+
+## 12. Accessibility system (Phase 8, 2026-07-14 — ADR-010)
+
+- **Focus**: one UNLAYERED `:focus-visible` rule in `styles/surfaces.css` consumes
+  `--focus-ring-width/--focus-ring-color` (night 2px teal, contrast 3px gold). Never add
+  `outline-none` without `.focus-ring-within` (wrapper inputs) / `.focus-ring-none` (inner opt-out).
+- **Touch targets**: `.hit-target` (index.css) expands hit areas to ≥48 px via a transparent
+  ::after; cap with `--hit-w`/`--hit-h` when a real neighbor sits closer (AlertRuleList delete must
+  never cover edit). Known documented exception: ScorePill caps at 38 px (Qiyam satellite overlap).
+- **Countdowns are silent**: every per-second text (hero clock, satellites, iqama, alarm clock) is
+  `aria-hidden` inside a stable-named container (IqamaBar = `role="timer"`). The app has exactly ONE
+  live region — `TipLiveRegion` in CheckinControl (check-in confirmations); keep it that way.
+- **Dialogs**: BottomSheet/SlideOver/check-in popover move focus in on open and restore on close;
+  no full trap (deliberate — aria-modal + Escape + backdrop suffice). lucide icons need no
+  aria-hidden sweep (the lib injects it on childless icons).
+- **Font scale**: `data-font-scale` steps 1/1.125/1.25 (pre-paint boot in index.html). At 1.25 the
+  px-fixed hero/TopBar/event rows pin their type via `fs125-*` classes (index.css, unlayered) and
+  page cards get `flex-shrink: 0` — the extreme state scrolls instead of clipping (acceptance is
+  "unclipped" at أكبر; strict no-scroll holds at normal scale). Android: MainActivity caps WebView
+  `textZoom` at 130% of the system scale.
+- **Per-theme contrast**: axe (devDep `axe-core`, injected via Playwright MCP `/@fs/`) must stay at
+  ZERO violations; translucent themes file contrast as "incomplete" — resolve at TOKEN level
+  against composited backdrops (glass mid = #dfe9f6). Every glass accent is AA-darkened; contrast
+  theme splits critical/imminent (near-white #ffd1d1); night ink-faint = #75988f (user-approved).

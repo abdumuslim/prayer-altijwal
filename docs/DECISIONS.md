@@ -267,3 +267,37 @@ and a dead `0.0.0` in package.json — no discipline for the updates that closed
 listings, bug reports, and docs in sync. Deliberately NOT wired: gradle reading package.json at
 build time (over-engineering; versionCode ≠ semver anyway) and CI automation (manual releases for
 now — procedure in `PLAY_RELEASE.md` §Post-launch).
+
+## ADR-009 — Qibla + nearest masjid: accuracy-first compass, server-proxied Places ✅
+
+**Decision (2026-07-13, built 2026-07-14).** The Times tab hosts a qibla compass and a
+nearest-masjid list (`QIBLA_MASJID_SPEC.md`). Compass accuracy is the differentiator: native uses
+the fused ROTATION_VECTOR sensor + Android''s built-in WMM declination (true north,
+tilt-compensated); web uses absolute orientation + a server WMM-2025 endpoint
+(`/api/geo/declination`, `geomagnetism` package); with no absolute source the card degrades to
+static guidance — a needle is NEVER animated from relative sensors. Masjid data comes from Google
+Places API (New) behind a server proxy (`/api/places/masjids`): the key lives only in the VPS
+`.env` (optional even in production — absent ⇒ `enabled:false` and the client hides the section),
+responses cached per ~300 m grid (TTL 24 h, LRU 500) to bound the paid SKU, and the section is
+gated on a REAL GPS fix (`StoredLocation.source === "gps"`) — searching from the Baghdad default
+would mislead. Directions are deep links (Maps/Waze), no SDK, no map render. The month table was
+demoted into a collapsed section whose open state gates its lazy fetch.
+
+**Why.** Generic web qibla compasses are wrong in three stacking ways (relative alpha, no
+declination — ~4–5°E in Iraq, no tilt compensation); being honest about capability (static mode,
+accuracy chip, calibration prompt) beats a confident-but-fake needle. The server proxy keeps the
+paid key out of the bundle and the grid cache keeps cost inside the free tier.
+
+## ADR-010 — Phase-8 accessibility architecture ✅
+
+**Decision (2026-07-14).** A11y is enforced at the SYSTEM level, not per component: one unlayered
+token-driven `:focus-visible` rule (themes tune `--focus-ring-*`; contrast = 3px); one `.hit-target`
+utility (transparent ::after expansion to ≥48 px, capped per site where real neighbors sit closer);
+countdowns are aria-hidden with stable container names (a ticking text is never announced); exactly
+ONE live region exists (`TipLiveRegion` — check-in confirmations); sheets move focus in and restore
+it without a full trap (aria-modal scopes SR cursors; Escape + backdrop close). Contrast is audited
+per THEME at token level (translucent surfaces defeat axe — ratios are computed against composited
+backdrops) with axe as the zero-violations gate; per-theme fixes are token edits, never component
+forks. At fontScale أكبر the acceptance flips from "no scroll" to "no CLIP": px-fixed geometry
+(hero ring, TopBar rows) pins its type via fs125-* caps and cards get flex-shrink-0 so the page
+scrolls the overflow instead of silently clipping controls.

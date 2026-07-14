@@ -1,13 +1,17 @@
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
-> **Status: SPEC'D 2026-07-13 — NOT built.** Written for a fresh session to execute standalone,
-> phase-by-phase; each phase ends with commands that must pass. Lands after (or interleaved with)
-> the v2 P8–P10 remainder — it does not block the v2.0.0 release and may ship as **v2.1**.
-> Read `FRONTEND.md` (client structure + gotchas), `V2_REDESIGN_SPEC.md` (shell/theme
-> architecture), `PRAYER_TIMES_API.md`, `GEOCODING.md` first. **User prerequisite for Phase QM4:
-> a new Google Maps Platform API key (§8) — no usable key exists anywhere today (verified: the
-> hermes project holds only Workspace OAuth tokens + Gemini AI-Studio keys, which cannot
-> authorize Places).**
+> **Status: BUILT 2026-07-14 (session 4) — all of QM1–QM5 implemented alongside v2 Phase 8.**
+> As-built: `lib/qibla.ts` + reference-city tests · `GET /api/geo/declination` (WMM-2025 via the
+> `geomagnetism` package — it DID carry the 2025 coefficients, no vendoring needed; NOAA
+> test-vector snapshot tests) · `useCompassHeading` (native → web-absolute → iOS → static) ·
+> `QiblaCompass` + `NearestMasjids` in a restructured Times tab (strip → qibla → masjids → month
+> table DEMOTED into a collapsed `CollapsibleSection`, `useMonthTimes` gated on section-open) ·
+> `CompassPlugin.java` (ROTATION_VECTOR + GeomagneticField, display-rotation remap, `pulse()`
+> haptic) · `server/src/places/` proxy per §6a (+`degraded: true` on upstream failure so the
+> client can tell error from empty) · `StoredLocation.source` migration ("gps"|"search"|"default").
+> Layout + all §7 strings user-approved 2026-07-14. **Outstanding:** live proxy verification with
+> the real `GOOGLE_MAPS_API_KEY` (user creates it — §8), real-device compass accuracy (QM3 gate;
+> emulator sensors are synthetic), Maps/Waze chooser check on the emulator.
 
 ## 1. Goal
 

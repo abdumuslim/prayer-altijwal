@@ -15,9 +15,18 @@ from 2.0.0 (client `package.json` is the source of truth; Android `versionName` 
 - Dedicated Reports page (التقارير): today ring + category bars, trend chart (أسبوع/شهر/أشهر),
   62-day heatmap, per-prayer breakdown, lifetime totals — replaces the stats bottom sheet.
 - Monthly prayer-times table (server `GET /api/prayer-times/month`; computed
-  offline on Android).
-- (in progress) Accessibility package: WCAG contrast, ≥48px targets, ARIA labels, focus states,
-  reduced motion, in-app font-size setting, system font scale.
+  offline on Android) — now collapsed by default inside المواقيت.
+- Qibla compass (اتجاه القبلة) in المواقيت: true-north heading via the fused native sensor
+  (Android) or absolute web orientation + WMM-2025 declination (`GET /api/geo/declination`);
+  ±3° gold lock-on with haptic; honest static-guidance mode when no absolute sensor exists.
+- Nearest masjids (أقرب المساجد): closest mosques around a real GPS fix via a server-side
+  Google Places proxy (`GET /api/places/masjids`, key never in the client), with distance,
+  live bearing arrows and Google Maps / Waze deep links.
+- Accessibility package: axe-clean WCAG-AA contrast in all four themes (glass accents
+  re-derived, contrast theme colorblind-safer proximity split), token-driven focus rings,
+  ≥48 px touch targets, ARIA sweep (stable names for ticking countdowns, dialog focus
+  management, live-region check-in confirmations), extended reduced-motion, in-app font-size
+  setting with a no-clip re-tune at أكبر, Android system font scale (capped 130%).
 - (in progress) Android home-screen widget: next prayer + live countdown.
 
 ### Changed

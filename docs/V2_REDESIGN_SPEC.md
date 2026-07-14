@@ -1,16 +1,33 @@
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
-> **Status (CHECKPOINT 2026-07-14, session 3): Phases 0–7 BUILT. P7 shipped
-> (`cd021b9` + `1d76780`): glass fidelity ROUND 3 (real translucency + edge lensing + depth —
-> built against live user feedback; **translucency APPROVED by the user 2026-07-14**),
-> material tonal fixes, kashi DROPPED, tab bar became an OVERLAY, native AlarmActivity theming
-> emulator-verified. NEXT: Phase 8 (a11y) — carry into it: the full axe pass (P7 did a
-> token-level spot-check; glass gold already darkened to AA 4.9:1), glass proximity-amber
-> contrast on light surfaces, and a real-device glass perf spot-check (emulator: 3.19% janky
-> frames on Reports fling).** Branch `feat/v2-redesign`. Gates green at checkpoint: client
-> build, server 138 tests, engine findstr gate, assembleDebug, and an emulator round (install →
-> Settings theme switch → app-killed themed alarm via the documented FIRE_ALARM broadcast —
-> `NATIVE_ALARM_FIXES_SPEC.md` §appendix has the AVD/broadcast how-to). v1 protected: git tag
+> **Status (CHECKPOINT 2026-07-14, session 4): Phases 0–8 BUILT + the full Qibla/Masjid feature
+> (`QIBLA_MASJID_SPEC.md` QM1–QM5 — see its status header for the as-built summary).**
+> **P8 as-built:** token-driven `:focus-visible` (UNLAYERED rule in `surfaces.css` wiring the
+> existing `--focus-ring-*` tokens; `.focus-ring-within`/`.focus-ring-none` for wrapper inputs) ·
+> `.hit-target` utility (transparent ::after expansion, capped per site via `--hit-w/--hit-h`)
+> applied across ~20 components (check-in popover trio enlarged sm→md instead — transient
+> overlay; ScorePill capped at 38 px — full 48 would overlap the Qiyam satellite, documented
+> exception) · ARIA sweep (aria-pressed trio, popover role=dialog + focus round-trip, ONE
+> sr-only `TipLiveRegion` for check-in confirmations, ticking texts aria-hidden with stable
+> names, MonthTable scope/caption/aria-current="date", BottomSheet/SlideOver initial-focus +
+> restore-focus [no trap — deliberate], AlarmOverlay aria-modal, TabBar nav label fixed
+> nav.home→nav.label, lucide already aria-hides childless icons — NO icon sweep needed) ·
+> reduced-motion extended (entrances → fade-only, bounce frozen, scroll-behavior auto; spinners
+> deliberately keep spinning) · MainActivity textZoom = min(system, 1.3)×100 · **axe audit:
+> ZERO violations, 4 themes × 4 tabs** (axe-core devDep injected via Playwright MCP /@fs/;
+> translucent surfaces file as "incomplete" → resolved by token math: glass accents all
+> darkened to ≥4.5:1 vs the #dfe9f6 mid backdrop — USER-APPROVED; found+fixed a real
+> double-dim bug: SatelliteRing stacked two opacity-50s = 1.5:1) · contrast theme proximity
+> split (imminent → near-white #ffd1d1, colorblind-safer — APPROVED) · night --color-ink-faint
+> #5c8079→#75988f (4.5:1 on card — APPROVED lighten) · fontScale أكبر re-tune: fs125-* capped
+> type for px-fixed hero/TopBar/event rows + flex-shrink-0 at 1.25 so the extreme state
+> (360×740, all features, check-in open) SCROLLS ~100px instead of clipping (normal scale
+> keeps strict no-scroll — verified 0px both viewports).
+> **NEXT: P9 widget (or drop to v2.1) · P10 docs+upload · consolidated EMULATOR pass (see
+> Remaining) · LIVE places-proxy check once the user's GOOGLE_MAPS_API_KEY lands (config wired,
+> disabled-mode tested) · real-device compass accuracy + glass perf (user-assisted).**
+> Branch `feat/v2-redesign`. Gates green at checkpoint: client build + 107 client tests,
+> server 162 tests, engine findstr gate, assembleDebug. v1 protected: git tag
 > `v1.0` (= `38c23db^`) + AAB archived at `D:\keys\releases\prayer-v1.0-vc1.aab` (the gradle
 > output copy is overwrite-prone).
 >
@@ -63,11 +80,15 @@
 > follow the theme (ONLY that — see the session-2 correction above) · Times today
 > section = compact strip with check-ins (vertical space is precious).
 >
-> **Remaining:** P8 a11y audit (ARIA sweep, ≥48px targets, axe contrast per theme + the P7
-> carry-ins above, system font scale, TalkBack) · P9 widget · P10 docs sweep (FRONTEND §shell/
-> §theme-engine rewrite incl. the P7 architecture notes above) + closed-track upload · security
-> review (task #12) · consolidated EMULATOR pass still owed: back-chain, airplane-mode month
-> table, `?alarm=` deep link, first-run flows.
+> **Remaining:** P9 widget (droppable to v2.1) · P10 docs sweep (FRONTEND §shell/§theme-engine
+> rewrite incl. the P7 architecture notes above) + closed-track upload · security review over
+> the new endpoints (places proxy + declination — key server-only, no detail leaks; formal pass
+> before upload) · consolidated EMULATOR pass still owed: back-chain, airplane-mode month table
+> (+ masjid offline error state), `?alarm=` deep link, first-run flows, system font-scale cap
+> (1.0/1.3/2.0 → textZoom ≤130), TalkBack smoke (hero announces once, live-region check-in
+> confirmation, month-table headers + today), compass start/stop lifecycle (tab switch + app
+> pause), Maps/Waze chooser · real-device: compass accuracy (±3° target; emulator sensors are
+> synthetic) + glass 60fps perf spot-check.
 >
 > Written to be executed phase-by-phase by any implementer; each phase ends with commands that
 > must pass. Read `FRONTEND.md` (v1 UI + gotchas), `PRAYER_TIMES_API.md`, `NATIVE_ALARM_SPEC.md`,
