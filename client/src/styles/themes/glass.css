@@ -30,28 +30,32 @@ html[data-theme="glass"] {
   --color-border-soft: rgba(255, 255, 255, 0.6);
   --color-ink: #10263a;
   --color-ink-dim: #3f5d75;
-  --color-ink-faint: #7089a0;
+  --color-ink-faint: #576b7d; /* P8 audit: was #7089a0 (2.97:1) — hint text is body-size */
   --color-veil: #0d2233; /* subtle fills flip to dark-on-light */
   --color-scrim: #22364a;
   --color-on-accent: #ffffff;
 
-  /* Brand accents — vivid but cool-leaning (glass wants clean chroma) */
-  --color-teal: #0b9488;
-  --color-emerald: #0a9469;
+  /* Brand accents — deep but cool-leaning. P8 token audit (2026-07-14): every
+     accent renders somewhere as SMALL text over the glass surfaces, so each is
+     darkened until ≥4.5:1 against the mid backdrop #dfe9f6 (hue preserved;
+     computed compositing the sheen over the scene — axe files these as
+     "incomplete" through translucency, so the audit is token-mathematical). */
+  --color-teal: #09736a; /* was #0b9488 (3.05:1) */
+  --color-emerald: #087654; /* was #0a9469 (3.14:1) */
   --color-emerald-deep: #0f766e;
   --color-mint: #0f766e;
   /* Gold darkened round 3: #b07a10 was 3.4:1 on the light surface (fails
-     small-text AA); #8f6209 ≈ 4.9:1. P8 audits the rest per-element. */
-  --color-gold: #8f6209;
+     small-text AA); P8 nudged it once more for the mid backdrop. */
+  --color-gold: #8c6009; /* was #8f6209 (4.37:1 mid) */
   --color-gold-soft: #7d5507;
-  --color-amber: #d98a06;
-  --color-indigo: #5b64f2;
-  --color-sky: #0a84d0;
-  --color-safe: #0a9469;
-  --color-warning: #a8650b;
-  --color-urgent: #cf4708;
-  --color-critical: #e11d48;
-  --color-imminent: #e11d48;
+  --color-amber: #8f5b04; /* was #d98a06 (2.26:1 — the Duha satellite text) */
+  --color-indigo: #5058d5; /* was #5b64f2 (3.76:1) */
+  --color-sky: #086cab; /* was #0a84d0 (3.28:1) */
+  --color-safe: #087654;
+  --color-warning: #94590a; /* was #a8650b (3.78:1) */
+  --color-urgent: #b63e07; /* was #cf4708 (3.76:1) */
+  --color-critical: #ca1a41; /* was #e11d48 (3.83:1) */
+  --color-imminent: #ca1a41;
 
   /* Scene — RESTRAINED (user, round 3b: "too much color"): one analogous cool
      family (azure → blue-teal → blue-indigo), structure comes from LUMINANCE,

@@ -56,7 +56,7 @@ export function TopBar({
       {/* start: current time (settings moved to the bottom tab bar) */}
       <div className="flex min-w-0 items-center justify-self-start">
         {time && (
-          <span className="tnum shrink-0 text-2xl font-bold text-ink">{time}</span>
+          <span className="fs125-26 tnum shrink-0 text-2xl font-bold text-ink">{time}</span>
         )}
       </div>
 
@@ -69,7 +69,7 @@ export function TopBar({
         className="hit-target group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-veil/5"
       >
         <span className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-lg font-semibold text-ink">{cityLabel}</span>
+          <span className="fs125-19 truncate text-lg font-semibold text-ink">{cityLabel}</span>
           <ChevronDown className="size-3.5 shrink-0 text-ink-dim transition-colors group-hover:text-gold" />
         </span>
       </button>
@@ -77,8 +77,10 @@ export function TopBar({
       {/* end: both dates — centred stacked column, sized up to fill the row */}
       {data ? (
         <div className="flex min-w-0 flex-col items-center justify-self-end leading-tight">
-          <span className="truncate text-base font-bold text-gold">{data.hijriDate}</span>
-          {gregorian && <span className="truncate text-sm text-ink-dim">{gregorian}</span>}
+          <span className="fs125-17 truncate text-base font-bold text-gold">{data.hijriDate}</span>
+          {gregorian && (
+            <span className="fs125-15 truncate text-sm text-ink-dim">{gregorian}</span>
+          )}
         </div>
       ) : (
         <span className="justify-self-end" />

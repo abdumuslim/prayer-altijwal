@@ -327,3 +327,39 @@
     scroll-behavior: auto;
   }
 }
+
+/* أكبر (1.25) compensations (P8): the hero ring, TopBar row and event strip
+   are px-tuned geometry (fixed 172px ring, 3-col grids) — at the top scale
+   their type is pinned to design size +~8% so nothing wraps into the ring or
+   collides across columns; flowing content (lists, month table, reports,
+   sheets, settings) still scales the full 25%. Class name = effective px.
+   UNLAYERED so they beat the text-* utilities without !important. */
+html[data-font-scale="1.25"] .fs125-32 {
+  font-size: 1.6rem;
+}
+html[data-font-scale="1.25"] .fs125-26 {
+  font-size: 1.3rem;
+}
+html[data-font-scale="1.25"] .fs125-19 {
+  font-size: 0.95rem;
+}
+html[data-font-scale="1.25"] .fs125-17 {
+  font-size: 0.85rem;
+}
+html[data-font-scale="1.25"] .fs125-15 {
+  font-size: 0.75rem;
+}
+/* The hero column's remaining rem growth (header row + gaps) would push the
+   check-in row past the card's bottom edge on 360×740 — reclaim it from the
+   hero card's vertical padding at this scale only. */
+html[data-font-scale="1.25"] .card-hero {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+/* And never let flex squeeze a card into its own overflow-hidden clip at this
+   scale: the page column (already overflow-y-auto) scrolls the few extra px
+   instead. Acceptance is "أكبر keeps Home UNCLIPPED" — unclipped beats
+   no-scroll at the top scale; normal scale keeps the strict no-scroll budget. */
+html[data-font-scale="1.25"] .breath-driver > div > * {
+  flex-shrink: 0;
+}

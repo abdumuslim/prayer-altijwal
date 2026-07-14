@@ -88,12 +88,14 @@ export function SatelliteRing({
         </div>
       )}
       {/* When the window isn't active the time points at the NEXT day's window —
-          keep it disabled-looking even when the disc itself shows done. */}
+          keep it disabled-looking even when the disc itself shows done. Dim only
+          when the WRAPPER doesn't already (done-mode): stacking both halved the
+          text to 25% opacity — a 1.5:1 contrast bug the P8 axe run caught. */}
       <span
         aria-hidden="true"
         className={cn(
           "tnum whitespace-nowrap text-[11px] font-bold leading-none",
-          !active && "opacity-50",
+          !active && done && "opacity-50",
         )}
         style={{ color }}
       >

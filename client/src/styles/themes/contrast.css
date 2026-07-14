@@ -30,11 +30,15 @@ html[data-theme="contrast"] {
   --color-amber: #ffb938;
   --color-indigo: #b4bcff;
   --color-sky: #7dd3fc;
+  /* Proximity set (P8): colorblind-safer — lightness carries the ordering, and
+     the top band is SPLIT (critical vs imminent were the same hue): imminent
+     flashes near-white pink, unmistakable even with no red/green perception.
+     All ≥7:1 on the black surfaces (AAA-leaning per the theme contract). */
   --color-safe: #6ee7b7;
   --color-warning: #ffd54a;
   --color-urgent: #ffa94d;
   --color-critical: #ff8080;
-  --color-imminent: #ff8080;
+  --color-imminent: #ffd1d1;
 
   /* Scene — pure black, no texture */
   --bg-scene: #000000;

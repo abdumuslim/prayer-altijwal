@@ -40,11 +40,11 @@ export function NextEvent({ event, now, tz }: NextEventProps) {
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
       {/* start: label */}
       <div className="flex min-w-0 items-center gap-2 justify-self-start">
-        <span className="truncate text-sm font-medium text-ink-dim">{t("event.next")}</span>
+        <span className="fs125-15 truncate text-sm font-medium text-ink-dim">{t("event.next")}</span>
       </div>
 
       {/* center: event name — truly centred (auto column between equal 1fr sides) */}
-      <span className="min-w-0 justify-self-center truncate text-center text-base font-bold text-ink">
+      <span className="fs125-17 min-w-0 justify-self-center truncate text-center text-base font-bold text-ink">
         {localizedName}
       </span>
 

@@ -201,7 +201,7 @@ export function NextPrayerCountdown({
 
       <div className="relative flex flex-col items-center gap-2">
         <div className="flex items-center justify-center gap-2 text-center">
-          <span className={cn("text-base font-semibold", style.text)}>
+          <span className={cn("fs125-17 text-base font-semibold", style.text)}>
             {next.msUntil <= 0 ? t("next.now") : t("next.header")}
           </span>
           {next.tomorrow && (
@@ -220,7 +220,7 @@ export function NextPrayerCountdown({
           {/* Height-constrained column so the three lines breathe (justify-between)
               while staying inside the ring's inscribed area — never touching it. */}
           <div className="flex h-[58%] flex-col items-center justify-between text-center">
-            <span className="text-2xl font-bold leading-none text-gold">
+            <span className="fs125-26 text-2xl font-bold leading-none text-gold">
               {t(prayerNameKey(next.name as PrayerName, !!isFriday))}
             </span>
             {/* A11y (Phase 8): the per-second clock is hidden from screen
@@ -229,13 +229,13 @@ export function NextPrayerCountdown({
             <span
               aria-hidden="true"
               className={cn(
-                "tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
+                "fs125-32 tnum text-[1.85rem] font-extrabold leading-none tracking-tight",
                 style.text,
               )}
             >
               {clock}
             </span>
-            <span className="text-base leading-none text-ink-dim">
+            <span className="fs125-17 text-base leading-none text-ink-dim">
               {localizeTimeString(next.time, lang)}
             </span>
           </div>
