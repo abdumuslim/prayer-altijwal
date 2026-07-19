@@ -5,7 +5,10 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
-## [2.0.0] — unreleased (versionCode 2)
+## [2.0.0] — 2026-07-14 (versionCode 2)
+
+Web half deployed to https://prayer.altijwal.com; signed Android AAB packaged for the existing
+closed track (upload/rollout is the last human step). P9 home-screen widget deferred to v2.1.
 
 ### Added
 - 4-tab bottom navigation — الرئيسية · المواقيت · التقارير · الإعدادات — replacing
@@ -27,10 +30,17 @@ from 2.0.0 (client `package.json` is the source of truth; Android `versionName` 
   ≥48 px touch targets, ARIA sweep (stable names for ticking countdowns, dialog focus
   management, live-region check-in confirmations), extended reduced-motion, in-app font-size
   setting with a no-clip re-tune at أكبر, Android system font scale (capped 130%).
-- (in progress) Android home-screen widget: next prayer + live countdown.
 
 ### Changed
 - Semantic versioning adopted; app version surfaced in Settings → About.
+
+### Security
+- Places proxy: global per-minute upstream budget breaker + `rel="noopener noreferrer"` on
+  masjid deep links (pre-release security review; ADR-011). Maps key server-only, never in the
+  client/logs/error responses.
+
+### Deferred to v2.1
+- Android home-screen widget (next prayer + live countdown).
 
 ## [1.0] — 2026-07 (versionCode 1)
 

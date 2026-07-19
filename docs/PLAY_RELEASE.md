@@ -282,15 +282,31 @@ declarations.
    and ships native exact alarms + full-screen ring + boot rescheduling. State this in the review
    notes proactively.
 
+## Release history / archived artifacts
+
+Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped build to
+`D:\keys\releases\` and treat that as canonical:
+
+| Version | versionCode | Artifacts (`D:\keys\releases\`) | Notes |
+|---|---|---|---|
+| 1.0 | 1 | `prayer-v1.0-vc1.aab` | first closed-track release |
+| 2.0.0 | 2 | `prayer-v2.0.0-vc2.aab` · `prayer-v2.0.0-vc2-release.apk` · `prayer-v2.0.0-vc2-debug.apk` | built + signed 2026-07-14; web half deployed to prod; AAB queued for the SAME closed track (does not reset the 12×14 clock). Release APK is for device testing; debug APK for `chrome://inspect`. |
+
+**Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
+will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
+signature mismatch). Uninstall the Play build first (wipes on-device app data: worship log,
+settings — all local); reinstall from Play once the track updates.
+
 ## Post-launch updates
 
 ```powershell
 # 1. bump client/package.json version (semver — MAJOR/MINOR/PATCH by change size)
-# 2. mirror into versionName + bump versionCode (+1) in client/android/app/build.gradle
+# 2. mirror into versionName + bump versionCode (+1 → next is 3) in client/android/app/build.gradle
 # 3. add the CHANGELOG.md entry, then:
 cd D:\dev\prayer\client; npm run build; npx cap sync android
-cd android; .\gradlew.bat bundleRelease
-# upload app-release.aab to the target track → roll out
+cd android; .\gradlew.bat bundleRelease         # AAB for Play
+# (optional) .\gradlew.bat assembleRelease       # signed APK for device testing
+# copy outputs to D:\keys\releases\, then upload the AAB to the target track → roll out
 ```
 
 ## 2025/2026 changes already handled / not applicable

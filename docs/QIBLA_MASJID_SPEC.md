@@ -245,17 +245,28 @@ layout variants live before building final; screenshot per theme × 390/360 afte
 
 Every key mirrors into `strings.en.ts` (the `StringKey` source of truth).
 
-## 8. GCP setup (user steps — prerequisite for QM4 only)
+## 8. GCP setup (user steps) — DONE + LIVE 2026-07-14; the key is on prod
 
-1. console.cloud.google.com → pick a project (an existing hermes one is fine, e.g. the personal
-   project) → **enable "Places API (New)"** → billing must be enabled on the project.
+1. console.cloud.google.com → pick a project → **enable "Places API (New)"** → billing must be
+   enabled on the project.
 2. Credentials → **Create API key** → restrict it: *API restriction* = Places API (New) only;
    *Application restriction* = the VPS's public IP (in `docs/OPERATIONS.md` — do NOT write it
    here; this file is committed).
-3. Quotas → set a daily cap (e.g. 500 requests/day) as a cost fuse.
+3. Quotas → set a daily cap (e.g. 500 requests/day) as a cost fuse. (Backed in code by the
+   per-minute upstream breaker — ADR-011.)
 4. Put the key in the VPS `/opt/prayer` `.env` as `GOOGLE_MAPS_API_KEY=…`; record it in
    `docs/OPERATIONS.md` (gitignored) and add the env var *name* to `docs/DEPLOYMENT.md`'s env
    table. Never in the repo.
+
+> **ONBOARDING GOTCHAS (hit both, 2026-07-14 — order matters):** the key surfaced two sequential
+> `403`s before it worked. (a) `SERVICE_DISABLED` — Places API (New) wasn't enabled on the
+> project yet (do step 1 first; allow a few minutes to propagate). (b) `API_KEY_SERVICE_BLOCKED`
+> — the API only appears in the key's *API-restriction* picker **after** it is enabled, so a key
+> created before enabling has an empty/stale restriction list that blocks the call; go back to the
+> key and tick "Places API (New)". Read the raw upstream body to tell these apart — the server
+> proxy collapses both to `degraded:true` by design. Beware the legacy "Places API" entry in the
+> picker: it is NOT the same as "Places API (New)". **Post-deploy follow-up owed:** the user's
+> home IP was added to the allowlist for local testing — remove it, leaving only the VPS IP.
 
 ## 9. Phases + gates
 
@@ -285,10 +296,15 @@ Standard gates for every phase: `cd client && npm run build` (the ONLY valid cli
 - iOS (web/PWA only — no native iOS yet): `requestPermission` must be user-gesture-triggered;
   some iOS PWA contexts historically flaky with orientation events → static mode is the safety
   net everywhere.
-- Places pricing/SKU tiers change; the grid cache + GCP quota cap bound the worst case. If cost
-  ever matters, an OSM/Overpass fallback (`amenity=place_of_worship` + `religion=muslim`) can be
-  added behind the same proxy contract (rejected as primary for Iraq coverage, user 2026-07-13).
+- Places pricing/SKU tiers change; three layers bound cost: the grid cache (organic dedup), the
+  **per-minute upstream budget breaker** (ADR-011 — bounds adversarial coordinate-sweeps the cache
+  can't), and the GCP-side daily quota cap (hard billing backstop). If cost ever matters, an
+  OSM/Overpass fallback (`amenity=place_of_worship` + `religion=muslim`) can be added behind the
+  same proxy contract (rejected as primary for Iraq coverage, user 2026-07-13).
 - `displayName` may come back non-Arabic for some POIs despite `languageCode: "ar"` — render
   as-is (names are proper nouns; the Latin-numerals rule is unaffected).
+- **Places DATA QUALITY varies by point:** a Baghdad city-CENTER query returned a cluster of
+  user-pinned POIs sharing one coordinate (Google's data there, not a bug — Mecca returns correct
+  per-place coordinates). Real GPS fixes are fine; don't chase this as a mapping defect.
 - Keep-mounted tabs: sensors and the masjid fetch must key off TimesPage's `active` prop —
   nothing may poll while the tab is hidden (battery + quota).

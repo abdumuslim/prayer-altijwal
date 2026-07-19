@@ -301,3 +301,22 @@ backdrops) with axe as the zero-violations gate; per-theme fixes are token edits
 forks. At fontScale أكبر the acceptance flips from "no scroll" to "no CLIP": px-fixed geometry
 (hero ring, TopBar rows) pins its type via fs125-* caps and cards get flex-shrink-0 so the page
 scrolls the overflow instead of silently clipping controls.
+
+## ADR-011 — Places proxy: global upstream budget breaker (security-review-driven) ✅
+
+**Decision (2026-07-14, security review before the Play upload).** `/api/places/masjids` caps LIVE
+Google calls at **30 per rolling minute server-wide** (`server/src/places/routes.ts`); past the cap
+it returns the retryable `{ enabled:true, masjids:[], degraded:true }` without spending. This is a
+correction, not a reversal: ADR-009 claimed "the grid cache keeps cost inside the free tier," but
+the review showed the cache only bounds ORGANIC spend — an attacker sweeping unique coordinates
+(`lat += 0.01` per request, > the 0.003° grid step) misses the cache on every call and drives an
+attacker-controlled Google bill. The breaker is a GLOBAL upstream throttle, not per-user rate
+limiting (that remains deliberately absent — Cloudflare fronts `/api/*`), so it does not reopen
+that decision. The GCP-side daily quota cap on the key is the hard billing backstop behind it.
+Also from the review: masjid deep links carry `rel="noopener noreferrer"` (was `noopener` only).
+No CRITICAL/HIGH findings survived; the untrusted Places `name`/`id` are safe (plain JSX text +
+`encodeURIComponent` in the Maps/Waze URLs; lat/lon are numbers, so no scheme/host injection).
+
+**Why.** An unauthenticated public endpoint that spends real money per uncached call needs a
+server-side circuit breaker independent of the cache; a per-minute global cap fails closed at a
+bounded worst case while leaving normal (cache-clustered) traffic untouched.

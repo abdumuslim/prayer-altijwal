@@ -100,6 +100,10 @@ replaced the manual method override (most-populous city per admin-1 division). D
 `declination` feeds the WEB qibla-compass paths only (the native app uses Android's built-in
 `GeomagneticField`); the client caches it per ~10 km grid in localStorage — stale beats none
 (`docs/QIBLA_MASJID_SPEC.md` §5c). Tested against NOAA's official WMM-2025 test vectors.
+**Maintenance:** the `geomagnetism` npm package (v0.2.0) bundles the WMM-2025 coefficients, valid
+**into 2029** (`allowOutOfBoundsModel:true` degrades gracefully past the window — declination
+drifts only ~0.1°/yr). When WMM-2030 lands, bump the package (or vendor the new `.COF`); a stale
+model is a fraction-of-a-degree error, never a break.
 
 ---
 
