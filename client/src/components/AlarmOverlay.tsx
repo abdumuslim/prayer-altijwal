@@ -84,8 +84,8 @@ export function AlarmOverlay({ title, body, onStop }: AlarmOverlayProps) {
         background:
           "radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--color-gold) 16%, transparent), transparent 58%), var(--color-night)",
         // pt-16/pb-12 + the native safe-area insets (0 on web).
-        paddingTop: "calc(4rem + var(--safe-area-inset-top, 0px))",
-        paddingBottom: "calc(3rem + var(--safe-area-inset-bottom, 0px))",
+        paddingTop: "calc(4rem + var(--inset-top))",
+        paddingBottom: "calc(3rem + var(--inset-bottom))",
       }}
     >
       {/* Ringing label */}

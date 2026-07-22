@@ -26,6 +26,8 @@ import androidx.core.app.NotificationCompat;
  */
 public class AlarmService extends Service {
     public static final String ACTION_STOP = "com.altijwal.prayer.STOP_ALARM";
+    /** Fired by the notification's delete intent — see onStartCommand. */
+    public static final String ACTION_REPOST = "com.altijwal.prayer.REPOST_ALARM";
     private static final int FGS_ID = 0xA1A2;
     private static final long RING_MS = 2 * 60_000L;
 
@@ -33,6 +35,16 @@ public class AlarmService extends Service {
     private Vibrator vibrator;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable autoStop = this::stopEverything;
+
+    // Last fire's notification content, kept so a swiped-away notification can be
+    // rebuilt identically (users were dismissing the alarm by swiping it out).
+    private boolean ringing;
+    private String lastTitle = "";
+    private String lastBody = "";
+    private String lastTarget = "";
+    private String lastUntilLabel = "";
+    private long lastAt;
+    private long lastAnchorAt;
 
     @Nullable
     @Override
@@ -44,6 +56,20 @@ public class AlarmService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             stopEverything();
+            return START_NOT_STICKY;
+        }
+
+        // Android 14+ lets users swipe an ongoing FGS notification away, which
+        // used to leave the alarm ringing with no visible way back to it. The
+        // delete intent lands here: while we are still ringing, put it straight
+        // back. Only a real Stop (or the 2-min cap) silences the alarm.
+        if (intent != null && ACTION_REPOST.equals(intent.getAction())) {
+            if (ringing) {
+                AlarmChannels.ensure(this);
+                androidx.core.app.NotificationManagerCompat.from(this)
+                        .notify(FGS_ID, buildNotification(lastTitle, lastBody, lastTarget,
+                                lastAt, lastAnchorAt, lastUntilLabel));
+            }
             return START_NOT_STICKY;
         }
 
@@ -67,6 +93,28 @@ public class AlarmService extends Service {
 
     private void startForegroundWithNotification(String title, String body, String target,
                                                  long at, long anchorAt, String untilLabel) {
+        ringing = true;
+        lastTitle = title;
+        lastBody = body;
+        lastTarget = target;
+        lastAt = at;
+        lastAnchorAt = anchorAt;
+        lastUntilLabel = untilLabel;
+
+        android.app.Notification n = buildNotification(title, body, target, at, anchorAt, untilLabel);
+        // shortService (API 34+): the ring is hard-capped at 2 min, well inside the
+        // ~3-min shortService window — and unlike mediaPlayback it needs no
+        // type permission and no Play Console FGS declaration/demo video
+        // (docs/PLAY_RELEASE.md). Pre-34 devices don't enforce FGS types.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(FGS_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
+        } else {
+            startForeground(FGS_ID, n);
+        }
+    }
+
+    private android.app.Notification buildNotification(String title, String body, String target,
+                                                       long at, long anchorAt, String untilLabel) {
         Intent full = new Intent(this, AlarmActivity.class);
         full.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
         full.putExtra("title", title);
@@ -82,7 +130,11 @@ public class AlarmService extends Service {
         PendingIntent stopPi = PendingIntent.getService(this, 2, stop,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        NotificationCompat.Builder b = new NotificationCompat.Builder(this, AlarmChannels.ALARM)
+        Intent repost = new Intent(this, AlarmService.class).setAction(ACTION_REPOST);
+        PendingIntent repostPi = PendingIntent.getService(this, 3, repost,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        return new NotificationCompat.Builder(this, AlarmChannels.ALARM)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(title)
                 .setContentText(body)
@@ -92,17 +144,9 @@ public class AlarmService extends Service {
                 .setAutoCancel(false)
                 .setFullScreenIntent(fullPi, true)
                 .setContentIntent(fullPi)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPi);
-
-        // shortService (API 34+): the ring is hard-capped at 2 min, well inside the
-        // ~3-min shortService window — and unlike mediaPlayback it needs no
-        // type permission and no Play Console FGS declaration/demo video
-        // (docs/PLAY_RELEASE.md). Pre-34 devices don't enforce FGS types.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(FGS_ID, b.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
-        } else {
-            startForeground(FGS_ID, b.build());
-        }
+                .setDeleteIntent(repostPi)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPi)
+                .build();
     }
 
     @Override
@@ -163,6 +207,7 @@ public class AlarmService extends Service {
     }
 
     private void stopEverything() {
+        ringing = false; // stop re-posting: a delete after this is a real dismissal
         handler.removeCallbacks(autoStop);
         releasePlayer();
         if (vibrator != null) {

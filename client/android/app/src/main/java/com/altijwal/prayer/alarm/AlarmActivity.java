@@ -53,10 +53,15 @@ public class AlarmActivity extends Activity {
     private static final int NIGHT_INK = 0xFFEAFAF6;
     private static final int NIGHT_INK_DIM = 0xFF8FB3AD;
 
+    /** TalkBack label on the ✕ (the screen has no other text resources). */
+    private static final String STOP_LABEL = "إيقاف المنبّه";
+
     private int colorBg;
     private int colorAccent;
     private int colorInk;
     private int colorInkDim;
+
+    private android.window.OnBackInvokedCallback backCallback;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView clock;
@@ -252,10 +257,37 @@ public class AlarmActivity extends Activity {
         stopLp.topMargin = dp(12);
         stopLp.gravity = Gravity.CENTER_HORIZONTAL;
         stop.setOnTouchListener(new SwipeUpToStop());
+        // The touch listener consumes every finger event, so this click only ever
+        // arrives from an accessibility service (TalkBack "activate", switch
+        // access) — those users can't perform the swipe gesture.
+        stop.setOnClickListener(v -> stopAndFinish());
+        stop.setContentDescription(STOP_LABEL);
         root.addView(stop, stopLp);
 
         setContentView(root);
+        blockBack();
         handler.postDelayed(tick, 1000);
+    }
+
+    /**
+     * Swallow BACK so the ringing screen can only be left by the deliberate
+     * swipe-up (testers kept closing it by accident, which left the service
+     * ringing headless because finish() never stops the alarm). targetSdk 36 means
+     * predictive back is on, so onBackPressed() is NOT called on API 33+ — the
+     * dispatcher callback is the one that matters there; the override covers older
+     * devices.
+     */
+    private void blockBack() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallback = () -> { /* alarm is dismissed by swiping ✕ up, not by BACK */ };
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        // API < 33 (predictive back off): consume, never finish.
     }
 
     /**
@@ -293,7 +325,11 @@ public class AlarmActivity extends Activity {
         }
     }
 
-    /** Swipe the ✕ up (≥ threshold) to stop — a quick tap also stops. */
+    /**
+     * Swipe the ✕ up (≥ threshold) to stop. A tap deliberately does NOT stop:
+     * testers were silencing the alarm by accident (a stray touch while picking
+     * up the phone). Anything short of the swipe springs back.
+     */
     private class SwipeUpToStop implements View.OnTouchListener {
         private float downY;
         private boolean fired;
@@ -315,14 +351,7 @@ public class AlarmActivity extends Activity {
                     return true;
                 }
                 case MotionEvent.ACTION_UP: {
-                    float up = downY - e.getRawY();
-                    if (!fired && up < dp(10)) {
-                        fired = true;
-                        v.performClick();
-                        stopAndFinish();
-                    } else if (!fired) {
-                        v.animate().translationY(0).setDuration(200).start();
-                    }
+                    if (!fired) v.animate().translationY(0).setDuration(200).start();
                     return true;
                 }
                 case MotionEvent.ACTION_CANCEL:
@@ -397,6 +426,10 @@ public class AlarmActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+            backCallback = null;
+        }
         handler.removeCallbacks(tick);
         clock = null;
         period = null;
