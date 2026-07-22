@@ -101,7 +101,7 @@ export function NextPrayerCountdown({
   const ringProgress = 1 - progress; // depletes as time passes
 
   return (
-    <section className="card card-hero arabesque animate-rise-in relative overflow-hidden p-4 sm:p-5">
+    <section className="card card-hero arabesque animate-rise-in relative overflow-hidden p-3 sm:p-4">
       {/* soft radial accent behind the ring — physical `left-1/2` so it stays
           centred under both LTR and RTL. Breathes (scale + opacity) off the shared
           --breath so it stays in lockstep with the next-prayer card. */}
@@ -111,27 +111,19 @@ export function NextPrayerCountdown({
         aria-hidden="true"
       />
 
-      {features.record && worship && (
-        <ScorePill
-          points={worship.pill.points}
-          streak={worship.pill.streak}
-          onClick={worship.pill.onOpen}
-          className="absolute end-2.5 top-2.5 z-20"
-        />
-      )}
-
       {/* Sunnah satellites — physically pinned (Duha top-right, Qiyam top-left) so
-          they keep their corners under both LTR and RTL. Nudged down 15px so the
-          score pill owns the top corner while the 4-ring cluster stays centered on
-          the big ring's vertical midline. Tapping toggles the done state (filled
-          disc + check). */}
+          they keep their corners under both LTR and RTL. Nudged down 18px so the
+          4-ring cluster stays centered on the (enlarged) big ring's vertical
+          midline. Tapping toggles the done state (filled disc + check). The score
+          pill now lives at the hero's bottom-center (below the check-in row), so
+          the top corners are free. */}
       {/* z-10 is REQUIRED here: the translate-y creates a stacking context, so the
           buttons' own z-10 is local to it — without lifting the wrapper, the
           DOM-later content column hit-tests above the satellites and swallows
           real clicks (elementFromPoint-verified). pointer-events-none keeps the
           rest of the overlay click-through. */}
       {(features.duha || features.qiyam) && (
-        <div className="pointer-events-none absolute inset-0 z-10 translate-y-[15px]">
+        <div className="pointer-events-none absolute inset-0 z-10 translate-y-[18px]">
           {features.duha && duhaState && (
             <SatelliteRing
               icon={SunMedium}
@@ -173,7 +165,7 @@ export function NextPrayerCountdown({
           active={worship.rawatib.active}
           complete={worship.rawatib.complete}
           onClick={worship.rawatib.onOpen}
-          posClass="top-[157px]"
+          posClass="top-[139px]"
           dimWhenIdle={false}
         >
           <span className="tnum text-[13px] font-extrabold leading-none text-sky">
@@ -191,7 +183,7 @@ export function NextPrayerCountdown({
           active={worship.adhkar.active}
           complete={worship.adhkar.complete}
           onClick={worship.adhkar.onOpen}
-          posClass="top-[157px]"
+          posClass="top-[139px]"
         >
           <span className="tnum text-[13px] font-extrabold leading-none text-teal">
             {worship.adhkar.centerText}
@@ -199,7 +191,7 @@ export function NextPrayerCountdown({
         </CornerRing>
       )}
 
-      <div className="relative flex flex-col items-center gap-2">
+      <div className="relative flex flex-col items-center gap-1.5">
         <div className="flex items-center justify-center gap-2 text-center">
           <span className={cn("fs125-17 text-base font-semibold", style.text)}>
             {next.msUntil <= 0 ? t("next.now") : t("next.header")}
@@ -213,13 +205,13 @@ export function NextPrayerCountdown({
 
         <ProgressRing
           progress={ringProgress}
-          size={172}
+          size={184}
           stroke={10}
           color={style.ring}
         >
           {/* Height-constrained column so the three lines breathe (justify-between)
               while staying inside the ring's inscribed area — never touching it. */}
-          <div className="flex h-[58%] flex-col items-center justify-between text-center">
+          <div className="flex h-[56%] flex-col items-center justify-between text-center">
             <span className="fs125-26 text-2xl font-bold leading-none text-gold">
               {t(prayerNameKey(next.name as PrayerName, !!isFriday))}
             </span>
@@ -245,9 +237,9 @@ export function NextPrayerCountdown({
             the ring's lower arc, so without this they touch the card's bottom
             edge (when nothing follows) or the row below (iqama bar / check-in
             "أين صليت"). Only reserved when a corner ring is actually shown.
-            h-5 tuned for the 172px ring (the captions sit lower relative to
-            the shorter flow column). */}
-        {(features.rawatib || features.adhkar) && <div aria-hidden className="h-5" />}
+            h-1.5 tuned for the 184px ring (the taller ring already pushes the
+            captions down, so less reserved gap is needed here). */}
+        {(features.rawatib || features.adhkar) && <div aria-hidden className="h-1.5" />}
 
         {/* Iqama countdown bar — only between a prayer's adhan and its iqama.
             Narrowed so the corner rings' captions never collide with it. */}
@@ -275,6 +267,19 @@ export function NextPrayerCountdown({
             onOpenAdhkar={worship.checkin.onOpenAdhkar}
             isFriday={isFriday}
           />
+        )}
+
+        {/* Score + streak badge — bottom-center of the hero, below the check-in
+            box (user, 2026-07-19). Independent of the check-in row's visibility;
+            tapping opens Reports. */}
+        {features.record && worship && (
+          <div className="flex justify-center">
+            <ScorePill
+              points={worship.pill.points}
+              streak={worship.pill.streak}
+              onClick={worship.pill.onOpen}
+            />
+          </div>
         )}
       </div>
     </section>

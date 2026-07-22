@@ -13,9 +13,11 @@ import {
   LoadingState,
   LocationNeededState,
 } from "@/components/StatusViews";
+import type { CardCheckin } from "@/components/CheckinControl";
 import type { useLocation } from "@/hooks/useLocation";
 import type { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import type { IqamaMinutes, WorshipFeatures } from "@/lib/storage";
+import type { PrayerName } from "@/types/api";
 
 interface HomePageProps {
   location: ReturnType<typeof useLocation>;
@@ -23,6 +25,10 @@ interface HomePageProps {
   iqamaMinutes: IqamaMinutes;
   features: WorshipFeatures;
   heroWorship: HeroWorship | null;
+  /** Per-prayer fard check-in control, embedded in the strip (moved here from
+   *  the Times tab — user, 2026-07-19). Null per prayer when the mark window is
+   *  closed or the record feature is off. */
+  checkinFor: (name: PrayerName) => CardCheckin | null;
   isFriday: boolean;
   showLocationNeeded: boolean;
   onOpenSearch: () => void;
@@ -34,6 +40,7 @@ export function HomePage({
   iqamaMinutes,
   features,
   heroWorship,
+  checkinFor,
   isFriday,
   showLocationNeeded,
   onOpenSearch,
@@ -67,10 +74,10 @@ export function HomePage({
           features={features}
           isFriday={isFriday}
         />
-        {/* Glanceable strip — the full list (with check-ins) is on المواقيت. */}
-        <PrayerStrip prayers={times.prayers} isFriday={isFriday} />
+        {/* Glanceable strip with the per-prayer fard check-in icons. */}
+        <PrayerStrip prayers={times.prayers} isFriday={isFriday} checkinFor={checkinFor} />
         {times.data.nextEvent && (
-          <section className="card p-2.5">
+          <section className="card animate-rise-in p-2.5 [animation-delay:140ms]">
             <NextEvent
               event={times.data.nextEvent}
               now={times.now}
@@ -84,7 +91,7 @@ export function HomePage({
       </>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, iqamaMinutes, features, heroWorship, isFriday]);
+  }, [showLocationNeeded, times.data, times.loading, times.error, times.next, times.prayers, times.now, location.status, iqamaMinutes, features, heroWorship, checkinFor, isFriday]);
 
   return (
     <>

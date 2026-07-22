@@ -74,6 +74,32 @@ describe("searchNearbyMasjids — happy path", () => {
     expect(await searchNearbyMasjids(BAGHDAD.lat, BAGHDAD.lon, KEY)).toEqual([]);
   });
 
+  it("excludes non-mosque venues by name — husseiniya variants, mawkib, mudhif (user rule)", async () => {
+    const body = {
+      places: [
+        upstreamPlace(), // جامع الإمام الأعظم — kept
+        upstreamPlace({ id: "h-1", displayName: { text: "حسينية الزهراء" } }),
+        upstreamPlace({ id: "h-2", displayName: { text: "مسجد وحسينية اهل البيت" } }),
+        upstreamPlace({ id: "h-3", displayName: { text: "حسينيه أبو الفضل" } }), // ه spelling
+        upstreamPlace({ id: "h-4", displayName: { text: "حسينيّة الإمام علي" } }), // with shadda
+        upstreamPlace({ id: "h-5", displayName: { text: "Husseiniya Al-Zahraa" } }),
+        // Live-caught Karbala variants (2026-07-19 prod check):
+        upstreamPlace({ id: "h-6", displayName: { text: "حسينة الطهرانية" } }), // no-ya spelling
+        upstreamPlace({ id: "h-7", displayName: { text: "حسینیه شاه وفا" } }), // FARSI YEH
+        upstreamPlace({ id: "m-1", displayName: { text: "موکب حضرت زهرا ایرا لواسان" } }), // FARSI KAF
+        upstreamPlace({ id: "m-2", displayName: { text: "مضيف الإمام الرضا عليه السلام" } }),
+        // Hussein-NAMED prayer sites are mosques — must be kept:
+        upstreamPlace({ id: "keep-1", displayName: { text: "جامع الإمام الحسين" } }),
+        upstreamPlace({ id: "keep-2", displayName: { text: "مسجد الحسيني" } }),
+        upstreamPlace({ id: "keep-3", displayName: { text: "مرقد الامام الحسين عليه السلام" } }),
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(fakeResponse(true, 200, body)));
+
+    const result = await searchNearbyMasjids(BAGHDAD.lat, BAGHDAD.lon, KEY);
+    expect(result?.map((m) => m.id)).toEqual(["place-1", "keep-1", "keep-2", "keep-3"]);
+  });
+
   it("drops malformed entries but keeps valid ones", async () => {
     const body = {
       places: [

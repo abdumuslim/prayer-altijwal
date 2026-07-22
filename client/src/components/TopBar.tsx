@@ -66,7 +66,7 @@ export function TopBar({
         type="button"
         onClick={onOpenSearch}
         aria-label={t("location.change")}
-        className="hit-target group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-veil/5"
+        className="press hit-target group flex min-w-0 max-w-full flex-col items-center justify-self-center rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-veil/5"
       >
         <span className="flex min-w-0 items-center gap-1">
           <span className="fs125-19 truncate text-lg font-semibold text-ink">{cityLabel}</span>

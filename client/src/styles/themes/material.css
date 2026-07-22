@@ -70,7 +70,7 @@ html[data-theme="material"] {
   --tab-active-ink: #cee9dd; /* on-secondary-container */
   --tab-active-bg: #364b44; /* secondary-container */
   /* Taller M3 nav (4rem items) → bigger overlay clearance. */
-  --tabbar-clearance: calc(4.625rem + var(--safe-area-inset-bottom, 0px));
+  --tabbar-clearance: calc(4.75rem + var(--inset-bottom));
 }
 
 /* Hero on PRIMARY CONTAINER — the M3 tonal statement piece. */

@@ -44,8 +44,8 @@ if (/Chrom(e|ium)|Edg\//.test(navigator.userAgent)) {
 // the px-fixed hero/TopBar geometry would wrap/collide with no compensation.
 // Detect the effective zoom (DOM width vs canvas width — canvas text ignores
 // textZoom) and stamp data-syszoom so the same fs125-* layout compensations
-// apply, and applyFontScale suppresses the in-app CSS step (combined ≤ ~130%,
-// docs/V2_REDESIGN_SPEC.md Phase 8.5).
+// apply (docs/V2_REDESIGN_SPEC.md Phase 8.5). The in-app font-size control was
+// removed (2026-07-19); this OS-textZoom compensation is independent and stays.
 if (isNative()) {
   try {
     const probe = document.createElement("span");
@@ -61,8 +61,6 @@ if (isNative()) {
       const zoom = domWidth / ctx.measureText("0123456789abcdef").width;
       if (zoom > 1.15) {
         document.documentElement.dataset.syszoom = "high";
-        // System zoom already scales everything — never stack the CSS step on top.
-        delete document.documentElement.dataset.fontScale;
       }
     }
   } catch {

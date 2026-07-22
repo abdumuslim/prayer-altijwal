@@ -56,8 +56,8 @@ export function SlideOver({ open, onClose, title, icon, children }: SlideOverPro
         )}
         style={{
           // Native edge-to-edge: keep the header/footer clear of the system bars.
-          paddingTop: "var(--safe-area-inset-top, 0px)",
-          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+          paddingTop: "var(--inset-top)",
+          paddingBottom: "var(--inset-bottom)",
         }}
       >
         <div className="flex items-center gap-2.5 border-b border-border-soft/70 px-5 py-4">

@@ -54,7 +54,7 @@ export function BottomSheet({ open, onClose, title, badge, children }: BottomShe
         className="animate-panel-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-xl flex-col rounded-t-3xl border-x border-t border-border bg-night-2/95 backdrop-blur-xl"
         style={{
           // Native edge-to-edge: keep the sheet content above the gesture bar.
-          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+          paddingBottom: "var(--inset-bottom)",
         }}
       >
         <div className="mx-auto mt-4 h-1 w-10 shrink-0 rounded-full bg-veil/20" />

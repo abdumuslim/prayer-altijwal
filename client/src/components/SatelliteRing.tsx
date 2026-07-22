@@ -52,6 +52,7 @@ export function SatelliteRing({
         // Sit beside the upper part of the main ring (not up by the header, not
         // centred) — high/outset enough that the timer caption clears the ring's curve.
         "pointer-events-auto absolute top-6 z-10 flex w-20 flex-col items-center gap-1.5",
+        onClick && "press",
         side === "right" ? "right-1" : "left-1",
         !active && !done && "opacity-50 grayscale-[0.35]",
       )}

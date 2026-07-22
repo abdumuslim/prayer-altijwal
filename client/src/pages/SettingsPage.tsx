@@ -1,7 +1,7 @@
 // الإعدادات tab (v2 shell — docs/V2_REDESIGN_SPEC.md Phase 3): the old
 // SettingsPanel slide-over content as a real page (the SlideOver wrapper is
 // retired), plus the About row surfacing the app semver (__APP_VERSION__).
-// Phase 7 adds the theme gallery section, Phase 8 the font-size control.
+// Phase 7 adds the theme gallery section.
 
 import { BellRing, Info, Palette, Sparkles, Timer } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -13,7 +13,7 @@ import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { isNative } from "@/lib/native";
 import { IqamaSettings } from "@/components/IqamaSettings";
 import { WorshipSettings } from "@/components/WorshipSettings";
-import type { FontScale, ThemeId } from "@/lib/theme";
+import type { ThemeId } from "@/lib/theme";
 import type {
   IqamaMinutes,
   IqamaPrayer,
@@ -32,8 +32,6 @@ interface SettingsPageProps {
   onChangeAlarmSound: (id: string) => void;
   theme: ThemeId;
   onChangeTheme: (id: ThemeId) => void;
-  fontScale: FontScale;
-  onChangeFontScale: (scale: FontScale) => void;
 }
 
 export function SettingsPage({
@@ -46,8 +44,6 @@ export function SettingsPage({
   onChangeAlarmSound,
   theme,
   onChangeTheme,
-  fontScale,
-  onChangeFontScale,
 }: SettingsPageProps) {
   const { t } = useI18n();
 
@@ -60,12 +56,7 @@ export function SettingsPage({
         title={t("settings.theme")}
         subtitle={t("settings.themeSubtitle")}
       >
-        <AppearanceSettings
-          theme={theme}
-          onChangeTheme={onChangeTheme}
-          fontScale={fontScale}
-          onChangeFontScale={onChangeFontScale}
-        />
+        <AppearanceSettings theme={theme} onChangeTheme={onChangeTheme} />
       </CollapsibleSection>
 
       {/* Collapsible sections — same order/content as the old panel. */}

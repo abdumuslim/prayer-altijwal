@@ -4,14 +4,7 @@
 
 import type { AsrMadhab, Lang } from "@/types/api";
 import { DEFAULT_ALARM_SOUND, isSelectableToneId } from "@/lib/alarm-sounds";
-import {
-  coerceFontScale,
-  coerceTheme,
-  DEFAULT_FONT_SCALE,
-  DEFAULT_THEME,
-  type FontScale,
-  type ThemeId,
-} from "@/lib/theme";
+import { coerceTheme, DEFAULT_THEME, type ThemeId } from "@/lib/theme";
 
 const STORAGE_KEY = "prayer.app.v1";
 const CURRENT_VERSION = 1 as const;
@@ -98,8 +91,6 @@ export interface AppState {
   alarmSound: string;
   /** Active design-language theme (lib/theme.ts registry). */
   theme: ThemeId;
-  /** In-app text scale step (a11y — Settings حجم الخط). */
-  fontScale: FontScale;
 }
 
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
@@ -120,7 +111,6 @@ export const DEFAULT_STATE: AppState = {
   features: { ...DEFAULT_WORSHIP_FEATURES },
   alarmSound: DEFAULT_ALARM_SOUND,
   theme: DEFAULT_THEME,
-  fontScale: DEFAULT_FONT_SCALE,
 };
 
 /** Coerce a stored value to a valid IqamaMinutes, defaulting each key defensively. */
@@ -196,7 +186,8 @@ function migrate(raw: unknown): AppState {
     features: coerceFeatures(raw.features),
     alarmSound: isSelectableToneId(raw.alarmSound) ? raw.alarmSound : DEFAULT_ALARM_SOUND,
     theme: coerceTheme(raw.theme),
-    fontScale: coerceFontScale(raw.fontScale),
+    // NOTE: a legacy `raw.fontScale` is intentionally dropped here — the in-app
+    // font-size control was removed (2026-07-19); old envelopes load cleanly.
   };
 }
 

@@ -31,6 +31,30 @@ function num(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
+/** Non-mosque Shia service venues are excluded from the masjid list BY NAME
+ *  (user rule, 2026-07-19): Google tags them with type "mosque" in Iraq, so the
+ *  `includedTypes` filter alone cannot drop them. Excluded word forms
+ *  (live-verified against Karbala city-centre results):
+ *   - حسينية / حسينيه / حسينيات / حسينة (colloquial, no ya) + Persian-script
+ *     spellings (حسینیه — FARSI YEH ی/KAF ک are normalized to Arabic first)
+ *     + Latin transliterations; combined venues («مسجد وحسينية …») drop too.
+ *   - موكب / مواكب (procession-service stations) and مضيف (serving halls).
+ *  NOT matched (kept, verified): «جامع الإمام الحسين», «مسجد الحسيني»,
+ *  «مرقد الامام الحسين عليه السلام» — Hussein-NAMED prayer sites are mosques. */
+const EXCLUDED_VENUE_RE =
+  /حسين[يى]?[ةه]|حسينيات|موكب|مواكب|مضيف|husayni+y?a|hussaini+y?a|husseini+y?a|hosseini+y?a/i;
+
+function isExcludedVenue(name: string): boolean {
+  const normalized = name
+    .normalize("NFC")
+    // Strip Arabic diacritics (064B–0652), superscript alef (0670), tatweel (0640).
+    .replace(/[ً-ْٰـ]/g, "")
+    // Fold Persian letters onto their Arabic counterparts (Karbala names mix them).
+    .replace(/ی/g, "ي")
+    .replace(/ک/g, "ك");
+  return EXCLUDED_VENUE_RE.test(normalized);
+}
+
 /** Defensive mapping of one upstream place; null when required fields are absent. */
 function mapPlace(v: unknown): Masjid | null {
   const p = obj(v);
@@ -84,7 +108,10 @@ export async function searchNearbyMasjids(
     const body = obj(await res.json());
     // Places (New) omits the `places` field entirely when nothing matches.
     if (!Array.isArray(body.places)) return [];
-    return body.places.map(mapPlace).filter((m): m is Masjid => m !== null);
+    return body.places
+      .map(mapPlace)
+      .filter((m): m is Masjid => m !== null)
+      .filter((m) => !isExcludedVenue(m.name));
   } catch (err) {
     log.warn("places search failed", err instanceof Error ? err : new Error(String(err)));
     return null;

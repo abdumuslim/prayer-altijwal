@@ -11,7 +11,7 @@ import type {
   WorshipFeatures,
   WorshipFeatureKey,
 } from "@/lib/storage";
-import { applyFontScale, applyTheme, type FontScale, type ThemeId } from "@/lib/theme";
+import { applyTheme, type ThemeId } from "@/lib/theme";
 import type { AsrMadhab } from "@/types/api";
 
 export interface SettingsState {
@@ -29,8 +29,6 @@ export interface SettingsState {
   alarmSound: string;
   /** Active design-language theme (lib/theme.ts). */
   theme: ThemeId;
-  /** In-app text scale step. */
-  fontScale: FontScale;
 }
 
 export interface UseSettings extends SettingsState {
@@ -41,7 +39,6 @@ export interface UseSettings extends SettingsState {
   setFeature: (key: WorshipFeatureKey, on: boolean) => void;
   setAlarmSound: (id: string) => void;
   setTheme: (id: ThemeId) => void;
-  setFontScale: (scale: FontScale) => void;
 }
 
 export function useSettings(): UseSettings {
@@ -55,7 +52,6 @@ export function useSettings(): UseSettings {
       features: s.features,
       alarmSound: s.alarmSound,
       theme: s.theme,
-      fontScale: s.fontScale,
     };
   });
 
@@ -102,12 +98,6 @@ export function useSettings(): UseSettings {
     applyTheme(id);
   }, []);
 
-  const setFontScale = useCallback((scale: FontScale) => {
-    setState((prev) => ({ ...prev, fontScale: scale }));
-    patchState({ fontScale: scale });
-    applyFontScale(scale);
-  }, []);
-
   return {
     ...state,
     setMethod,
@@ -117,6 +107,5 @@ export function useSettings(): UseSettings {
     setFeature,
     setAlarmSound,
     setTheme,
-    setFontScale,
   };
 }

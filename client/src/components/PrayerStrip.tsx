@@ -1,8 +1,9 @@
 // Horizontal 6-cell prayer strip for the Home tab (v2 shell — docs/
-// V2_REDESIGN_SPEC.md Phase 4, user-approved mock). Replaces the 2-column
-// PrayerList on Home (the full list lives on the المواقيت tab). One glanceable
-// row: name over clock time; the next prayer's cell breathes with the shared
-// --breath driver, tinted by its proximity accent; passed prayers dim.
+// V2_REDESIGN_SPEC.md Phase 4, user-approved mock). One glanceable row: name
+// over clock time, with the per-prayer fard check-in icon embedded when
+// `checkinFor` is supplied (moved here from the Times tab — user, 2026-07-19).
+// The next prayer's cell breathes with the shared --breath driver, tinted by
+// its proximity accent; passed prayers dim.
 
 import type { CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -31,7 +32,7 @@ export function PrayerStrip({ prayers, isFriday, checkinFor }: PrayerStripProps)
 
   return (
     // 3×2 grid (two rows) — roomier cells than a single 6-col strip (user).
-    <section className="card grid grid-cols-3 gap-1 px-2 py-2">
+    <section className="card animate-rise-in grid grid-cols-3 gap-1 px-2 py-2 [animation-delay:80ms]">
       {prayers.map((p) => {
         const style = p.isNext ? proximityStyle(proximityFromMs(p.msUntil)) : null;
         const checkin = checkinFor?.(p.name) ?? null;
@@ -47,7 +48,7 @@ export function PrayerStrip({ prayers, isFriday, checkinFor }: PrayerStripProps)
             <span className="flex items-center gap-1">
               <span
                 className={cn(
-                  "text-[13px] font-semibold leading-none",
+                  "text-[14px] font-semibold leading-none",
                   p.isNext ? style?.text : p.isPassed ? "text-ink-faint" : "text-ink-dim",
                 )}
               >
@@ -63,7 +64,7 @@ export function PrayerStrip({ prayers, isFriday, checkinFor }: PrayerStripProps)
             </span>
             <span
               className={cn(
-                "tnum text-[15px] font-bold leading-none",
+                "tnum text-[17px] font-bold leading-none",
                 p.isPassed && !p.isNext ? "text-ink-faint" : "text-ink",
               )}
             >

@@ -51,7 +51,7 @@ export function CornerRing({
       onClick={onClick}
       aria-label={`${label}: ${caption}`}
       className={cn(
-        "absolute z-10 flex w-20 flex-col items-center gap-1.5",
+        "press absolute z-10 flex w-20 flex-col items-center gap-1.5",
         posClass,
         side === "right" ? "right-1" : "left-1",
         !active && !complete && dimWhenIdle && "opacity-60",

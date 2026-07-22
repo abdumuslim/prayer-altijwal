@@ -7,7 +7,6 @@
 import { isNative, PrayerAlarm } from "@/lib/native";
 
 export type ThemeId = "night" | "glass" | "material" | "contrast";
-export type FontScale = 1 | 1.125 | 1.25;
 
 export interface ThemeMeta {
   id: ThemeId;
@@ -60,16 +59,11 @@ export const THEMES: readonly ThemeMeta[] = [
 ] as const;
 
 export const DEFAULT_THEME: ThemeId = "night";
-export const DEFAULT_FONT_SCALE: FontScale = 1;
 
 const THEME_IDS = new Set<string>(THEMES.map((t) => t.id));
 
 export function coerceTheme(raw: unknown): ThemeId {
   return typeof raw === "string" && THEME_IDS.has(raw) ? (raw as ThemeId) : DEFAULT_THEME;
-}
-
-export function coerceFontScale(raw: unknown): FontScale {
-  return raw === 1.125 || raw === 1.25 ? raw : DEFAULT_FONT_SCALE;
 }
 
 export function themeMeta(id: ThemeId): ThemeMeta {
@@ -98,14 +92,4 @@ export function applyTheme(id: ThemeId): void {
       // Older shell without the method — theme still applies inside the WebView.
     });
   }
-}
-
-/** Apply the font-scale attribute (CSS: html[data-font-scale] font-size steps).
- *  When the Android SYSTEM font scale is already zooming the WebView
- *  (data-syszoom, stamped in main.tsx), the CSS step is suppressed so the two
- *  never stack past the ~130% combined tolerance (spec Phase 8.5). */
-export function applyFontScale(scale: FontScale): void {
-  const el = document.documentElement;
-  if (scale === 1 || el.dataset.syszoom === "high") delete el.dataset.fontScale;
-  else el.dataset.fontScale = String(scale);
 }

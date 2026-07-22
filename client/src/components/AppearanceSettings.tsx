@@ -1,19 +1,16 @@
 // Appearance section for the Settings tab (docs/V2_REDESIGN_SPEC.md Phase 7
-// gallery, pulled forward): the theme gallery (design-language skins) + the
-// font-size control. Selecting applies instantly (useSettings.setTheme /
-// setFontScale persist + stamp <html>).
+// gallery, pulled forward): the theme gallery (design-language skins).
+// Selecting applies instantly (useSettings.setTheme persists + stamps <html>).
 
 import { Check } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { THEMES, type FontScale, type ThemeId } from "@/lib/theme";
+import { THEMES, type ThemeId } from "@/lib/theme";
 import type { StringKey } from "@/i18n/strings.en";
 import { cn } from "@/lib/utils";
 
 interface AppearanceSettingsProps {
   theme: ThemeId;
   onChangeTheme: (id: ThemeId) => void;
-  fontScale: FontScale;
-  onChangeFontScale: (scale: FontScale) => void;
 }
 
 /** Mini scene+card+accent preview painted per theme (static — the gallery must
@@ -29,7 +26,7 @@ const SWATCHES: Record<ThemeId, { bg: string; card: string; border: string; dots
     bg: "linear-gradient(160deg,#cfe0f4,#e5edf8)",
     card: "rgba(255,255,255,0.5)",
     border: "rgba(255,255,255,0.9)",
-    dots: ["#b07a10", "#0b9488", "#0a9469"],
+    dots: ["#8c6009", "#09736a", "#087654"],
   },
   material: {
     bg: "#0f1513",
@@ -45,25 +42,14 @@ const SWATCHES: Record<ThemeId, { bg: string; card: string; border: string; dots
   },
 };
 
-const FONT_SCALES: { value: FontScale; labelKey: StringKey }[] = [
-  { value: 1, labelKey: "fontSize.normal" },
-  { value: 1.125, labelKey: "fontSize.large" },
-  { value: 1.25, labelKey: "fontSize.xlarge" },
-];
-
-export function AppearanceSettings({
-  theme,
-  onChangeTheme,
-  fontScale,
-  onChangeFontScale,
-}: AppearanceSettingsProps) {
+export function AppearanceSettings({ theme, onChangeTheme }: AppearanceSettingsProps) {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-col gap-3">
       {/* Theme gallery */}
       <div className="grid grid-cols-2 gap-2">
-        {THEMES.map(({ id, nameKey }) => {
+        {THEMES.map(({ id, nameKey }, i) => {
           const s = SWATCHES[id];
           const active = theme === id;
           return (
@@ -72,8 +58,11 @@ export function AppearanceSettings({
               type="button"
               onClick={() => onChangeTheme(id)}
               aria-pressed={active}
+              style={{ animationDelay: `${i * 60}ms` }}
               className={cn(
-                "flex flex-col gap-2 rounded-2xl border p-2.5 text-start transition-colors",
+                "animate-rise-in flex flex-col gap-2 rounded-2xl border p-2.5 text-start",
+                "transition-[transform,border-color,background-color] duration-200",
+                "motion-safe:hover:scale-[1.02] motion-safe:active:scale-95",
                 active
                   ? "border-gold/70 bg-veil/[0.06]"
                   : "border-border-soft/60 bg-veil/[0.02]",
@@ -105,27 +94,6 @@ export function AppearanceSettings({
             </button>
           );
         })}
-      </div>
-
-      {/* Font size */}
-      <div>
-        <p className="mb-1.5 text-[13px] font-semibold text-ink-dim">{t("settings.fontSize")}</p>
-        <div className="flex gap-1 rounded-2xl border border-border-soft/60 bg-veil/[0.02] p-1">
-          {FONT_SCALES.map(({ value, labelKey }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onChangeFontScale(value)}
-              aria-pressed={fontScale === value}
-              className={cn(
-                "hit-target flex-1 rounded-xl py-2 text-center text-[13px] font-semibold transition-colors",
-                fontScale === value ? "bg-gold/15 text-gold" : "text-ink-dim",
-              )}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
