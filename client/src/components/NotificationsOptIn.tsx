@@ -10,9 +10,25 @@ import { cn } from "@/lib/utils";
 import { usePrayerAlerts } from "@/hooks/usePrayerAlerts";
 import { AlertRuleList } from "@/components/AlertRuleList";
 import type { UsePushSubscription } from "@/hooks/usePushSubscription";
+import type { AlertTarget, PrayerAlert } from "@/types/api";
 
 interface NotificationsOptInProps {
   push: UsePushSubscription;
+}
+
+const WEB_MIGRATION_KEY = "prayer.web-default-alert-removed.v1";
+const FARD: AlertTarget[] = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+
+/** A rule still exactly matching the default this app used to seed (5 fard, 10
+ *  min before, quiet). Prayer order is ignored — the editor rewrites it. */
+function isUntouchedSeededDefault(rule: PrayerAlert): boolean {
+  return (
+    rule.timing === "before" &&
+    rule.minutes === 10 &&
+    rule.kind === "notification" &&
+    rule.prayers.length === FARD.length &&
+    FARD.every((p) => rule.prayers.includes(p))
+  );
 }
 
 export function NotificationsOptIn({ push }: NotificationsOptInProps) {
@@ -20,20 +36,25 @@ export function NotificationsOptIn({ push }: NotificationsOptInProps) {
   const { status, endpoint } = push;
   const { alerts, loading, create, update, remove } = usePrayerAlerts(endpoint);
 
-  // Seed one sensible default rule the first time a device subscribes with none.
-  const seeded = useRef(false);
+  // One-time removal of the 10-min default this app used to seed on first
+  // subscribe (user request, 2026-07-22 — no rule until the user makes one).
+  // Deletes only a rule still EXACTLY matching that default; anything the user
+  // edited is kept. The marker makes it run at most once per device.
+  const migrated = useRef(false);
   useEffect(() => {
-    if (status !== "subscribed" || !endpoint || loading) return;
-    if (alerts.length === 0 && !seeded.current) {
-      seeded.current = true;
-      void create({
-        timing: "before",
-        minutes: 10,
-        prayers: ["fajr", "dhuhr", "asr", "maghrib", "isha"],
-        kind: "notification",
-      });
+    if (status !== "subscribed" || !endpoint || loading || migrated.current) return;
+    migrated.current = true;
+    try {
+      if (localStorage.getItem(WEB_MIGRATION_KEY)) return;
+      localStorage.setItem(WEB_MIGRATION_KEY, "1");
+    } catch {
+      return; // storage disabled — skip rather than re-delete on every mount
     }
-  }, [status, endpoint, loading, alerts.length, create]);
+    const stale = alerts
+      .filter(isUntouchedSeededDefault)
+      .sort((a, b) => a.id - b.id)[0];
+    if (stale) void remove(stale.id);
+  }, [status, endpoint, loading, alerts, remove]);
 
   return (
     <div className="flex flex-col gap-3">

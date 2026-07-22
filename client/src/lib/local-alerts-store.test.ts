@@ -79,39 +79,94 @@ describe("local-alerts-store", () => {
     expect(JSON.parse(raw!)).toHaveLength(1);
   });
 
-  test("seedDefaultLocalAlerts seeds one default when empty and is idempotent", async () => {
+});
+
+// The 10-min default older builds seeded on first launch is being retired
+// (user, 2026-07-22). Devices that ran those builds carry the historical seed
+// marker + the rule itself; the migration removes it ONCE, and only while it is
+// still untouched.
+describe("migrateRemoveSeededDefault", () => {
+  const SEED_KEY = "prayer.alerts.seeded.v1";
+  const MIGRATION_KEY = "prayer.alerts.default-removed.v1";
+
+  /** Reproduce a device seeded by an older build: marker + the rule at id 1. */
+  function seedLikeOldBuild(rule: Omit<LocalAlertRule, "id"> = DEFAULT_RULE): void {
+    store.set(SEED_KEY, "1");
+    store.set("prayer.alerts.v1", JSON.stringify([{ ...rule, id: 1 }]));
+  }
+
+  test("removes the untouched seeded default", async () => {
+    seedLikeOldBuild();
     const s = await freshStore();
+    expect(s.getLocalAlerts()).toHaveLength(1);
+
+    s.migrateRemoveSeededDefault();
+
     expect(s.getLocalAlerts()).toHaveLength(0);
+    expect(JSON.parse(store.get("prayer.alerts.v1")!)).toHaveLength(0);
+    expect(store.get(MIGRATION_KEY)).toBe("1");
+  });
 
-    s.seedDefaultLocalAlerts();
-    const rules = s.getLocalAlerts();
-    expect(rules).toHaveLength(1);
-    expect(rules[0].prayers).toEqual(["fajr", "dhuhr", "asr", "maghrib", "isha"]);
-    expect(rules[0].kind).toBe("notification");
-    expect(rules[0].minutes).toBe(10);
+  test("ignores prayer ORDER (the editor rewrites it) but not membership", async () => {
+    seedLikeOldBuild({ ...DEFAULT_RULE, prayers: ["isha", "fajr", "maghrib", "dhuhr", "asr"] });
+    const s = await freshStore();
+    s.migrateRemoveSeededDefault();
+    expect(s.getLocalAlerts()).toHaveLength(0);
+  });
 
-    s.seedDefaultLocalAlerts(); // second call is a no-op
+  test.each([
+    ["different minutes", { ...DEFAULT_RULE, minutes: 5 }],
+    ["fewer prayers", { ...DEFAULT_RULE, prayers: ["fajr"] as LocalAlertRule["prayers"] }],
+    ["alarm kind", { ...DEFAULT_RULE, kind: "alarm" as const }],
+    ["different timing", { ...DEFAULT_RULE, timing: "after" as const }],
+  ])("keeps a user-modified rule (%s)", async (_label, rule) => {
+    seedLikeOldBuild(rule);
+    const s = await freshStore();
+    s.migrateRemoveSeededDefault();
     expect(s.getLocalAlerts()).toHaveLength(1);
   });
 
-  test("seedDefaultLocalAlerts does NOT re-seed after the user deletes every rule", async () => {
+  test("keeps a matching rule the user created later (id != 1)", async () => {
+    store.set(SEED_KEY, "1");
+    store.set("prayer.alerts.v1", JSON.stringify([{ ...DEFAULT_RULE, id: 7 }]));
     const s = await freshStore();
-    s.seedDefaultLocalAlerts();
-    const id = s.getLocalAlerts()[0].id;
-
-    s.removeRule(id);
-    expect(s.getLocalAlerts()).toHaveLength(0);
-
-    s.seedDefaultLocalAlerts(); // marker already set → stays empty
-    expect(s.getLocalAlerts()).toHaveLength(0);
+    s.migrateRemoveSeededDefault();
+    expect(s.getLocalAlerts()).toHaveLength(1);
   });
 
-  test("seedDefaultLocalAlerts leaves existing rules untouched", async () => {
+  test("runs at most once — a rule re-created afterwards survives", async () => {
+    seedLikeOldBuild();
     const s = await freshStore();
-    s.addRule({ ...DEFAULT_RULE, minutes: 5, prayers: ["fajr"] });
-    s.seedDefaultLocalAlerts();
-    const rules = s.getLocalAlerts();
-    expect(rules).toHaveLength(1); // did not add the 5-fard default on top
-    expect(rules[0].minutes).toBe(5);
+    s.migrateRemoveSeededDefault();
+    expect(s.getLocalAlerts()).toHaveLength(0);
+
+    s.addRule(DEFAULT_RULE); // user makes the same rule again, deliberately
+    s.migrateRemoveSeededDefault();
+    expect(s.getLocalAlerts()).toHaveLength(1);
+  });
+
+  test("no-op on a fresh install (never seeded), and it does not seed anything", async () => {
+    const s = await freshStore();
+    s.migrateRemoveSeededDefault();
+    expect(s.getLocalAlerts()).toHaveLength(0);
+    expect(store.get(MIGRATION_KEY)).toBe("1");
+  });
+
+  test("survives disabled storage without touching the rules", async () => {
+    seedLikeOldBuild();
+    const s = await freshStore();
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("storage disabled");
+      },
+      setItem: () => {
+        throw new Error("storage disabled");
+      },
+      removeItem: () => {},
+      clear: () => {},
+    });
+
+    expect(() => s.migrateRemoveSeededDefault()).not.toThrow();
+    expect(s.getLocalAlerts()).toHaveLength(1);
   });
 });

@@ -25,9 +25,9 @@ export function NativeReminders() {
   const local = useLocalAlerts();
   const perms = useAlarmPermissions();
 
-  // Note: the default rule is seeded once at app mount (App.tsx →
-  // seedDefaultLocalAlerts) so a fresh user gets a reminder without having to
-  // open Settings first (docs/NATIVE_ALARM_FIXES_SPEC.md §2a).
+  // Note: no rule exists until the user creates one here. Older builds seeded a
+  // 10-min default at mount; App.tsx now runs a one-time migration that removes
+  // it (docs/NATIVE_ALARM_FIXES_SPEC.md §2a).
 
   const st = perms.state;
   const rows: PermRow[] = [];

@@ -1,9 +1,9 @@
 // v2 shell (docs/V2_REDESIGN_SPEC.md Phase 3): App owns the global hooks, the
 // breath-driver root (the ONE persistent ancestor every breathing element
 // inherits --breath from), the tab state, and the overlays (search, worship
-// sheets, alarm). Page content lives in src/pages/*; all four pages stay
-// MOUNTED (inactive ones display:none) so the hero countdown interval and the
-// breath timeline never reset on tab switches.
+// sheets, alarm). Page content lives in src/pages/*; all four pages stay MOUNTED
+// inside the swipeable TabPager (inactive ones translated off-screen + inert) so
+// the hero countdown interval and the breath timeline never reset on tab switches.
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -16,21 +16,21 @@ import { useNativeAlarmScheduler } from "@/hooks/useNativeAlarmScheduler";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useFirstRunPermissions } from "@/hooks/useFirstRunPermissions";
 import { isNative } from "@/lib/native";
-import { seedDefaultLocalAlerts } from "@/lib/local-alerts-store";
+import { migrateRemoveSeededDefault } from "@/lib/local-alerts-store";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { useAlarm } from "@/hooks/useAlarm";
 import { unlockAlarmAudio } from "@/lib/alarm-sound";
-import { applyFontScale, applyTheme } from "@/lib/theme";
+import { applyTheme } from "@/lib/theme";
 import { glowBreathPeriod } from "@/lib/format";
 import { isFridayKey } from "@/lib/prayer-names";
-import { cn } from "@/lib/utils";
 import {
   deriveAdhkarCorner,
   deriveCheckinPrayer,
   deriveRawatibCorner,
 } from "@/lib/worship-vm";
-import { TabBar, type TabId } from "@/components/shell/TabBar";
+import { TabBar, TAB_IDS, type TabId } from "@/components/shell/TabBar";
+import { TabPager } from "@/components/shell/TabPager";
 import { HomePage } from "@/pages/HomePage";
 import { TimesPage } from "@/pages/TimesPage";
 import { ReportsPage } from "@/pages/ReportsPage";
@@ -64,13 +64,12 @@ function App() {
 
   // Apply the persisted theme's side effects once on boot: index.html already
   // stamped data-theme pre-paint, but the theme-color meta + native system-bar
-  // style + font scale attribute are applied here (lib/theme.ts). A DEV
-  // `?theme=` override (main.tsx) wins — don't clobber it with the persisted one.
+  // style are applied here (lib/theme.ts). A DEV `?theme=` override (main.tsx)
+  // wins — don't clobber it with the persisted one.
   useEffect(() => {
     const devOverride =
       import.meta.env.DEV && new URLSearchParams(window.location.search).has("theme");
     if (!devOverride) applyTheme(settings.theme);
-    applyFontScale(settings.fontScale);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,10 +94,10 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sheet, setSheet] = useState<WorshipSheet>(null);
 
-  // Native only: seed the default reminder once at mount so a fresh user gets a
-  // reminder without opening Settings first (no-op on web / after first seed).
+  // Native only: one-time removal of the 10-min default rule older builds seeded
+  // (no-op on a fresh install and on devices whose default was edited).
   useEffect(() => {
-    if (isNative()) seedDefaultLocalAlerts();
+    if (isNative()) migrateRemoveSeededDefault();
   }, []);
 
   // Native only: first launch asks for the alarm permissions right away
@@ -108,10 +107,9 @@ function App() {
   // Android hardware back: close the top-most overlay, else return to the Home
   // tab, else minimize the app.
   useAndroidBack(() => {
-    if (alarm.alarm) {
-      alarm.dismiss();
-      return true;
-    }
+    // A ringing alarm swallows BACK: it is dismissed by swiping the ✕ up, the
+    // same rule as the native AlarmActivity (users kept closing it by accident).
+    if (alarm.alarm) return true;
     if (sheet !== null) {
       setSheet(null);
       return true;
@@ -241,54 +239,61 @@ function App() {
   const breathPeriod = glowBreathPeriod(times.next?.msUntil ?? Number.POSITIVE_INFINITY);
 
   // Each page keeps living while hidden (state, timers, the breath phase).
-  // Conditional classes (NOT the `hidden` attribute — a display class would
-  // override it). Home is the no-scroll screen; the others scroll internally.
+  // Per-page scroll-column classes (the pager wrapper adds h-full + overflow).
   // Bottom padding = the overlay TabBar's per-theme footprint (+ the old 8px
   // gap), so content scrolls clear of — and visibly BEHIND — the bar (glass
   // translucency) while Home's no-scroll budget stays what it was in-flow.
-  const pageClass = (id: TabId, scroll: boolean): string =>
-    cn(
-      "min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(var(--tabbar-clearance)+0.5rem)]",
-      scroll && "overflow-y-auto overscroll-contain",
-      tab === id ? "flex" : "hidden",
-    );
+  const pageClass =
+    "flex flex-col gap-2.5 px-4 pt-3 pb-[calc(var(--tabbar-clearance)+0.5rem)]";
+
+  // Swipe/slide is dead while any overlay owns the screen (search, worship
+  // sheet, full-screen alarm) so a horizontal drag can't switch tabs behind it.
+  const pagerEnabled = !alarm.alarm && sheet === null && !searchOpen;
 
   return (
     <div
-      className="breath-driver relative mx-auto flex h-dvh w-full max-w-xl flex-col"
-      style={{ "--glow-period": `${breathPeriod.toFixed(2)}s` } as CSSProperties}
+      // Height must SUBTRACT the top safe-area inset: <body> already pads its top
+      // by --inset-top (status-bar/notch), so a full 100dvh child would overflow
+      // the viewport by exactly that inset and push the bottom tab bar off-screen
+      // (real-Pixel: items clipped 12px under the gesture bar). On web --inset-top
+      // is 0 → calc == 100dvh, unchanged. Bottom inset stays on the TabBar itself.
+      className="breath-driver relative mx-auto flex w-full max-w-xl flex-col"
+      style={
+        {
+          "--glow-period": `${breathPeriod.toFixed(2)}s`,
+          height: "calc(100dvh - var(--inset-top))",
+        } as CSSProperties
+      }
     >
-      <div className={pageClass("home", true)}>
+      <TabPager
+        index={Math.max(0, TAB_IDS.indexOf(tab))}
+        onChange={(i) => setTab(TAB_IDS[i])}
+        enabled={pagerEnabled}
+        pageClassName={pageClass}
+      >
         <HomePage
           location={location}
           times={times}
           iqamaMinutes={settings.iqamaMinutes}
           features={settings.features}
           heroWorship={heroWorship}
+          checkinFor={checkinFor}
           isFriday={isFriday}
           showLocationNeeded={showLocationNeeded}
           onOpenSearch={() => setSearchOpen(true)}
         />
-      </div>
-      <div className={pageClass("times", true)}>
         <TimesPage
           location={location}
           times={times}
           settings={settings}
-          checkinFor={checkinFor}
-          isFriday={isFriday}
           active={tab === "times"}
         />
-      </div>
-      <div className={pageClass("reports", true)}>
         <ReportsPage
           stats={worship.stats}
           today={worship.today}
           features={settings.features}
           onEnableRecord={() => settings.setFeature("record", true)}
         />
-      </div>
-      <div className={pageClass("settings", true)}>
         <SettingsPage
           push={push}
           iqamaMinutes={settings.iqamaMinutes}
@@ -299,10 +304,8 @@ function App() {
           onChangeAlarmSound={settings.setAlarmSound}
           theme={settings.theme}
           onChangeTheme={settings.setTheme}
-          fontScale={settings.fontScale}
-          onChangeFontScale={settings.setFontScale}
         />
-      </div>
+      </TabPager>
 
       <TabBar tab={tab} onChange={setTab} />
 
