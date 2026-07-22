@@ -59,6 +59,11 @@ re-entry + pull-down, broken on Galaxy A70/A21, row redesign · glass tab bar of
 ## Phase 9 — release/docs
 - [x] versionCode 4 · CHANGELOG · FRONTEND §13 · QIBLA_MASJID_SPEC · NOTIFICATIONS · NATIVE_ALARM_SPEC
       · DECISIONS ADR-013 · OPERATIONS (keys/project)
+- [x] **SUBMITTED TO PLAY 2026-07-22**: signed AAB `D:\keys\releases\prayer-v2.1.0-vc4.aab`
+      uploaded to **Closed testing - Alpha** as release `4 (2.1.0)`, Arabic release notes attached,
+      sent for review (177 countries; status "In review"). Previous track release was `3 (2.1.0)`.
+      Only warning: no deobfuscation mapping (the app isn't minified) - same as prior releases;
+      device support unchanged (0 devices lost).
 - [ ] merge `feat/v2-redesign` → `main` (still open from v2.0.0)
 
 ## Verification status
@@ -71,4 +76,6 @@ re-entry + pull-down, broken on Galaxy A70/A21, row redesign · glass tab bar of
 ## Still owed / human tasks
 - Remove the user's home IP from the Places key allowlist (currently **Application restrictions =
   None** on "API key 4" — worth tightening to the VPS IP).
-- Play upload of a signed release AAB (the installed builds are debug-signed).
+- Nothing further for Play: Google review typically completes within ~7 days, then testers get it.
+- The 14-day continuous closed-testing clock for production access stood at 2 days; this release does
+  not affect it (the counter tracks testers opted in, not uploads).
