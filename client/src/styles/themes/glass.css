@@ -57,11 +57,11 @@ html[data-theme="glass"] {
   --color-critical: #ca1a41; /* was #e11d48 (3.83:1) */
   --color-imminent: #ca1a41;
 
-  /* Scene — RESTRAINED (user, round 3b: "too much color"): one analogous cool
-     family (azure → blue-teal → blue-indigo), structure comes from LUMINANCE,
-     not extra hues — a white light-pool up top, luminance-varied blobs, and a
-     depth vignette. The app's gold/teal content is the only warm counterpoint;
-     the glass material (lens + specular) stays the signature. */
+  /* Scene — RESTRAINED cool family (user, round 3b + 2026-07-19: "no too much
+     coloring — it's the design, not the colors"). Structure comes from LUMINANCE,
+     not extra hues: a white light-pool up top, luminance-varied azure/teal/indigo
+     blobs, and a depth vignette. The glass MATERIAL (lens + specular + frosting)
+     is the signature, not colour. */
   --bg-scene:
     radial-gradient(circle 110px at 78% 2%, rgba(255, 255, 255, 0.55), transparent 72%),
     radial-gradient(60% 44% at 84% -8%, rgba(56, 128, 232, 0.48), transparent),
@@ -83,16 +83,18 @@ html[data-theme="glass"] {
     rgba(255, 255, 255, 0.18) 100%
   );
   --surface-card-border: 1px solid rgba(255, 255, 255, 0.55);
-  --surface-blur: 14px;
+  --surface-blur: 16px;
   --surface-saturate: 185%;
-  --radius-card: 2rem;
-  /* Depth (round 3): a layered key + ambient shadow pair — big soft blur with
-     STRONG negative spread, so the shadow falls deep below the card without
-     painting into the 12px gaps between stacked cards (session-1 no-bleed
-     rule still holds). */
+  /* Squircle radius — the iOS-26 card silhouette (design pass 2026-07-19). */
+  --radius-card: 2.4rem;
+  /* Depth: a three-layer stack — a deep soft key, a mid lift, and a tight
+     contact shadow — all with STRONG negative spread so nothing bleeds into the
+     12px gaps between stacked cards (session-1 no-bleed rule holds). Reads like
+     a physical glass slab floating above the scene. */
   --elev-card:
-    0 18px 34px -20px rgba(21, 48, 82, 0.45),
-    0 6px 12px -8px rgba(21, 48, 82, 0.18);
+    0 22px 40px -22px rgba(21, 48, 82, 0.5),
+    0 8px 16px -10px rgba(21, 48, 82, 0.2),
+    0 2px 5px -2px rgba(21, 48, 82, 0.12);
   /* Slab thickness: bright entry rim on top, faint dark EXIT rim hugging the
      bottom inside edge — the cue that the glass has physical depth. */
   --surface-specular:
@@ -106,24 +108,36 @@ html[data-theme="glass"] {
   --arabesque-dot: rgba(11, 148, 136, 0.07);
   --selection-bg: rgba(11, 148, 136, 0.25);
 
-  /* Tab bar — the floating glass capsule (signature) */
-  --tabbar-bg: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.38) 0%,
-    rgba(255, 255, 255, 0.14) 55%,
-    rgba(255, 255, 255, 0.26) 100%
-  );
-  --tabbar-border: 1px solid rgba(255, 255, 255, 0.65);
+  /* Tab bar — the floating glass capsule (signature).
+     Frost, not paint (user, 2026-07-22): the fill stays translucent so the page
+     still refracts through the capsule; what kills the competing text is the
+     heavy BLUR (18px vs the cards' 12) plus the edge lensing below — raising the
+     fill to near-opaque instead would hide content rather than distort it. */
+  /* FLAT fill, not the sheen gradient the cards use: a diagonal ramp made the
+     capsule read as frostier at one end than the other (user, 2026-07-22). The
+     glassiness now comes from the blur + the specular rim, which are uniform. */
+  --tabbar-bg: rgba(255, 255, 255, 0.16);
+  --tabbar-border: 1px solid rgba(255, 255, 255, 0.72);
   --tabbar-radius: 2.25rem;
+  /* GLOSSY, not frosted: heavy blur smears away the refraction the lens map
+     creates and turns the capsule into a grey panel. A light blur keeps the
+     background readable-but-bent; the sheen below supplies the shine. */
+  --tabbar-blur: 4px;
+  /* Floating capsule: the gesture-bar inset lifts it, never pads it (a dead band
+     under the icons is what the inner padding produced). */
+  --tabbar-safe-pad: 0px;
+  --tabbar-safe-margin: var(--inset-bottom);
   --tabbar-inset: 0.875rem;
   --tabbar-shadow:
     0 24px 44px -16px rgba(21, 48, 82, 0.42),
     0 6px 14px -8px rgba(21, 48, 82, 0.18);
   --tab-ink: #3f5d75;
   --tab-active-ink: #0b4f48;
-  --tab-active-bg: rgba(255, 255, 255, 0.9);
+  /* The active pill is a CLEARER lens sitting on the frosted capsule, not a
+     solid white chip (user, 2026-07-22) — see the .tab-pill rule below. */
+  --tab-active-bg: rgba(255, 255, 255, 0.34);
   /* Floating capsule footprint: bar 66px + 14px float inset. */
-  --tabbar-clearance: calc(5rem + var(--safe-area-inset-bottom, 0px));
+  --tabbar-clearance: calc(5.125rem + var(--inset-bottom));
 }
 
 /* Hero card — one glass layer higher: clearest fill, brighter rim. */
@@ -146,11 +160,35 @@ html[data-theme="glass"] .card-hero {
     0 8px 16px -10px rgba(21, 48, 82, 0.25);
 }
 
-/* The active tab's pill is itself a small glass lens with a specular rim. */
+/* GLOSS: a specular sheen over the capsule's upper half — the highlight a
+   polished convex surface throws. This is what makes it read as glass rather
+   than frosted plastic, and it costs no legibility because it sits above the
+   (light) backdrop, not over the labels: ::before paints after the background
+   but before the tab items, so the icons/text stay fully crisp on top. */
+html[data-theme="glass"] .tab-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.22) 34%,
+    rgba(255, 255, 255, 0.02) 58%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+}
+
+/* The active tab's pill is itself a small glass lens with a specular rim: it
+   samples the ALREADY-frosted capsule behind it and brightens/clears it, so the
+   selection reads as thicker glass rather than an opaque white chip. */
 html[data-theme="glass"] .tab-item[aria-current] .tab-pill {
+  backdrop-filter: blur(1px) saturate(140%) brightness(1.06);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 4px 10px -4px rgba(21, 48, 82, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.35),
+    0 3px 8px -4px rgba(21, 48, 82, 0.3);
 }
 
 /* Frosted chips/fills inside glass read brighter than the dark-theme veil. */
@@ -165,10 +203,12 @@ html[data-theme="glass"] ::selection {
    come from scripts/build-glass-lens.mjs. Displacement first, then blur —
    the backdrop bends at the rim, then frosts. ── */
 html[data-lens="1"][data-theme="glass"] .card-hero {
+  /* Standard property only — see surfaces.css .tab-bar. */
   backdrop-filter: url(#glass-lens-card) blur(12px) saturate(185%);
-  -webkit-backdrop-filter: url(#glass-lens-card) blur(12px) saturate(185%);
 }
 html[data-lens="1"][data-theme="glass"] .tab-bar {
-  backdrop-filter: url(#glass-lens-bar) blur(14px) saturate(185%);
-  -webkit-backdrop-filter: url(#glass-lens-bar) blur(14px) saturate(185%);
+  /* Blur must match --tabbar-blur — this rule REPLACES the shorthand above, so
+     a mismatch would silently un-frost the bar on Chromium (i.e. on the app).
+     Displacement runs BEFORE the blur so the bend is frosted, not smeared over. */
+  backdrop-filter: url(#glass-lens-bar) blur(4px) saturate(190%);
 }

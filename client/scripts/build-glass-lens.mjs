@@ -119,8 +119,11 @@ function encodePng(width, height, rgba) {
 // bigger w/h → wider flat center; r → how round the lensing corners are.
 
 const TARGETS = [
-  // Floating tab capsule (~362×56 rendered): full-round pill, thin lens rim.
-  { name: "glass-lens-bar", width: 186, height: 28, rect: { w: 0.42, h: 0.28, r: 0.22, band: 0.2 } },
+  // Floating tab capsule (~362×56 rendered): full-round pill. The plateau is
+  // deliberately SMALL and the band wide — a thin rim bend is invisible at this
+  // size, which made the capsule read as flat frost rather than glass
+  // (user, 2026-07-22). Most of the capsule now refracts.
+  { name: "glass-lens-bar", width: 186, height: 28, rect: { w: 0.26, h: 0.12, r: 0.12, band: 0.42 } },
   // Hero card (~358×430 rendered): 2rem-radius rounded rect — clear center,
   // bend confined to the outer ~10% band.
   { name: "glass-lens-card", width: 128, height: 152, rect: { w: 0.42, h: 0.4, r: 0.1, band: 0.14 } },

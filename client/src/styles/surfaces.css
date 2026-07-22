@@ -10,6 +10,19 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
+  /* Device safe-area insets — single source of truth for the whole app.
+     Capacitor 8 SystemBars injects --safe-area-inset-* via JS, which can lag
+     the first paint or resolve to 0px on some WebViews (the Pixel tab-bar
+     truncation); env() is synchronous and works pre-paint under
+     viewport-fit=cover (set in index.html). max() takes whichever reports the
+     real inset and NEVER double-counts (both are equal when both work, and
+     both are 0 in Capacitor's native-padded fallback mode). Every consumer
+     (TabBar, body, --tabbar-clearance, sheets, alarm overlay) reads these. */
+  --inset-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --inset-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  --inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --inset-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+
   /* Page background scene (was hardcoded on body) */
   --bg-scene:
     radial-gradient(circle at 85% -5%, rgba(45, 212, 191, 0.16), transparent 45%),
@@ -58,7 +71,7 @@
      the bar's rendered footprint per theme (item height + paddings + borders
      + float inset) + the device safe-area. Home's no-scroll budget depends on
      it being exact. */
-  --tabbar-clearance: calc(4.125rem + var(--safe-area-inset-bottom, 0px));
+  --tabbar-clearance: calc(4.25rem + var(--inset-bottom));
 }
 
 @layer components {
@@ -66,12 +79,21 @@
      the vars above (glass: inset pill; material: tonal bar; contrast: ruled). */
   .tab-bar {
     background: var(--tabbar-bg);
-    backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
-    -webkit-backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
+    /* Themes may frost the bar harder than their cards (glass does): text
+       scrolling behind it must never compete with the tab labels. */
+    /* STANDARD PROPERTY ONLY — the build adds vendor prefixes. Hand-writing
+       -webkit-backdrop-filter here made Lightning CSS collapse the pair down to
+       just the prefixed form, and Chrome 150 (the Android WebView) has dropped
+       that alias — so the whole glass theme rendered with NO blur on the APK
+       while desktop Chrome still looked right (2026-07-22). */
+    backdrop-filter: blur(var(--tabbar-blur, var(--surface-blur)))
+      saturate(var(--surface-saturate));
     border: var(--tabbar-border);
     border-radius: var(--tabbar-radius);
     margin-inline: var(--tabbar-inset);
-    margin-bottom: var(--tabbar-inset);
+    /* Floating themes add the bottom safe-area here instead of as inner padding
+       — see the TabBar comment; docked themes leave --tabbar-safe-margin at 0. */
+    margin-bottom: calc(var(--tabbar-inset) + var(--tabbar-safe-margin, 0px));
     box-shadow: var(--surface-specular), var(--tabbar-shadow);
   }
   .tab-item {
@@ -97,8 +119,8 @@
   /* Frosted card surface — reads ONLY the contract above. */
   .card {
     background: var(--surface-card-bg);
+    /* Standard property only — see the .tab-bar note above. */
     backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
-    -webkit-backdrop-filter: blur(var(--surface-blur)) saturate(var(--surface-saturate));
     border: var(--surface-card-border);
     border-radius: var(--radius-card);
     box-shadow: var(--surface-specular), var(--elev-card);

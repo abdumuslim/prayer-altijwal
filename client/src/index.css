@@ -142,18 +142,38 @@
   50% { transform: scale(1.08); opacity: 1; }
 }
 
+/* News-ticker scroll for text too long for its row (components/ui/MarqueeText).
+   The element holds the text TWICE, so translating by one copy-width + gap
+   loops seamlessly. Distance/duration come from measured px (CSS vars), and
+   the direction is negative in both scripts because the duplicate always
+   trails in the inline direction — RTL flips the axis for us. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(var(--marquee-distance) * -1)); }
+}
+
+.marquee-track {
+  animation: marquee-scroll var(--marquee-duration, 8s) linear infinite;
+  will-change: transform;
+}
+
+/* Let a finger hold the name still to read it. */
+.marquee-track:active {
+  animation-play-state: paused;
+}
+
+[dir="rtl"] .marquee-track {
+  animation-name: marquee-scroll-rtl;
+}
+
+@keyframes marquee-scroll-rtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--marquee-distance)); }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
-  }
-
-  /* In-app font-size steps (a11y — Settings حجم الخط). Only rem-based type
-     scales; px-tuned geometry (rings, pins) deliberately stays fixed. */
-  html[data-font-scale="1.125"] {
-    font-size: 112.5%;
-  }
-  html[data-font-scale="1.25"] {
-    font-size: 125%;
   }
 
   body {
@@ -172,8 +192,7 @@
        web → 0px → no effect there. Fixed overlays (SlideOver, BottomSheet,
        AlarmOverlay) apply the same vars themselves. BOTTOM inset lives in
        the TabBar (v2 shell) — padding it here too would double-count. */
-    padding: var(--safe-area-inset-top, 0px) var(--safe-area-inset-right, 0px)
-      0 var(--safe-area-inset-left, 0px);
+    padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
   }
 
   /* Arabic typography when RTL */
@@ -293,6 +312,16 @@
     height: var(--hit-h, max(100%, 48px));
     transform: translate(-50%, -50%);
   }
+
+  /* Tactile press feedback: a quick scale-down on active. Shared across the
+     tappable controls (hero widgets, chips, buttons) so the app feels physical.
+     Frozen under reduced-motion (below). */
+  .press {
+    transition: transform 140ms var(--ease-standard, ease);
+  }
+  .press:active {
+    transform: scale(0.95);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -325,42 +354,41 @@
     animation-name: overlay-in !important;
   }
 
+  /* Press feedback goes still — feedback via the tap itself, not movement. */
+  .press {
+    transition: none !important;
+  }
+  .press:active {
+    transform: none !important;
+  }
+
+  /* A permanently scrolling label is exactly what this setting exists to stop —
+     the name falls back to ellipsis truncation. */
+  .marquee-track {
+    animation: none !important;
+    transform: none !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+
   html {
     scroll-behavior: auto;
   }
 }
 
-/* أكبر (1.25) compensations (P8): the hero ring, TopBar row and event strip
-   are px-tuned geometry (fixed 172px ring, 3-col grids) — at the top scale
-   their type is pinned to design size +~8% so nothing wraps into the ring or
-   collides across columns; flowing content (lists, month table, reports,
-   sheets, settings) still scales the full 25%. Class name = effective px.
-   The SAME compensations apply under the Android system font scale
-   (html[data-syszoom], WebView textZoom ≤130% — main.tsx), which zooms
-   rendered text without touching CSS font-size.
-   UNLAYERED so they beat the text-* utilities without !important. */
-html[data-font-scale="1.25"] .fs125-32,
-html[data-syszoom="high"] .fs125-32 {
-  font-size: 1.6rem;
-}
-html[data-font-scale="1.25"] .fs125-26,
-html[data-syszoom="high"] .fs125-26 {
-  font-size: 1.3rem;
-}
-html[data-font-scale="1.25"] .fs125-19,
-html[data-syszoom="high"] .fs125-19 {
-  font-size: 0.95rem;
-}
-html[data-font-scale="1.25"] .fs125-17,
-html[data-syszoom="high"] .fs125-17 {
-  font-size: 0.85rem;
-}
-html[data-font-scale="1.25"] .fs125-15,
-html[data-syszoom="high"] .fs125-15 {
-  font-size: 0.75rem;
-}
-/* Under textZoom the fs125-* rem values are THEMSELVES zoomed again by the
-   WebView — pull them back down so the pinned rows land near design size. */
+/* System-textZoom compensations: the hero ring, TopBar row and event strip are
+   px-tuned geometry (fixed ring, 3-col grids). Under the Android system font
+   scale the WebView applies textZoom (≤130% — MainActivity caps it), which
+   zooms RENDERED text without touching CSS font-size, so px-fixed rows would
+   wrap into the ring / collide across columns. When data-syszoom="high" is
+   stamped (main.tsx), pin these rows' type near design size; flowing content
+   still scales. Class name = effective px. UNLAYERED so they beat the text-*
+   utilities without !important. (The in-app font-size control that formerly
+   also drove these compensations was removed 2026-07-19; this OS-textZoom
+   path is independent and stays.) */
 html[data-syszoom="high"] .fs125-32 {
   font-size: 1.3rem;
 }
@@ -376,24 +404,16 @@ html[data-syszoom="high"] .fs125-17 {
 html[data-syszoom="high"] .fs125-15 {
   font-size: 0.65rem;
 }
-/* The hero column's remaining rem growth (header row + gaps) would push the
-   check-in row past the card's bottom edge on 360×740 — reclaim it from the
-   hero card's vertical padding at this scale only. */
-html[data-font-scale="1.25"] .card-hero {
-  padding-top: 0.625rem;
-  padding-bottom: 0.625rem;
-}
 /* Under system textZoom even the px-sized corner-ring captions grow (textZoom
-   scales ALL rendered text) — the hero needs MORE bottom room there, not less. */
+   scales ALL rendered text) — the hero needs MORE bottom room. */
 html[data-syszoom="high"] .card-hero {
   padding-top: 0.625rem;
   padding-bottom: 1.375rem;
 }
-/* And never let flex squeeze a card into its own overflow-hidden clip at this
-   scale: the page column (already overflow-y-auto) scrolls the few extra px
-   instead. Acceptance is "أكبر keeps Home UNCLIPPED" — unclipped beats
-   no-scroll at the top scale; normal scale keeps the strict no-scroll budget. */
-html[data-font-scale="1.25"] .breath-driver > div > *,
+/* Never let flex squeeze a card into its own overflow-hidden clip under
+   textZoom: the page column (already overflow-y-auto) scrolls the few extra px
+   instead — UNCLIPPED beats no-scroll at the top zoom; normal scale keeps the
+   strict no-scroll budget. */
 html[data-syszoom="high"] .breath-driver > div > * {
   flex-shrink: 0;
 }

@@ -21,6 +21,9 @@ const TABS: { id: TabId; labelKey: StringKey; icon: typeof House }[] = [
   { id: "settings", labelKey: "nav.settings", icon: Settings2 },
 ];
 
+/** Tab ids in display order — the single source of truth the pager indexes by. */
+export const TAB_IDS: TabId[] = TABS.map((t) => t.id);
+
 interface TabBarProps {
   tab: TabId;
   onChange: (tab: TabId) => void;
@@ -32,7 +35,12 @@ export function TabBar({ tab, onChange }: TabBarProps) {
     <nav
       className="tab-bar absolute inset-x-0 bottom-0 z-40 px-2 pt-1"
       aria-label={t("nav.label")}
-      style={{ paddingBottom: "calc(0.25rem + var(--safe-area-inset-bottom, 0px))" }}
+      // A DOCKED bar (night/material/contrast) paints behind the gesture area, so
+      // its safe-area inset belongs INSIDE as padding. A FLOATING capsule (glass)
+      // must sit above it instead — padding there just inflates the capsule with a
+      // dead band under the items (user, 2026-07-22), so glass moves the inset to
+      // margin-bottom via --tabbar-safe-* (surfaces.css).
+      style={{ paddingBottom: "calc(0.375rem + var(--tabbar-safe-pad, var(--inset-bottom)))" }}
     >
       <div className="mx-auto grid w-full max-w-xl grid-cols-4">
         {TABS.map(({ id, labelKey, icon: Icon }) => (
@@ -43,9 +51,13 @@ export function TabBar({ tab, onChange }: TabBarProps) {
             aria-current={tab === id ? "page" : undefined}
             className="tab-item flex min-h-14 items-center justify-center"
           >
-            <span className="tab-pill flex flex-col items-center justify-center gap-1 px-4 py-1.5">
-              <Icon className="size-[19px]" strokeWidth={tab === id ? 2.4 : 2} />
-              <span className="text-[11px] font-semibold leading-none">{t(labelKey)}</span>
+            {/* px-3, not px-4: at 360px the four Arabic labels overflowed their
+                ~79px grid cells, so the pills leaned outward. */}
+            <span className="tab-pill flex max-w-full flex-col items-center justify-center gap-1 px-3 py-1.5 transition-transform duration-150 active:scale-90 motion-reduce:transition-none motion-reduce:active:scale-100">
+              {/* Icon+label sit well inside the 56px min-height, so bumping the
+                  type does not grow the bar or change --tabbar-clearance. */}
+              <Icon className="size-[21px]" strokeWidth={tab === id ? 2.4 : 2} />
+              <span className="text-[12.5px] font-semibold leading-none">{t(labelKey)}</span>
             </span>
           </button>
         ))}
