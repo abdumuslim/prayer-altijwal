@@ -1,5 +1,13 @@
 # Notifications (web-push)
 
+> **2026-07-22 — there is NO default reminder rule any more.** Both seeds were removed (native
+> `local-alerts-store.ts`, web `NotificationsOptIn.tsx`); a one-time migration deletes the old
+> 10-min/5-fard rule from devices that were seeded, and ONLY while it still matches the seeded shape
+> exactly (id 1 · before · 10 min · notification · the five fard in any order) — an edited rule is
+> kept. Markers: `prayer.alerts.default-removed.v1` (native) /
+> `prayer.web-default-alert-removed.v1` (web). §3a's "one default rule is seeded" no longer applies.
+
+
 Prayer reminders via the Web Push API: a notification fires ahead of (or at) each chosen prayer,
 even when the tab is closed. This ports home's proven `web-push` mechanics and **fixes its two
 structural weaknesses** for a multi-location service. Design reference — no code yet.

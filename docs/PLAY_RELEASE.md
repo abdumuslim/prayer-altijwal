@@ -22,6 +22,85 @@
 
 ---
 
+## Update runbook — ship a new version to the EXISTING closed track (repeatable)
+
+> **This is the common path now.** Phases 0–4 below (account, signing, store listing, privacy,
+> data-safety, permission declarations) are **one-time and already done** — you only revisit them if
+> something structural changes. To push an update you do just this section. Everything the Console
+> asks that isn't covered here keeps its Phase-4 answer.
+
+### ⓪ What's ready for THIS release (v2.1.0)
+
+- **Signed bundle:** `D:\keys\releases\prayer-v2.1.0-vc3.aab` — versionName **2.1.0**, versionCode
+  **3**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-19; upload this
+  file as-is.
+- **What changed:** swipe navigation, compass redesign + honest calibration warning, nearest-masjid
+  GPS fix + husseiniya exclusion, tab-bar/gesture-bar fix, month table open by default, glass design
+  pass, in-app font-size removed. Full list: `CHANGELOG.md` §2.1.0.
+- versionCode 3 > every previously uploaded code (1, and 2 if you uploaded it) → Play accepts it.
+
+### ① Upload to the closed track (Play Console — your login)
+
+1. **play.google.com/console** → pick **مواقيت الصلاة**.
+2. Left nav: **Test and release → Testing → Closed testing** → open your existing track (the one your
+   12 testers are already on) → **Create new release**.
+3. Under **App bundles**, **Upload** `prayer-v2.1.0-vc3.aab`. Play App Signing is already on — it
+   re-signs with the app key automatically; nothing to configure.
+4. **Release name** auto-fills to `3 (2.1.0)` — leave it.
+5. **Release notes** — paste the AR text from ② inside the `<ar-XB>`/`ar` language block (or the
+   single notes box). **← get my sign-off on the wording first (user-visible text rule).**
+6. **Next → Save**, then **Review release**. Resolve any warnings (a new permission would re-open a
+   Phase-4 declaration — this release adds none, so none should appear). **Start rollout to Closed
+   testing** → confirm.
+
+### ② Release notes «ما الجديد» — AR draft (⚠ NEEDS YOUR APPROVAL before pasting)
+
+```
+• تصفّح أسرع: مرّر بإصبعك للتنقل بين التبويبات.
+• بوصلة القبلة أوضح، وتنبّهك الآن عند الحاجة إلى معايرة الهاتف.
+• أقرب المساجد: إصلاح تحديد الموقع، مع عرض المساجد فقط.
+• الجدول الشهري يفتح تلقائيًا في تبويب المواقيت.
+• تحسينات في شريط التنقل السفلي، التصميم، والأداء.
+```
+
+### ③ Keeping the 12 testers rolling (your actual question)
+
+- **Uploading a new build does NOT reset the 14-day clock.** The requirement is *12+ testers opted
+  in continuously for 14 days*; it tracks tester opt-in, not builds. A new release on the **same**
+  track just updates the app for the people already on it. (If the 14 days already elapsed, you stay
+  eligible — don't drop below 12 opted-in testers.)
+- **Testers need to do nothing** — Play auto-updates the app on their devices within a few hours
+  (faster if they open the Play Store listing via the same opt-in link, or have auto-update on).
+- The **opt-in link and tester list are unchanged** (Console → Closed testing → **Testers** tab).
+  Only add/replace people here if someone dropped out and you're below 12.
+- Nudge them (optional): "تحديث جديد وصل للتطبيق، افتحوه وجرّبوه" — genuine opens/feedback help when
+  you later apply for production.
+- Check progress: Console → Dashboard shows the **closed-testing eligibility** status (X/12 testers,
+  days remaining). When it's satisfied, the **"Apply for production"** action appears (Phase 5.3).
+
+### ④ After rollout
+
+1. Copy the shipped AAB into the release history table below (already done for vc3).
+2. Watch the **Pre-launch report** (Console → Test and release → Pre-launch report) — auto-runs the
+   build on real Google devices; fix anything it flags before/for the next bump.
+3. Sideload note: the Play copy is app-key-signed, so a locally-signed `*-release.apk` won't install
+   over it (signature mismatch) — uninstall the Play build first if you test both.
+
+### ⑤ Rebuild the AAB from scratch (only if you change code and bump the version)
+
+```powershell
+# bump client/package.json version + mirror versionName & versionCode(+1) in app/build.gradle,
+# add a CHANGELOG entry, then:
+cd D:\dev\prayer\client; npm run build; npx cap sync android
+cd android; .\gradlew.bat bundleRelease      # → app\build\outputs\bundle\release\app-release.aab
+# copy to D:\keys\releases\prayer-vX.Y.Z-vcN.aab  (canonical archive; gradle output is overwritten)
+```
+
+Sanity before uploading: `npm test` green · `findstr /m astronomy client\dist\assets\*.js` → only
+the `api-*.js` chunk · confirm `META-INF/UPLOAD.RSA` exists in the AAB (`unzip -l …`).
+
+---
+
 ## Phase 0 — Developer account (once)
 
 1. Go to https://play.google.com/console/signup → **Personal** account → pay the **one-time $25**.
@@ -290,7 +369,8 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | Version | versionCode | Artifacts (`D:\keys\releases\`) | Notes |
 |---|---|---|---|
 | 1.0 | 1 | `prayer-v1.0-vc1.aab` | first closed-track release |
-| 2.0.0 | 2 | `prayer-v2.0.0-vc2.aab` · `prayer-v2.0.0-vc2-release.apk` · `prayer-v2.0.0-vc2-debug.apk` | built + signed 2026-07-14; web half deployed to prod; AAB queued for the SAME closed track (does not reset the 12×14 clock). Release APK is for device testing; debug APK for `chrome://inspect`. |
+| 2.0.0 | 2 | `prayer-v2.0.0-vc2.aab` · `prayer-v2.0.0-vc2-release.apk` · `prayer-v2.0.0-vc2-debug.apk` | built + signed 2026-07-14; web half deployed to prod. Release APK for device testing; debug APK for `chrome://inspect`. |
+| 2.1.0 | 3 | `prayer-v2.1.0-vc3.aab` · `prayer-v2.1.0-vc3-debug.apk` | **built + signed 2026-07-19, READY to upload** to the closed track (Update runbook above). Full v2.1 client also deployed to the prod web this day. Debug APK real-device-verified on a Pixel 7 Pro (swipe, tab bar, compass). |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
@@ -321,10 +401,15 @@ cd android; .\gradlew.bat bundleRelease         # AAB for Play
 - Before submitting, skim the latest policy announcements:
   https://support.google.com/googleplay/android-developer/answer/16926792
 
-## Open items on you (nothing else blocks)
+## Open items on you
 
-1. Pay the $25 + finish identity verification.
-2. Approve/edit the **Arabic store texts** + **privacy policy** above; deploy `privacy.html`.
-3. Confirm the server-log/coordinates check (Phase 2 ⚠) before the Data-safety "ephemeral" answer.
-4. Generate the keystore (Phase 1) and record it in `docs/OPERATIONS.md`.
-5. Recruit **12 testers** and keep them opted in for 14 days.
+**For the v2.1.0 update (now):** just the **Update runbook** at the top —
+(1) OK the AR release notes in §②, (2) upload `prayer-v2.1.0-vc3.aab` to the closed track, (3) keep
+≥12 testers opted in. Nothing else blocks; the one-time items below are already done.
+
+**One-time setup (done — kept for reference):**
+1. ~~Pay the $25 + finish identity verification.~~ ✅
+2. Approve/edit the **Arabic store texts** + **privacy policy**; deploy `privacy.html`. ✅
+3. Confirm the server-log/coordinates check (Phase 2 ⚠) before the Data-safety "ephemeral" answer. ✅
+4. Generate the keystore (Phase 1) and record it in `docs/OPERATIONS.md`. ✅ (`prayer-upload.jks`)
+5. Recruit **12 testers** and keep them opted in for 14 days. — ongoing (keep them on the track).

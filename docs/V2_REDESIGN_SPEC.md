@@ -1,5 +1,39 @@
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
+> **Session 5 (2026-07-19) — v2.1.0 / versionCode 3, APK feedback round (see `CHANGELOG.md` +
+> the memory `v2-redesign-state`):** on real-Pixel feedback, on `feat/v2-redesign`: **swipe pager**
+> (`components/shell/TabPager.tsx` + pure `lib/swipe.ts`, RTL-correct, `touch-action:pan-y`), hero
+> ring 172→184 + ScorePill moved bottom-center + corner rings raised (no check-in overlap),
+> Home-strip check-ins (moved off Times) + bigger type, Times strip removed (compass first),
+> **compass redesign** (upright cardinals, arrow needle, no center degrees, auto-start via
+> `needsGesture`), **nearest-masjid APK fix** (`@capacitor/geolocation` + `ACCESS_*_LOCATION` — the
+> WebView had no location permission), **in-app font-size REMOVED** (system `data-syszoom` kept),
+> tab-bar raised + `--inset-*` = `max(env(), var(injected))` safe-area, and a **non-color glass
+> design pass** (squircle + depth + `.press` motion; a vivid-mesh attempt was REVERTED — the user
+> clarified Cover.jpg is the DESIGN not the colours). Web-verified (Playwright 390/360); build + 112
+> tests + engine gate green; `assembleDebug` (vc3) built. **Review round (same day): pager hardened
+> (pointercancel aborts instead of committing, multi-touch pointerId guard, fractional-width track
+> math, `pan-y pinch-zoom`), compass counter-rotations now ride the rose's transition (no glyph
+> tilt), docs sweep FINISHED (FRONTEND §1/4/5/8/11/12 + ADR-012 font-size removal).**
+> **Device rounds 2–3 (same day — live wireless-adb/CDP debugging on the user's Pixel 7 Pro; ALL
+> THREE reports root-caused and fixed/verified ON DEVICE):** (1) **swipe** — three stacked causes:
+> the drag guard rejected everything (page column's coerced overflow-x:auto + textZoom overflow →
+> guard now stops at `data-pager-page` + `overflow-x-hidden`); the WebView cancelled every
+> horizontal drag ~15px in because `touch-action` lived on the pager viewport while the finger
+> lands on the page SCROLL COLUMN → `touch-pan-y` moved onto the column (the decisive fix,
+> dispatch-log verified: full swipes now complete with zero pointercancel) + native
+> `setOverScrollMode(OVER_SCROLL_NEVER)` in MainActivity. (2) **tab bar clipped** — TWO causes:
+> Capacitor 8.4.1's gated/racy inset pipeline (replaced by
+> `MainActivity.initDeterministicInsets()` — always edge-to-edge, always injects real insets,
+> IME-aware) AND a latent layout bug the working insets then exposed: body pads top by
+> `--inset-top` while `.breath-driver` was `h-dvh` → content overflowed by exactly the top inset →
+> shell height is now `calc(100dvh − var(--inset-top))`; screenshot + box-measure verified (items
+> 30px above the gesture bar). (3) **compass** — code fully vindicated, DEVICE magnetically
+> compromised (171 µT vs ~47 µT, ±90° self-reported uncertainty — see `QIBLA_MASJID_SPEC.md`
+> round-3 verdict); `CompassPlugin` now merges the rotation vector's per-event heading uncertainty
+> into the accuracy chip → the phone honestly shows «بحاجة إلى معايرة» + figure-8 hint.**
+> OPEN: signed AAB + Play upload (human step, `key.properties` present), merge to `main`.
+>
 > **Status (CHECKPOINT 2026-07-14, session 4): Phases 0–8 BUILT + the full Qibla/Masjid feature
 > (`QIBLA_MASJID_SPEC.md` QM1–QM5 — see its status header for the as-built summary).**
 > **P8 as-built:** token-driven `:focus-visible` (UNLAYERED rule in `surfaces.css` wiring the

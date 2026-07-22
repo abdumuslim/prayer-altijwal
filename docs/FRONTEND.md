@@ -16,8 +16,14 @@ Resolution — never blocks the UI:
 2. Else **default to Baghdad** (`33.3152, 44.3661`, `Asia/Baghdad`) — the app opens on Baghdad with
    **no auto-GPS prompt** (Iraq-centric audience; changed 2026-06-19).
 3. GPS is **opt-in**: the search panel's "Use my location" button →
-   `navigator.geolocation.getCurrentPosition` → `GET /api/geo/reverse`
+   `lib/geolocation.ts getCurrentPosition` → `GET /api/geo/reverse`
    → `{ city, cityAr, country, tz, elevation, method }` → persist.
+   `getCurrentPosition` branches per platform (2026-07-19): web wraps
+   `navigator.geolocation`; **native (Capacitor) uses `@capacitor/geolocation`**
+   (dynamic import — its chunk never loads on web), because the WebView's
+   `navigator.geolocation` has no runtime permission and every fix fails. The
+   plugin requests `location`/`coarseLocation` once (the OS remembers) and its
+   errors map onto the same `GeolocationFailure` kinds, so callers don't branch.
 4. Or pick via `CitySearch` (forward `/api/geo/search`) / the `GovernorateList` quick-pick.
 
 The resolved `{ lat, lon, tz }` feed `GET /api/prayer-times`; `method`/`asr` are auto-resolved
@@ -120,6 +126,7 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 | `iqamaMinutes` | `{ fajr, dhuhr, asr, maghrib, isha }` — minutes from adhan to iqama (defaults 25/15/15/5/10; `migrate()` coerces each key to a finite 0–60, defaulting when absent — no version bump). **No `sunrise`** (no iqama). |
 | `features` | `{ duha, qiyam, rawatib, adhkar, record }` — **opt-in worship features, all `false` by default** (§5/§8). `migrate()`/`coerceFeatures` treats each key as `false` unless a real `true` (missing → off), so a fresh or legacy user gets a clean core-only screen. Set via `useSettings().setFeature`. |
 | `alarmSound` | selected alarm-tone id (`lib/alarm-sounds` catalog; default `soft-plucks`). The global tone every `alarm`-kind reminder plays. `migrate()` coerces unknown ids to the default. Set via `useSettings().setAlarmSound`. |
+| `theme` | active design-language theme id (`night`/`glass`/`material`/`contrast`, default `night` — v2 Phase 7). `migrate()`/`coerceTheme` coerce unknown → `night`; `index.html` stamps it pre-paint. A legacy `fontScale` field is **silently dropped** by `migrate()` (the in-app font-size control was removed 2026-07-19 — ADR-012). |
 
 Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
 selections are **server-side** (alert rules) — no `reminderPrefs` key. Note `features` (the worship
@@ -152,9 +159,21 @@ unsupported — no UI, called once in `App`).
   `[clock time / remaining]` as a centred stacked column at the end. The
   countdown shows for **every upcoming** prayer (next = proximity accent + glow/border, others calm,
   passed dim).
-- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**208px**, shrunk one
-  step from 224 to make room for the new aids; name `text-2xl`, countdown `text-[1.85rem]`, the clock
-  time kept at `text-base`): a single header line
+- `shell/TabPager` (v2.1, 2026-07-19) — the four keep-mounted pages live side-by-side in a translated
+  track; a horizontal drag follows the finger and commits on distance/flick (pure math in `lib/swipe.ts`
+  + tests). RTL-correct (`dirSign=+1`: RTL flex lays columns at negative x), `touch-action: pan-y
+  pinch-zoom`, `[data-no-swipe]`/scrollable-child guard, off-screen pages `inert`+`aria-hidden`,
+  pointercancel aborts (never commits), disabled while any overlay is open. `TabBar` exports `TAB_IDS`
+  as the index order. **Gotchas (all real-Pixel-debugged):** the guard's walk STOPS at the pager's
+  own page column (`data-pager-page`, also `overflow-x-hidden`) — `overflow-y-auto` coerces
+  computed overflow-x to "auto", and under system textZoom a few px of horizontal overflow
+  otherwise blocks every drag. **`touch-action: pan-y` must be ON the page scroll column** (the
+  element the finger lands on — `touch-pan-y` in its classes): with it only on the viewport, the
+  Android WebView cancelled every horizontal drag ~15px in (pointercancel) and swipes could never
+  commit; MainActivity additionally sets `setOverScrollMode(OVER_SCROLL_NEVER)` on the WebView.
+- `NextPrayerCountdown` — live timer to the next prayer inside a depleting ring (**184px** as of
+  v2.1 — was 172 in the v2 shell, 208/192 in v1; name `text-2xl`, countdown `text-[1.85rem]`, the
+  clock time kept at `text-base`): a single header line
   (`next.header` "الوقت المتبقي للاذان القادم", or `next.now` at adhan) + name + countdown + clock
   time. The three inner lines are **distributed vertically** (height-constrained `justify-between`) so
   they breathe without touching the ring. RTL-safe centred glow. The ring depletes across
@@ -310,21 +329,24 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
   (`monthly`, ≤12, current gold). The hero `ScorePill` flame is the **fard** streak.
 
 **UI (design 3 of the numbered preview — `/?design=N` in dev, number keys 1–8):**
-- `ScorePill` (hero top corner, ⭐ today's pts · 🔥 streak) → opens the **التقارير tab** (v2 Phase 6;
+- `ScorePill` (hero **bottom-center**, below the check-in row — moved from the top corner 2026-07-19;
+  ⭐ today's pts · 🔥 streak) → opens the **التقارير tab** (v2 Phase 6;
   StatsSheet retired): `TodayCard` (ring /29 + feature-gated category rows — disabled categories
   omitted, never zeroed), `TrendChart`, `HeatmapCalendar` (weeks×7 column grid, emerald score
   scale, today outlined gold), `PerPrayerBreakdown` (stacked masjid/home/missed bars, check-in trio
   legend), `LifetimeTotals` (4 tiles + Levantine best-day date when the record is a retained day).
   `features.record` off → the tab shows only a CTA empty state that enables the record.
-- **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[157px]` so they don't
+- **Corner rings** (`CornerRing`, physically pinned like the satellites, `top-[139px]` — raised
+  2026-07-19 so the check-in box clears their captions — so they don't
   move when rows below appear): rawatib bottom-right (**sky**, "x/12" rakaat), adhkar bottom-left
   (**teal**, "x/2" = the daily pair; arc moves per dhikr item). Titles on TOP, caption below
   (next slot / "الصباح|المساء الآن"). **Complete → solid disc + bold white check** — the same
   fill-and-check applies to the Duha/Qiyam satellites via `SatelliteRing`'s `done` prop (tap toggles;
   caption time stays and is dimmed whenever the window is inactive).
-- **Check-in**: on each fard card an icon after the *name* (`CheckinControl`: dashed circle →
-  3-icon popover; marked icon tap → transient tooltip + popover to correct; picking the current
-  state again undoes it). In the hero, `HeroCheckinRow` asks "أين صلّيت X؟" (icon trio) for the
+- **Check-in**: on each **Home-strip** fard cell an icon after the *name* (`CheckinControl`: dashed
+  circle → 3-icon popover; marked icon tap → transient tooltip + popover to correct; picking the
+  current state again undoes it) — moved off the Times tab with its strip, 2026-07-19; `App` builds
+  `checkinFor` and Home's `PrayerStrip` embeds it. In the hero, `HeroCheckinRow` asks "أين صلّيت X؟" (icon trio) for the
   latest passed fard — **suppressed while the iqama bar runs** (prayer hasn't happened yet), swaps
   to the "أذكار بعد الصلاة" chip once marked, gone when those adhkar are done.
 - **Sheets** (`ui/BottomSheet` — bottom-anchored dialog; `SlideOver` stays for Settings/Search):
@@ -334,10 +356,12 @@ compaction with **per-section `prefixStreaks`**; dhikr counts debounced 500 ms +
 - `ui/MosqueIcon` — custom simple mosque glyph (lucide has none); masjid=gold, home=teal,
   missed=red everywhere.
 
-**Layout budget:** main ring shrunk 208→192; satellites nudged down 24 px (score pill owns the top
-corner); iqama bar narrows to `max-w-[200px]` beside the corner rings; hero header shortened to
-"المتبقي للأذان". Verified no-scroll at 390×844 **and** 360×740 in every state (the iqama bar and
-the check-in row never coexist by design).
+**Layout budget (v2.1 as-built, 2026-07-19):** main ring **184px**; satellites overlay nudged down
+18 px (the score pill vacated the top corners for the bottom-center); corner rings at `top-[139px]`;
+hero `p-3`, flow `gap-1.5`, below-ring spacer `h-1.5`, page column `gap-2.5`; iqama bar narrows to
+`max-w-[200px]` beside the corner rings; hero header shortened to
+"المتبقي للأذان". Verified no-scroll at 390×844 **and** 360×740 with ALL features on (the iqama bar
+and the check-in row never coexist by design).
 
 ---
 
@@ -409,13 +433,28 @@ compute. Full detail: `NATIVE_ALARM_SPEC.md`. Frontend-relevant pieces:
 - The full-screen **ring** is a **native `AlarmActivity`** (not the web `AlarmOverlay`); the web overlay
   (§9) still handles the in-app foreground case and is opened from the native activity's `?alarm=` deep
   link.
+- **Safe-area insets are owned by `MainActivity.initDeterministicInsets()`** (2026-07-19): it
+  replaces Capacitor 8.4.1's conditional SystemBars listener (Chromium≥140 gate + async
+  viewport-fit probe — on the Pixel that left the WebView under the gesture bar with zero-valued
+  vars) with an unconditional one: WebView always edge-to-edge, real system-bar+cutout insets
+  always injected as `--safe-area-inset-*`, IME-aware. CSS consumes them via
+  `--inset-* = max(env(), var())` in `surfaces.css`. **Paired layout rule:** the app shell
+  (`.breath-driver`) is `calc(100dvh − var(--inset-top))`, NOT `h-dvh` — body pads its top by the
+  inset, so a full-dvh child overflows the bottom by exactly the top inset (this is what kept
+  clipping the tab bar even after the vars worked). MainActivity also sets the WebView to
+  `OVER_SCROLL_NEVER` (the horizontal overscroll-stretch broke the tab swipe) and the textZoom cap
+  (§12).
 
 ## 11. Times tab: qibla + nearest masjid (2026-07-14 — `QIBLA_MASJID_SPEC.md`)
 
-Order (user-approved): today strip (with check-ins) → `qibla/QiblaCompass` → `masjid/NearestMasjids`
-→ month table DEMOTED into a collapsed `CollapsibleSection` («الجدول الشهري», default closed).
-`CollapsibleSection` grew a controlled mode (`open`/`onToggle`) so `useMonthTimes` is gated on
-`active && monthOpen` — nothing fetches while the section is closed.
+Order (2026-07-19): `qibla/QiblaCompass` (first) → `masjid/NearestMasjids` → month table in a
+`CollapsibleSection` («الجدول الشهري», **OPEN by default** since 2026-07-19 — was closed). The
+**today strip was removed** from this tab (a duplicate of Home's; its per-prayer check-ins moved
+to the Home strip — §8). `CollapsibleSection` has a controlled mode (`open`/`onToggle`);
+`useMonthTimes` stays gated on `active && monthOpen`, so nothing fetches while another tab is
+shown. The masjid list is server-filtered: husseiniyas (all spellings incl. Persian script),
+موكب stations and مضيف halls never appear (`server/src/places/google-places.ts`, user rule —
+`QIBLA_MASJID_SPEC.md` header).
 
 - **`useCompassHeading` lives in TimesPage** (ONE sensor stream shared by the compass card and the
   masjid bearing arrows) and stops whenever the tab loses `active` (keep-mounted tabs) or the
@@ -425,17 +464,31 @@ Order (user-approved): today strip (with check-ins) → `qibla/QiblaCompass` →
   (requestPermission MUST run inside the start-button tap — it is the FIRST await in `start()`) →
   `unavailable` = static mode (fixed rose, arrow at true bearing — never a needle from relative
   sensors). Headings smoothed on the unit circle (sin/cos EMA), emitted ≤20 Hz; the component
-  unwraps angles so CSS transitions never spin the long way at 359→0.
+  unwraps angles so CSS transitions never spin the long way at 359→0. **Honest native accuracy
+  (2026-07-19):** `CompassPlugin` merges the rotation vector's per-event heading-uncertainty
+  estimate (`values[4]`, radians: ≤5°=high · ≤15°=medium · ≤30°=low · else unreliable) with the
+  SENSOR_STATUS callback and reports the WORSE — a magnetically swamped device (Pixel 7 Pro case:
+  171 µT ambient vs Earth's ~47) shows «بحاجة إلى معايرة» + the figure-8 hint instead of a false
+  «دقة عالية». **Auto-start (2026-07-19):**
+  the hook exposes `needsGesture` (true only on iOS-web, whose `requestPermission()` must run in a
+  tap); a TimesPage effect starts the compass whenever the tab is `active` and `!needsGesture`, so
+  everywhere else it starts itself with no button and never re-prompts. **Dial redesign:** upright
+  cardinal letters (each glyph counter-rotated by `rot − angle`, riding the SAME 200 ms transition
+  as the rose so the pair cancels every frame), an SVG arrow needle with the Kaaba glyph at its tip
+  (also counter-rotated), no center degrees readout, `size-60` dial, DEV-only heading diagnostic.
 - **`lib/qibla.ts`** is pure math (KAABA const, great-circle `bearingToKaaba` — Baghdad ≈ 199.8°,
   `haversineKm` mirroring `server/src/util/geo-distance.ts`). Lock-on at ±3°: gold ring + one
   haptic per alignment entry (`Compass.pulse()` native / `navigator.vibrate` web) + an aria-live
   announcement.
 - **`NearestMasjids`** is gated on `location.source === "gps"` (additive `StoredLocation.source`
   migration; `requestGps` now accepts `PositionOptions` — the section passes
-  `{enableHighAccuracy:true, maximumAge:0}`). `enabled:false` from the proxy hides the section
-  entirely; `degraded:true` shows the error state and clears the fetch memo so the next visit
-  retries. Rows: distance («850 م» / «1.2 كم», Latin digits), live bearing arrow, Maps/Waze deep
-  links (`<a target="_blank" rel="noopener">`).
+  `{enableHighAccuracy:true, maximumAge:0}`). On the APK the fix comes from
+  `@capacitor/geolocation` (§1 — the WebView path could never get one), and a denied/failed
+  request surfaces `error.locationDenied`/`error.location` under the opt-in button via the
+  `gpsErrorKind` prop (2026-07-19 — it used to fail silently). `enabled:false` from the proxy
+  hides the section entirely; `degraded:true` shows the error state and clears the fetch memo so
+  the next visit retries. Rows: distance («850 م» / «1.2 كم», Latin digits), live bearing arrow,
+  Maps/Waze deep links (`<a target="_blank" rel="noopener noreferrer">`).
 
 ## 12. Accessibility system (Phase 8, 2026-07-14 — ADR-010)
 
@@ -444,24 +497,71 @@ Order (user-approved): today strip (with check-ins) → `qibla/QiblaCompass` →
   `outline-none` without `.focus-ring-within` (wrapper inputs) / `.focus-ring-none` (inner opt-out).
 - **Touch targets**: `.hit-target` (index.css) expands hit areas to ≥48 px via a transparent
   ::after; cap with `--hit-w`/`--hit-h` when a real neighbor sits closer (AlertRuleList delete must
-  never cover edit). Known documented exception: ScorePill caps at 38 px (Qiyam satellite overlap).
+  never cover edit). Known documented exception: ScorePill caps at 38 px (its vertical expansion
+  would overlap the check-in row directly above it in the hero flow; the Reports tab is the
+  redundant path to the same place).
 - **Countdowns are silent**: every per-second text (hero clock, satellites, iqama, alarm clock) is
   `aria-hidden` inside a stable-named container (IqamaBar = `role="timer"`). The app has exactly ONE
   live region — `TipLiveRegion` in CheckinControl (check-in confirmations); keep it that way.
 - **Dialogs**: BottomSheet/SlideOver/check-in popover move focus in on open and restore on close;
   no full trap (deliberate — aria-modal + Escape + backdrop suffice). lucide icons need no
   aria-hidden sweep (the lib injects it on childless icons).
-- **Font scale**: `data-font-scale` steps 1/1.125/1.25 (pre-paint boot in index.html). At 1.25 the
-  px-fixed hero/TopBar/event rows pin their type via `fs125-*` classes (index.css, unlayered) and
-  page cards get `flex-shrink: 0` — the extreme state scrolls instead of clipping (acceptance is
-  "unclipped" at أكبر; strict no-scroll holds at normal scale). Android: MainActivity caps WebView
+- **Text size = the OS pipeline only** (the in-app «حجم الخط» control was REMOVED 2026-07-19 —
+  ADR-012; web/desktop rely on native browser zoom). Android: MainActivity caps WebView
   `textZoom` at 130% of the system scale, and main.tsx MEASURES the effective zoom (DOM width vs
-  canvas width — canvas text ignores textZoom) to stamp `data-syszoom="high"`: the fs125-*
-  compensations then apply (at pulled-down values — textZoom re-zooms rem text), the hero gets
-  EXTRA bottom padding (textZoom grows even px-sized corner-ring captions), and `applyFontScale`
-  suppresses the in-app CSS step so the two scales never stack past ~130% (emulator-verified at
-  system font_scale 2.0).
+  canvas width — canvas text ignores textZoom) to stamp `data-syszoom="high"`: the px-fixed
+  hero/TopBar/event rows then pin their type via the `fs125-*` classes (index.css, unlayered, at
+  pulled-down values — textZoom re-zooms rem text), the hero gets EXTRA bottom padding (textZoom
+  grows even px-sized corner-ring captions), and page cards get `flex-shrink: 0` — the extreme
+  state scrolls instead of clipping (acceptance is "unclipped" at high zoom; strict no-scroll
+  holds at normal scale; emulator-verified at system font_scale 2.0).
 - **Per-theme contrast**: axe (devDep `axe-core`, injected via Playwright MCP `/@fs/`) must stay at
   ZERO violations; translucent themes file contrast as "incomplete" — resolve at TOKEN level
   against composited backdrops (glass mid = #dfe9f6). Every glass accent is AA-darkened; contrast
   theme splits critical/imminent (near-white #ffd1d1); night ink-faint = #75988f (user-approved).
+
+## 13. Vendor prefixes: never hand-write `-webkit-backdrop-filter` (2026-07-22)
+
+**The glass theme rendered with NO blur at all inside the Android WebView**, on every build since the
+theme shipped — cards and tab bar alike. Desktop Chrome looked correct, which is why it survived
+several review rounds.
+
+Root cause: our CSS wrote the pair by hand, standard property first:
+
+```css
+backdrop-filter: blur(16px) saturate(185%);
+-webkit-backdrop-filter: blur(16px) saturate(185%);   /* ← the problem */
+```
+
+Lightning CSS (Vite's minifier) collapsed the pair down to **only the `-webkit-` form**, and the
+device's Chromium (Chrome 150 WebView) has dropped that legacy alias — so the declaration matched
+nothing and `getComputedStyle(...).backdropFilter` returned `none`.
+
+**Rule: write only the standard property.** The build adds the prefixes it needs; with the hand-written
+line removed, the same rule now emits `-webkit-backdrop-filter` *and* `backdrop-filter`.
+
+How it was found (repeat this for any "works on desktop, not in the APK" style bug) — CDP straight
+into the device WebView, which is the only way to see the *computed* value on the real engine:
+
+```bash
+adb shell "cat /proc/net/unix | grep -o 'webview_devtools_remote.*'"   # socket name
+adb forward tcp:9222 localabstract:<socket>
+curl http://127.0.0.1:9222/json/list          # → webSocketDebuggerUrl
+# then Runtime.evaluate over that WebSocket:
+#   getComputedStyle(document.querySelector('.tab-bar')).backdropFilter
+```
+
+The decisive step was probing a scratch element with an inline `backdrop-filter: blur(10px)`: it
+computed fine, proving the *engine* supported the property and the *stylesheet* was at fault.
+
+### Glass tab-bar recipe (user-tuned on device, same session)
+
+Glossy, not frosted — heavy blur smears away the refraction and reads as a grey panel:
+flat `rgba(255,255,255,0.16)` fill (no sheen gradient — a diagonal ramp looked frostier at one end),
+`--tabbar-blur: 4px`, the wide-band lens map, a `::before` specular sheen over the upper half, and a
+restrained active pill (`0.34` alpha + `brightness(1.06)`) instead of a solid white chip.
+
+**Safe-area rule:** a *docked* bar (night/material/contrast) takes the bottom inset as inner padding
+so its background reaches the screen edge; a *floating* capsule (glass) must take it as
+`margin-bottom` instead — as padding it inflates the capsule with a dead band under the icons.
+Themes switch this via `--tabbar-safe-pad` / `--tabbar-safe-margin` (`surfaces.css`).

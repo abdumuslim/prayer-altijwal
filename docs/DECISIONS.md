@@ -320,3 +320,43 @@ No CRITICAL/HIGH findings survived; the untrusted Places `name`/`id` are safe (p
 **Why.** An unauthenticated public endpoint that spends real money per uncached call needs a
 server-side circuit breaker independent of the cache; a per-minute global cap fails closed at a
 bounded worst case while leaving normal (cache-clustered) traffic untouched.
+
+## ADR-012 — In-app font-size control removed; OS text scaling is the only text-size path ✅
+
+**Decision (2026-07-19, session 5 — v2.1.0).** The Settings «حجم الخط» control (`data-font-scale`
+steps 1/1.125/1.25, part of the P8/D6 a11y package) is **removed end-to-end**: `lib/theme.ts`
+(`FontScale`/`applyFontScale`), the `prayer.app.v1` field (`migrate()` silently drops a legacy
+`fontScale`), the `AppearanceSettings` control, the `index.html` pre-paint stamp, the
+`html[data-font-scale]` CSS steps and the i18n keys. Text-size accessibility now rides the OS
+alone: Android system font scale → WebView textZoom (MainActivity caps at 130%) → the measured
+`data-syszoom` stamp + `fs125-*` compensations (that pipeline is UNCHANGED and stays); web/desktop
+users have native browser zoom. This partially reverses D6/P8's "in-app font-size setting" line.
+
+**Why.** Real-device (Pixel) feedback showed the in-app steps broke px-tuned layouts in ways the
+compensations could not fully absorb — and the control duplicated what the phone already does
+system-wide. Two stacking scale paths (in-app × system) created exactly the clipping bugs the
+feature was meant to prevent (the Phase-8.5 anti-stacking guard existed only because of that
+duplication). One pipeline — the OS one, which users already know and which covers every app —
+is strictly more robust than two.
+
+## ADR-013 — A second, browser-visible Maps key (Embed API only) ✅
+
+**Context.** The masjid rows were redesigned (2026-07-22) so tapping one expands an interactive
+Google directions map. ADR-009 keeps the Places key strictly server-side, and it must stay that way:
+it is metered and IP-restricted. But an embedded map is rendered by the *browser*, so it needs a key
+the client can see.
+
+**Decision.** Provision a **second** API key in the same GCP project (`al-tijwal-483313`), restricted
+to the **Maps Embed API** and to our origins (`https://prayer.altijwal.com/*`, plus the Capacitor
+WebView's `https://localhost/*`). The server hands it to the client as `embedKey` on
+`/api/places/masjids`; absent ⇒ rows expand with the deep-link buttons and no map.
+
+**Why this is safe.** The Maps Embed API is free and unmetered, so a leaked Embed key costs nothing
+and unlocks nothing else — the blast radius of exposing it is a stranger embedding maps. The Places
+key (billable) and the Routes key usage (billable per element) stay server-side. Reusing the Places
+key here would have been the actual security regression.
+
+**Also decided.** Travel times use the **Routes API** `computeRouteMatrix`, not the legacy Distance
+Matrix (Legacy-flagged, needs separate enablement). It bills **per element**, so the server requests
+times only for the 5 rows the client renders, caches them inside the existing 24 h / ~300 m grid
+entry, and ADR-011's breaker charges 3 units per cache miss (1 Places + 2 Routes).

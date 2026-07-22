@@ -1,5 +1,83 @@
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
+> **Session 6 (2026-07-22, v2.1.0 / versionCode 4) — feedback round 2, BUILT + DEPLOYED.**
+> **Masjid rows redesigned:** the Maps/Waze chips left the row; tapping a row now EXPANDS it with a
+> live Google **Maps Embed API** directions map (device → masjid, auto-fits both ends) and the two
+> deep-link buttons underneath. Distance gained a travel-time subtext — walking + driving minutes
+> from the **Routes API** (`computeRouteMatrix`, WALK and DRIVE are separate requests) — with proper
+> Arabic number agreement (`دقيقة` / `دقيقتان` / `دقائق`, `minuteUnitKey()`). Long names scroll
+> (`components/ui/MarqueeText.tsx`, only when they actually overflow; reduced-motion truncates).
+> Expanding scrolls the panel clear of the tab-bar overlay (which `scrollIntoView` cannot do — the
+> bar is `absolute`, so the row counts as "visible" underneath it).
+> **Two keys now:** the Places key stays server-only; a SECOND browser-visible key restricted to the
+> **Maps Embed API** (free, unmetered) is handed to the client in the `/api/places/masjids` response
+> as `embedKey`. Missing ⇒ rows expand with the buttons and no map. Details + key values in
+> `OPERATIONS.md`; rationale in `DECISIONS.md` ADR-013.
+> **Cost shape:** Routes bills PER ELEMENT (origins × destinations), so the server prices only the 5
+> rows the client renders, caches durations inside the same 24 h / ~300 m grid entry, and the
+> ADR-011 breaker now charges **3 units per cache miss** (1 Places + 2 Routes) against 30/min.
+> **Refresh (was: fetched once per position, then never again):** the list refetches on Times-tab
+> re-entry and via a new pull-to-refresh (`components/ui/PullToRefresh.tsx` + the pure state machine
+> in `lib/pull-to-refresh.ts` — it arms only at `scrollTop 0` and hands horizontal drags back to the
+> pager). GPS is now **staged**: a fast cached/coarse fix paints the list within a second, then a
+> high-accuracy fix refines in the background and only re-publishes if the ~300 m grid cell changed.
+> With permission already granted the Times tab fixes itself — no button tap (verified on device:
+> the list auto-loaded with real masjids at 73 m / 625 m / 891 m).
+> **Compass fallback (the A21/A70 report):** `CompassPlugin` used TYPE_ROTATION_VECTOR *only* and
+> hard-rejected when absent — a gyro-less budget phone therefore fell through to web sensor paths
+> that don't exist in the WebView, leaving a static dial the user reads as "wrong". The chain is now
+> ROTATION_VECTOR → GEOMAGNETIC_ROTATION_VECTOR → accel+magnetometer (low-passed, accuracy capped at
+> "medium" — nothing stabilizes it), and every event carries `source`, surfaced in the 5-tap
+> diagnostic. Still unverified on an actual gyro-less device.
+> **Perf (the "laggy" report):** the heading stream left React state entirely — `useCompassHeading`
+> now exposes `subscribe()`/`getHeading()` and the compass + masjid arrows drive transforms from one
+> rAF loop, so the Times tab no longer re-rendered ~20×/s with a 200 ms CSS transition restarted
+> every 50 ms on ~30 nodes. `lib/heading-anim.ts` holds the pure math (its tests caught a real
+> seam bug: JS `%` on a drifted continuous angle returned −350° instead of +10°).
+
+> **Session 5 (2026-07-19, v2.1.0) — APK feedback fixes:** (1) **Compass UI redesigned**
+> (`QiblaCompass.tsx`): cardinal letters now stay UPRIGHT (glyph counter-rotated by `rot-angle`), a
+> clear SVG **arrow needle** + Kaaba-at-tip replaces the mosque chip, the center degrees readout is
+> REMOVED, larger dial, DEV-only heading diagnostic. **Auto-start**: `useCompassHeading` exposes
+> `needsGesture` (true only iOS-web); TimesPage auto-starts when active + !needsGesture, so it starts
+> itself and never re-prompts (button only iOS). Heading MATH is unchanged/canonical — any residual
+> real-device offset is magnetometer calibration, not code. (2) **Nearest-masjid APK fix (root
+> cause):** the WebView `navigator.geolocation` had NO permission → every fix failed silently.
+> Installed `@capacitor/geolocation@8.2.0` (native branch in `lib/geolocation.ts`, dynamic import,
+> own lazy chunk) + `ACCESS_FINE/COARSE_LOCATION` in the manifest; asks once (OS remembers); GPS
+> denial now surfaces `error.locationDenied`/`error.location` in `NearestMasjids` (was swallowed).
+> Times restructure: the today prayer STRIP was removed (compass is first now).
+> **Round 2 (same day) — the real-Pixel "wrong direction" report:** `CompassPlugin.java` and the
+> UI were re-audited against the canonical Android pipeline (rotation-vector matrix → per-rotation
+> `remapCoordinateSystem` → azimuth → east-positive declination; rose `-rot`, needle `+bearing`,
+> counter-rotations synced) — **no code defect found**. Remaining candidates are device-side
+> (magnetometer calibration/interference) or a silent fall to STATIC mode. A hidden diagnostic was
+> added: **5 quick taps on the qibla card title** toggle a `hdg · qibla · source · accuracy` line
+> (always on in DEV) — `source` shows `native`/`web-absolute`/`web-ios` when live, or the bare
+> status (e.g. `unavailable`) when the dial is static. Compare `hdg` against a trusted compass app
+> to decide sensor vs code.
+>
+> **Round 3 — VERDICT (live adb/CDP session on the user's Pixel 7 Pro):** the code is correct; the
+> DEVICE is magnetically compromised. Evidence: native heading and an independent
+> `deviceorientationabsolute` path agreed within 1°; a full-circle rotation tracked smoothly
+> 0→357°; presentation verified frame-exact (rose −rot, needle +bearing). `dumpsys sensorservice`
+> showed the calibrated field at **171 µT vs Earth's ~47 µT** (X = −154 µT alone) with a
+> **183 µT hard-iron bias** estimated by Android itself, and the rotation vector's per-event
+> heading-uncertainty (values[4]) at **1.57 rad = ±90°** — while SENSOR_STATUS still said "high".
+> **Fix shipped:** `CompassPlugin` now merges values[4] (≤5° high · ≤15° medium · ≤30° low · else
+> unreliable) with the status callback, taking the WORSE — the UI on that phone now shows
+> «بحاجة إلى معايرة» + the figure-8 hint instead of a false «دقة عالية». **Verification rule
+> (user, saved to memory):** qibla direction must be judged against Kaaba GPS + the DEVICE's real
+> GPS location — set the tester's true location first (the app was still on the Baghdad default).
+>
+> **Same-day additions (user requests):** (1) the masjid proxy now EXCLUDES non-mosque venues by
+> name (`google-places.ts isExcludedVenue`, applied before the grid cache): husseiniya word forms
+> حسينية/حسينيه/حسينيات/حسينة + Persian-script spellings (ی/ک folded to Arabic first) + Latin
+> transliterations + موكب/مواكب + مضيف; Hussein-NAMED mosques/shrines are kept (regression test in
+> `google-places.test.ts`; live-verified in Karbala city centre — deployed to prod). (2) the month
+> table section on the Times tab is **open by default** (still gated on `active` so nothing fires
+> off-tab).
+>
 > **Status: BUILT 2026-07-14 (session 4) — all of QM1–QM5 implemented alongside v2 Phase 8.**
 > As-built: `lib/qibla.ts` + reference-city tests · `GET /api/geo/declination` (WMM-2025 via the
 > `geomagnetism` package — it DID carry the 2025 coefficients, no vendoring needed; NOAA

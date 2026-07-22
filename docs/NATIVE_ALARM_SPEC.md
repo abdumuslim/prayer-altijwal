@@ -1,5 +1,17 @@
 # Native Alarm Spec (Capacitor, offline-first) — Android first, iOS deferred
 
+> **2026-07-22 — the alarm is dismissable ONLY by the deliberate swipe.** Testers kept killing it by
+> accident, and the old paths left the SERVICE ringing headless because `finish()` never stopped it.
+> Changes: `AlarmActivity` swallows BACK (an empty `OnBackInvokedCallback` at PRIORITY_OVERLAY for
+> API 33+ — targetSdk 36 means predictive back is on, so `onBackPressed()` alone is NOT called there
+> — plus the `onBackPressed()` override for older devices); the `<10 dp` tap-to-stop branch in
+> `SwipeUpToStop` is gone (a tap now springs back), with a TalkBack-only `setOnClickListener` +
+> `contentDescription` kept so switch/screen-reader users can still stop it; `AlarmService` gained
+> `ACTION_REPOST` wired to `setDeleteIntent`, so a notification swiped away on Android 14+ (where
+> ongoing FGS notifications ARE dismissable) is re-posted immediately while `ringing` is true.
+> The web overlay follows the same rule — `App.tsx`'s back handler consumes BACK without dismissing.
+
+
 > **Status: Phases 1–5 BUILT + VERIFIED (2026-07-11); on-device firing VERIFIED on the emulator the
 > same day after a fix round** — see `docs/NATIVE_ALARM_FIXES_SPEC.md` (shared rules store, hardware
 > back, AlarmActivity web-overlay design + countdown-to-adhan, brand launcher icon; all reproduced,
