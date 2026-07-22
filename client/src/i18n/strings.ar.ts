@@ -103,6 +103,18 @@ export const ar: Record<StringKey, string> = {
   "masjid.error": "تعذّر جلب المساجد القريبة",
   "masjid.maps": "خرائط Google",
   "masjid.waze": "Waze",
+  "masjid.walk": "مشيًا",
+  "masjid.drive": "بالسيارة",
+  // Arabic number agreement: 1 → دقيقة · 2 → دقيقتان · 3–10 → دقائق · 11+ → دقيقة
+  "masjid.minute": "دقيقة",
+  "masjid.minuteDual": "دقيقتان",
+  "masjid.minutePlural": "دقائق",
+  "masjid.retry": "إعادة المحاولة",
+  "masjid.mapTitle": "خريطة الاتجاهات إلى المسجد",
+  "masjid.locating": "جارٍ تحديد موقعك…",
+  "ptr.pull": "اسحب للأسفل للتحديث",
+  "ptr.release": "أفلت للتحديث",
+  "ptr.refreshing": "جارٍ التحديث…",
 
   // Settings
   "settings.title": "الإعدادات",
@@ -117,10 +129,6 @@ export const ar: Record<StringKey, string> = {
   "theme.glass": "الزجاج",
   "theme.material": "ماتيريال",
   "theme.contrast": "تباين عالٍ",
-  "settings.fontSize": "حجم الخط",
-  "fontSize.normal": "عادي",
-  "fontSize.large": "كبير",
-  "fontSize.xlarge": "أكبر",
 
   // Notifications
   "notify.title": "تذكيرات الصلاة",

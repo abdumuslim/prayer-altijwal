@@ -1,54 +1,88 @@
 // المواقيت tab — restructured for the qibla + nearest-masjid feature pair
-// (docs/QIBLA_MASJID_SPEC.md §7): today strip (kept) → qibla compass → nearest
-// masjids → month table DEMOTED into a collapsed section («الجدول الشهري»,
-// default closed — useMonthTimes is gated on section-open so no request fires
-// while it's closed). The compass heading hook lives HERE so the qibla card and
-// the masjid bearing arrows share one sensor stream; sensors stop whenever the
-// tab is hidden (keep-mounted tabs).
+// (docs/QIBLA_MASJID_SPEC.md §7): qibla compass → nearest masjids → month table
+// in a collapsible section («الجدول الشهري», OPEN by default since 2026-07-19 —
+// useMonthTimes stays gated on `active && monthOpen` so nothing fires off-tab).
+// The today prayer strip was removed (duplicate of the Home strip — user,
+// 2026-07-19); its per-prayer check-ins now live on the Home strip instead. The
+// compass heading hook lives HERE so the qibla card and the masjid bearing
+// arrows share one sensor stream; sensors stop whenever the tab is hidden
+// (keep-mounted tabs).
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { PrayerStrip } from "@/components/PrayerStrip";
 import { QiblaCompass } from "@/components/qibla/QiblaCompass";
 import { NearestMasjids } from "@/components/masjid/NearestMasjids";
 import { MonthNav } from "@/components/times/MonthNav";
 import { MonthTable } from "@/components/times/MonthTable";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { hasGeolocationPermission } from "@/lib/geolocation";
 import { useCompassHeading } from "@/hooks/useCompassHeading";
 import { useMonthTimes } from "@/hooks/useMonthTimes";
 import { LoadingState } from "@/components/StatusViews";
 import { localDayKey } from "@/lib/civil-day";
-import type { CardCheckin } from "@/components/CheckinControl";
 import type { useLocation } from "@/hooks/useLocation";
 import type { usePrayerTimes } from "@/hooks/usePrayerTimes";
 import type { UseSettings } from "@/hooks/useSettings";
-import type { PrayerName } from "@/types/api";
 
 interface TimesPageProps {
   location: ReturnType<typeof useLocation>;
   times: ReturnType<typeof usePrayerTimes>;
   settings: UseSettings;
-  checkinFor: (name: PrayerName) => CardCheckin | null;
-  isFriday: boolean;
   /** Tab visibility (pages are keep-mounted) — gates sensors + lazy loads. */
   active: boolean;
 }
 
-export function TimesPage({ location, times, settings, checkinFor, isFriday, active }: TimesPageProps) {
+export function TimesPage({ location, times, settings, active }: TimesPageProps) {
   const { t, lang } = useI18n();
-  const [monthOpen, setMonthOpen] = useState(false);
+  // Month section OPEN by default (user, 2026-07-19 — was default-closed). The
+  // `active && monthOpen` gate below still defers the month request/compute
+  // until the Times tab is actually shown, so nothing fires from other tabs.
+  const [monthOpen, setMonthOpen] = useState(true);
 
   const loc = location.location;
   const compass = useCompassHeading(
     loc ? { lat: loc.lat, lon: loc.lon, elevation: loc.elevation } : null,
   );
-  const { stop: stopCompass } = compass;
+  const { stop: stopCompass, start: startCompass } = compass;
 
   // Keep-mounted tabs: sensors must not run while the user sits on another tab.
   useEffect(() => {
     if (!active) stopCompass();
   }, [active, stopCompass]);
+
+  // Auto-start the compass whenever the Times tab is shown, EXCEPT on iOS-web
+  // where the sensor permission needs an explicit button tap. Returning to the
+  // tab re-fires (stop() reset status to "idle") → "starts by itself, never
+  // asks" (docs/QIBLA_MASJID_SPEC.md — the user's one-time-permission request).
+  useEffect(() => {
+    if (active && loc && compass.status === "idle" && !compass.needsGesture) {
+      void startCompass();
+    }
+  }, [active, loc, compass.status, compass.needsGesture, startCompass]);
+
+  // Bumped by pull-to-refresh → NearestMasjids refetches.
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const { requestGpsStaged } = location;
+
+  // A user who already granted location shouldn't have to press "use my
+  // location" again on every visit — but permission is only CHECKED here, never
+  // requested, so the opt-in stays opt-in for everyone else (spec Q5).
+  const autoFixTriedRef = useRef(false);
+  useEffect(() => {
+    if (!active || autoFixTriedRef.current) return;
+    if (loc?.source === "gps") return;
+    autoFixTriedRef.current = true;
+    void hasGeolocationPermission().then((granted) => {
+      if (granted) void requestGpsStaged().catch(() => undefined);
+    });
+  }, [active, loc?.source, requestGpsStaged]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshNonce((n) => n + 1);
+    await requestGpsStaged().catch(() => undefined);
+  }, [requestGpsStaged]);
 
   const month = useMonthTimes({
     location: loc,
@@ -66,11 +100,7 @@ export function TimesPage({ location, times, settings, checkinFor, isFriday, act
 
   return (
     <>
-      <h2 className="text-[13px] font-bold text-ink-dim">{t("times.todayTitle")}</h2>
-      {/* Compact 3×2 strip (like Home) with embedded check-ins — the 6-row
-          list ate too much vertical space above the month table (user). */}
-      <PrayerStrip prayers={times.prayers} isFriday={isFriday} checkinFor={checkinFor} />
-
+      <PullToRefresh onRefresh={onRefresh} enabled={active} />
       {loc && (
         <>
           <QiblaCompass location={loc} compass={compass} />
@@ -78,10 +108,10 @@ export function TimesPage({ location, times, settings, checkinFor, isFriday, act
             location={loc}
             active={active}
             compass={compass}
-            onUseGps={() =>
-              void location.requestGps({ enableHighAccuracy: true, maximumAge: 0 })
-            }
+            onUseGps={() => void requestGpsStaged().catch(() => undefined)}
             resolving={location.resolving}
+            gpsErrorKind={location.errorKind}
+            refreshNonce={refreshNonce}
           />
         </>
       )}

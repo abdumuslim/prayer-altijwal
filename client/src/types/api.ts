@@ -175,6 +175,10 @@ export interface Masjid {
   lat: number;
   lon: number;
   address: string | null;
+  /** Google travel time in whole minutes; null when it has no route for that
+   *  mode. Optional so an older server (no Routes API) still parses. */
+  walkMin?: number | null;
+  driveMin?: number | null;
 }
 
 export interface MasjidsResponse {
@@ -183,6 +187,9 @@ export interface MasjidsResponse {
   masjids: Masjid[];
   /** Present (true) only when the upstream lookup failed — show the error state. */
   degraded?: boolean;
+  /** Maps EMBED-API key (browser-safe, Embed-only) for the expanded row's map.
+   *  Absent ⇒ the row expands with the navigation buttons but no map. */
+  embedKey?: string;
 }
 
 export interface VapidKeyResponse {

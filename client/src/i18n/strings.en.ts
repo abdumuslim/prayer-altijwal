@@ -99,6 +99,17 @@ export const en = {
   "masjid.error": "Couldn't load nearby masjids",
   "masjid.maps": "Google Maps",
   "masjid.waze": "Waze",
+  "masjid.walk": "walk",
+  "masjid.drive": "drive",
+  "masjid.minute": "min",
+  "masjid.minuteDual": "min",
+  "masjid.minutePlural": "min",
+  "masjid.retry": "Try Again",
+  "masjid.mapTitle": "Directions map to the masjid",
+  "masjid.locating": "Finding your location…",
+  "ptr.pull": "Pull down to refresh",
+  "ptr.release": "Release to refresh",
+  "ptr.refreshing": "Refreshing…",
 
   // Settings
   "settings.title": "Settings",
@@ -113,10 +124,6 @@ export const en = {
   "theme.glass": "Glass",
   "theme.material": "Material",
   "theme.contrast": "High Contrast",
-  "settings.fontSize": "Font Size",
-  "fontSize.normal": "Normal",
-  "fontSize.large": "Large",
-  "fontSize.xlarge": "Largest",
 
   // Notifications
   "notify.title": "Prayer Reminders",

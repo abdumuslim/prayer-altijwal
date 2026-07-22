@@ -31,6 +31,8 @@ export interface UseLocation {
   /** Options override e.g. { enableHighAccuracy: true, maximumAge: 0 } for the
    *  nearest-masjid precise fix (docs/QIBLA_MASJID_SPEC.md §6b). */
   requestGps: (options?: PositionOptions) => Promise<void>;
+  /** Two-stage fix for the masjid list — see the implementation comment. */
+  requestGpsStaged: () => Promise<void>;
   setLocation: (loc: StoredLocation, detectedMethod?: string | null) => void;
   errorKind: "denied" | "unavailable" | "timeout" | "fetch" | null;
 }
@@ -136,6 +138,41 @@ export function useLocation(): UseLocation {
     }
   }, []);
 
+  /**
+   * Two-stage GPS for the nearest-masjid list (user, 2026-07-22: "the masjid
+   * list is slow to appear", and never appeared at all on a Galaxy A70/A21).
+   *
+   * A single high-accuracy, `maximumAge: 0` fix makes the user wait for a cold
+   * GNSS lock — tens of seconds on a budget phone, and a hard failure at the
+   * 12 s default timeout indoors. So: take a CACHED/coarse fix first (the list
+   * appears within a second), then refine in the background and only re-publish
+   * if the precise fix landed in a different ~300 m cell, which is the only case
+   * that can change the results.
+   */
+  const requestGpsStaged = useCallback(async () => {
+    let fast = false;
+    try {
+      await requestGps({
+        enableHighAccuracy: false,
+        maximumAge: 5 * 60_000,
+        timeout: 8_000,
+      });
+      fast = true;
+    } catch {
+      // Ignored: requestGps reports its own failure; stage 2 is the real attempt.
+    }
+    try {
+      await requestGps({
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        // Generous: this runs in the background with a usable fix already shown.
+        timeout: 30_000,
+      });
+    } catch {
+      if (!fast) throw new Error("gps unavailable");
+    }
+  }, [requestGps]);
+
   // One-time upgrade for locations persisted before Arabic names existed (no
   // `cityAr` field): backfill it (and refresh names) from a reverse lookup by the
   // stored coordinates, so the saved city shows in Arabic without re-doing GPS.
@@ -190,6 +227,7 @@ export function useLocation(): UseLocation {
     status,
     resolving: status === "loading",
     requestGps,
+    requestGpsStaged,
     setLocation,
     errorKind,
   };
