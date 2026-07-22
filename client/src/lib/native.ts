@@ -100,11 +100,15 @@ export interface CompassHeadingEvent {
   magneticHeading: number;
   declination: number;
   accuracy: "high" | "medium" | "low" | "unreliable";
+  /** Which sensor path the device landed on — budget phones have no gyroscope
+   *  and fall back from the rotation vector (see CompassPlugin.java). */
+  source?: "rotation-vector" | "geomagnetic-rv" | "accel-mag";
 }
 
 export interface CompassPluginContract {
-  /** Start ROTATION_VECTOR heading events (~20 Hz). lat/lon/alt feed declination. */
-  start(options: { lat: number; lon: number; alt?: number }): Promise<void>;
+  /** Start heading events (~20 Hz). lat/lon/alt feed declination. Resolves with
+   *  the sensor path that was selected. */
+  start(options: { lat: number; lon: number; alt?: number }): Promise<{ source?: string }>;
   stop(): Promise<void>;
   /** Subtle confirmation haptic for qibla lock-on (no permission needed). */
   pulse(): Promise<void>;

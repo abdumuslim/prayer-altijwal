@@ -25,22 +25,58 @@ export interface CompassLocation {
 
 export interface UseCompassHeading {
   status: CompassStatus;
-  /** Smoothed heading in degrees CW from TRUE north; null until the first sample. */
-  trueHeading: number | null;
   accuracy: CompassAccuracy | null;
   source: CompassSource | null;
-  /** Raw device tilt for the level-bubble hint (web paths only). */
-  tilt: { beta: number; gamma: number } | null;
+  /** Which native sensor path the device landed on (CompassPlugin `source`) —
+   *  "rotation-vector" | "geomagnetic-rv" | "accel-mag". Diagnostic only. */
+  nativeSensor: string | null;
+  /**
+   * Subscribe to the smoothed heading (degrees CW from TRUE north, ≤ 20 Hz).
+   *
+   * Heading is deliberately NOT React state: at 20 Hz it re-rendered the whole
+   * Times tab and made the app feel laggy on mid-range phones. Consumers drive
+   * transforms imperatively from one rAF loop instead (lib/heading-anim.ts).
+   */
+  subscribe: (listener: (deg: number) => void) => () => void;
+  /** Latest smoothed heading, or null before the first sample. */
+  getHeading: () => number | null;
+  /** Device held too steeply for a trustworthy reading (web paths only).
+   *  Hysteretic, so it can't flicker at the threshold. */
+  tiltHint: boolean;
+  /** True only for the iOS-web path, whose requestPermission() MUST run inside a
+   *  user gesture. When false (native + Android-web-absolute + desktop) the
+   *  compass may auto-start with no button and never prompts. */
+  needsGesture: boolean;
   start: () => Promise<void>;
   stop: () => void;
 }
 
+/** iOS Safari/PWA is the only path that requires a start-button tap (its
+ *  DeviceOrientationEvent.requestPermission throws outside a user gesture). */
+function computeNeedsGesture(): boolean {
+  if (typeof window === "undefined" || typeof DeviceOrientationEvent === "undefined") {
+    return false;
+  }
+  const doe = DeviceOrientationEvent as unknown as {
+    requestPermission?: () => Promise<string>;
+  };
+  return (
+    !isNative() &&
+    !("ondeviceorientationabsolute" in window) &&
+    typeof doe.requestPermission === "function"
+  );
+}
+
 /** EMA weight per sample (~150–250 ms window at sensor rates). */
 const SMOOTH = 0.25;
-/** Minimum ms between React state emissions (~20 Hz). */
+/** Minimum ms between emissions to subscribers (~20 Hz). */
 const EMIT_MS = 50;
 /** No absolute event within this window ⇒ the sensor doesn't exist (desktop). */
 const PROBE_TIMEOUT_MS = 3000;
+/** Tilt beyond this (either axis) raises the hold-flat hint… */
+const TILT_ENTER_DEG = 30;
+/** …and it only clears below this, so a hand hovering at 30° can't strobe it. */
+const TILT_EXIT_DEG = 25;
 
 /**
  * Tilt-compensated compass heading from deviceorientation Euler angles — the
@@ -90,10 +126,10 @@ function iosAccuracy(dev: number | undefined): CompassAccuracy {
 
 export function useCompassHeading(location: CompassLocation | null): UseCompassHeading {
   const [status, setStatus] = useState<CompassStatus>("idle");
-  const [trueHeading, setTrueHeading] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<CompassAccuracy | null>(null);
   const [source, setSource] = useState<CompassSource | null>(null);
-  const [tilt, setTilt] = useState<{ beta: number; gamma: number } | null>(null);
+  const [nativeSensor, setNativeSensor] = useState<string | null>(null);
+  const [tiltHint, setTiltHint] = useState(false);
 
   const locationRef = useRef(location);
   locationRef.current = location;
@@ -102,10 +138,31 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
   const sinRef = useRef(0);
   const cosRef = useRef(0);
   const hasSampleRef = useRef(false);
+  const headingRef = useRef<number | null>(null);
   const lastEmitRef = useRef(0);
   const declRef = useRef(0);
   const cleanupsRef = useRef<Array<() => void>>([]);
   const runningRef = useRef(false);
+  const listenersRef = useRef(new Set<(deg: number) => void>());
+
+  const subscribe = useCallback((listener: (deg: number) => void) => {
+    const listeners = listenersRef.current;
+    listeners.add(listener);
+    // Late subscribers (component mounted after the sensor started) get the
+    // current heading immediately instead of a frozen dial until the next event.
+    if (headingRef.current != null) listener(headingRef.current);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
+  const getHeading = useCallback(() => headingRef.current, []);
+
+  /** Hysteretic tilt gate — React state changes at most on a real crossing. */
+  const pushTilt = useCallback((beta: number, gamma: number) => {
+    const worst = Math.max(Math.abs(beta), Math.abs(gamma));
+    setTiltHint((on) => (on ? worst > TILT_EXIT_DEG : worst > TILT_ENTER_DEG));
+  }, []);
 
   const pushHeading = useCallback((deg: number) => {
     const rad = (deg * Math.PI) / 180;
@@ -122,7 +179,8 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
     lastEmitRef.current = now;
     const smoothed =
       ((Math.atan2(sinRef.current, cosRef.current) * 180) / Math.PI + 360) % 360;
-    setTrueHeading(smoothed);
+    headingRef.current = smoothed;
+    for (const listener of listenersRef.current) listener(smoothed);
     setStatus((s) => (s === "starting" ? "active" : s));
   }, []);
 
@@ -131,11 +189,12 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
     cleanupsRef.current = [];
     runningRef.current = false;
     hasSampleRef.current = false;
+    headingRef.current = null;
     setStatus("idle");
-    setTrueHeading(null);
     setAccuracy(null);
     setSource(null);
-    setTilt(null);
+    setNativeSensor(null);
+    setTiltHint(false);
   }, []);
 
   const start = useCallback(async () => {
@@ -172,6 +231,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
           "heading",
           (e: CompassHeadingEvent) => {
             setAccuracy(e.accuracy);
+            if (e.source) setNativeSensor((s) => (s === e.source ? s : e.source ?? null));
             pushHeading(e.trueHeading);
           },
         );
@@ -198,7 +258,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
         if (e.absolute !== true) return;
         const magnetic =
           (compassHeadingFromEuler(e.alpha, e.beta, e.gamma) + screenAngle()) % 360;
-        setTilt({ beta: e.beta, gamma: e.gamma });
+        pushTilt(e.beta, e.gamma);
         pushHeading((magnetic + declRef.current + 360) % 360);
       };
       window.addEventListener("deviceorientationabsolute", onEvent as EventListener);
@@ -216,7 +276,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
     if (needsIosPermission) {
       const onEvent = (e: IosOrientationEvent) => {
         if (typeof e.webkitCompassHeading !== "number") return;
-        if (e.beta != null && e.gamma != null) setTilt({ beta: e.beta, gamma: e.gamma });
+        if (e.beta != null && e.gamma != null) pushTilt(e.beta, e.gamma);
         setAccuracy(iosAccuracy(e.webkitCompassAccuracy));
         const magnetic = (e.webkitCompassHeading + screenAngle()) % 360;
         pushHeading((magnetic + declRef.current + 360) % 360);
@@ -248,7 +308,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
       }, PROBE_TIMEOUT_MS);
       cleanupsRef.current.push(() => window.clearTimeout(timer));
     }
-  }, [pushHeading]);
+  }, [pushHeading, pushTilt]);
 
   // Battery: sensors must not run while the app/tab is hidden. The component
   // additionally stops when the Times tab loses `active` (keep-mounted tabs).
@@ -264,5 +324,18 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
   // Unmount safety net.
   useEffect(() => stop, [stop]);
 
-  return { status, trueHeading, accuracy, source, tilt, start, stop };
+  const needsGesture = computeNeedsGesture();
+
+  return {
+    status,
+    accuracy,
+    source,
+    nativeSensor,
+    subscribe,
+    getHeading,
+    tiltHint,
+    needsGesture,
+    start,
+    stop,
+  };
 }
