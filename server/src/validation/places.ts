@@ -7,3 +7,18 @@ export const PlacesMasjidsQuery = z.object({
 });
 
 export type PlacesMasjidsQueryInput = z.infer<typeof PlacesMasjidsQuery>;
+
+/**
+ * One element of a Routes API computeRouteMatrix response (travel times for the
+ * masjid list). Deliberately permissive: unroutable pairs come back WITHOUT a
+ * duration, and Google may add fields at any time — only the shape we read is
+ * validated, and the caller drops anything that isn't ROUTE_EXISTS.
+ */
+export const RouteMatrixElement = z.object({
+  originIndex: z.number().int().nonnegative().default(0),
+  destinationIndex: z.number().int().nonnegative().default(0),
+  duration: z.string().optional(),
+  condition: z.string().optional(),
+});
+
+export const RouteMatrixElements = z.array(RouteMatrixElement);

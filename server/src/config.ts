@@ -22,6 +22,11 @@ const EnvSchema = z.object({
   // production: absent ⇒ /api/places/masjids reports { enabled: false } and the
   // client hides the section (docs/QIBLA_MASJID_SPEC.md Q2) — never a startup failure.
   GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
+  // Maps EMBED API key — a SECOND, browser-visible key sent to the client so an
+  // expanded masjid row can render an interactive directions map. It must be
+  // restricted to the Embed API (free/unmetered) in GCP; never point this at the
+  // Places key. Absent ⇒ rows expand with the deep-link buttons only.
+  GOOGLE_MAPS_EMBED_KEY: z.string().min(1).optional(),
 });
 
 export interface VapidConfig {
@@ -45,6 +50,8 @@ export interface Config {
   /** Google Places proxy (nearest masjid) is configured. */
   placesEnabled: boolean;
   googleMapsApiKey: string | undefined;
+  /** Browser-visible Embed-API key (see EnvSchema) — never the Places key. */
+  googleMapsEmbedKey: string | undefined;
 }
 
 function load(): Config {
@@ -94,6 +101,9 @@ function load(): Config {
   if (!env.GOOGLE_MAPS_API_KEY) {
     log.warn("GOOGLE_MAPS_API_KEY not set — nearest-masjid places proxy disabled");
   }
+  if (env.GOOGLE_MAPS_API_KEY && !env.GOOGLE_MAPS_EMBED_KEY) {
+    log.warn("GOOGLE_MAPS_EMBED_KEY not set — masjid rows expand without the map");
+  }
 
   return {
     nodeEnv: env.NODE_ENV,
@@ -107,6 +117,7 @@ function load(): Config {
     pushEnabled: Boolean(env.DATABASE_URL) && hasVapid,
     placesEnabled: Boolean(env.GOOGLE_MAPS_API_KEY),
     googleMapsApiKey: env.GOOGLE_MAPS_API_KEY,
+    googleMapsEmbedKey: env.GOOGLE_MAPS_EMBED_KEY,
   };
 }
 

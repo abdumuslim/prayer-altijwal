@@ -32,7 +32,10 @@ async function main(): Promise<void> {
     createPrayerRouter(),
     createGeoRouter(citiesIndex),
     // Always mounted; without a key the route itself reports { enabled: false }.
-    createPlacesRouter({ apiKey: config.googleMapsApiKey }),
+    createPlacesRouter({
+      apiKey: config.googleMapsApiKey,
+      embedKey: config.googleMapsEmbedKey,
+    }),
   ];
 
   // DB + push are optional. Degrade to stateless (public prayer-times still

@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { gridKey, TtlLruCache } from "./cache.js";
 import { createPlacesRouter } from "./routes.js";
 import { searchNearbyMasjids, type Masjid } from "./google-places.js";
+import { fetchTravelMinutes } from "./google-routes.js";
 
 // The router is tested against a mocked upstream so the in-process server can
 // be hit with the real (local) fetch, matching the geo.test.ts pattern.
@@ -12,7 +13,9 @@ vi.mock("./google-places.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./google-places.js")>();
   return { ...actual, searchNearbyMasjids: vi.fn() };
 });
+vi.mock("./google-routes.js", () => ({ fetchTravelMinutes: vi.fn() }));
 const mockSearch = vi.mocked(searchNearbyMasjids);
+const mockTravel = vi.mocked(fetchTravelMinutes);
 
 const BAGHDAD = { lat: 33.3152, lon: 44.3661 };
 const MASJID: Masjid = {
@@ -22,6 +25,8 @@ const MASJID: Masjid = {
   lon: 44.355,
   address: "الأعظمية، بغداد",
 };
+/** What the route serves: the masjid plus its travel times. */
+const SERVED = { ...MASJID, walkMin: 62, driveMin: 11 };
 
 describe("gridKey", () => {
   it("groups points within ~300 m into one cell", () => {
@@ -57,9 +62,9 @@ describe("GET /api/places/masjids", () => {
   let server: Server;
   let base: string;
 
-  async function startServer(apiKey: string | undefined): Promise<void> {
+  async function startServer(apiKey: string | undefined, embedKey?: string): Promise<void> {
     const app = express();
-    app.use(createPlacesRouter({ apiKey }));
+    app.use(createPlacesRouter({ apiKey, embedKey }));
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         const { port } = server.address() as AddressInfo;
@@ -75,6 +80,8 @@ describe("GET /api/places/masjids", () => {
 
   beforeEach(() => {
     mockSearch.mockReset();
+    mockTravel.mockReset();
+    mockTravel.mockResolvedValue([{ walkMin: 62, driveMin: 11 }]);
   });
 
   afterAll(async () => {
@@ -100,20 +107,53 @@ describe("GET /api/places/masjids", () => {
     await stopServer();
   });
 
-  it("happy path → { enabled: true, masjids } and caches the grid cell", async () => {
+  it("happy path → masjids with travel times, and caches the grid cell", async () => {
     await startServer("key");
     mockSearch.mockResolvedValue([MASJID]);
 
     const res = await fetch(`${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ enabled: true, masjids: [MASJID] });
+    expect(await res.json()).toEqual({ enabled: true, masjids: [SERVED] });
 
-    // Second request from the same ~300 m cell → served from cache, one upstream call.
+    // Second request from the same ~300 m cell → served from cache, one upstream
+    // call each for Places and the travel matrix (durations cache WITH the list).
     const res2 = await fetch(
       `${base}/api/places/masjids?lat=${BAGHDAD.lat + 0.0001}&lon=${BAGHDAD.lon}`,
     );
-    expect((await res2.json()).masjids).toEqual([MASJID]);
+    expect((await res2.json()).masjids).toEqual([SERVED]);
     expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(mockTravel).toHaveBeenCalledTimes(1);
+    await stopServer();
+  });
+
+  it("travel-matrix failure → list still served (and cached) with null times", async () => {
+    await startServer("key");
+    mockSearch.mockResolvedValue([MASJID]);
+    mockTravel.mockResolvedValue(null);
+
+    const res = await fetch(`${base}/api/places/masjids?lat=32&lon=44`);
+    expect(await res.json()).toEqual({
+      enabled: true,
+      masjids: [{ ...MASJID, walkMin: null, driveMin: null }],
+    });
+
+    const res2 = await fetch(`${base}/api/places/masjids?lat=32&lon=44`);
+    expect((await res2.json()).masjids[0].walkMin).toBeNull();
+    expect(mockSearch).toHaveBeenCalledTimes(1); // cached — no re-spend
+    await stopServer();
+  });
+
+  it("embedKey is echoed only when configured", async () => {
+    await startServer("key", "embed-key");
+    mockSearch.mockResolvedValue([MASJID]);
+    const res = await fetch(`${base}/api/places/masjids?lat=31&lon=44`);
+    expect((await res.json()).embedKey).toBe("embed-key");
+    await stopServer();
+
+    await startServer("key");
+    mockSearch.mockResolvedValue([MASJID]);
+    const res2 = await fetch(`${base}/api/places/masjids?lat=31&lon=44`);
+    expect((await res2.json()).embedKey).toBeUndefined();
     await stopServer();
   });
 
@@ -125,7 +165,7 @@ describe("GET /api/places/masjids", () => {
     expect(await res.json()).toEqual({ enabled: true, masjids: [], degraded: true });
 
     const res2 = await fetch(`${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}`);
-    expect(await res2.json()).toEqual({ enabled: true, masjids: [MASJID] });
+    expect(await res2.json()).toEqual({ enabled: true, masjids: [SERVED] });
     expect(mockSearch).toHaveBeenCalledTimes(2);
     await stopServer();
   });
@@ -138,21 +178,23 @@ describe("GET /api/places/masjids", () => {
     await stopServer();
   });
 
-  it("upstream budget breaker: 31st distinct-cell request degrades without calling Google", async () => {
+  it("upstream budget breaker: a miss costs 3 units, so the 11th distinct cell degrades", async () => {
     await startServer("key");
     mockSearch.mockResolvedValue([]);
+    mockTravel.mockResolvedValue([]);
     // 0.01° steps > the 0.003° grid — every request is a fresh cache miss,
     // the attack shape the breaker exists for (security review 2026-07-14).
-    for (let i = 0; i < 30; i++) {
+    // Each miss spends 1 Places + 2 Routes calls against the 30/min budget.
+    for (let i = 0; i < 10; i++) {
       const res = await fetch(
         `${base}/api/places/masjids?lat=${(10 + i * 0.01).toFixed(4)}&lon=44`,
       );
       const body = await res.json();
       expect(body.degraded).toBeUndefined();
     }
-    const res31 = await fetch(`${base}/api/places/masjids?lat=${(10 + 0.3).toFixed(4)}&lon=44`);
-    expect(await res31.json()).toEqual({ enabled: true, masjids: [], degraded: true });
-    expect(mockSearch).toHaveBeenCalledTimes(30);
+    const res11 = await fetch(`${base}/api/places/masjids?lat=${(10 + 0.3).toFixed(4)}&lon=44`);
+    expect(await res11.json()).toEqual({ enabled: true, masjids: [], degraded: true });
+    expect(mockSearch).toHaveBeenCalledTimes(10);
     await stopServer();
   });
 });
