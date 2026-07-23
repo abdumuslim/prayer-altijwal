@@ -31,16 +31,20 @@
 
 ### ⓪ What's ready for THIS release (v2.1.1)
 
-- **Signed bundle:** `D:\keys\releases\prayer-v2.1.1-vc5.aab` — versionName **2.1.1**, versionCode
-  **5**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-23; upload this
+- **Signed bundle:** `D:\keys\releases\prayer-v2.1.1-vc6.aab` — versionName **2.1.1**, versionCode
+  **6**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-23; upload this
   file as-is.
+- ⚠ **vc5 is burned:** an earlier vc5 bundle (alarm fix only, before the month-table removal) was
+  uploaded to the bundle library on 2026-07-23 and can never be replaced — Play consumes a
+  versionCode on upload, even into a draft that is later discarded. **Do not add vc5 from the
+  library**; it is the stale build. Lesson: upload only once the code is final, or bump first.
 - **What changed:** (1) the ringing full-screen alarm no longer disappears when you unlock the phone
   (`FLAG_ACTIVITY_NO_HISTORY` was finishing it; the swipe used to unlock is the home gesture) —
   `docs/NATIVE_ALARM_FIXES_SPEC.md` §2h; (2) the **monthly table was removed** (it rebuilt a month on
   every visit to that tab) and the tab was **renamed «الاتجاهات»** with a compass icon —
   `docs/FRONTEND.md` §11. Full list: `CHANGELOG.md` §2.1.1. ⚠ Unlike the alarm fix, (2) is
   **shared web code** — the live site keeps the table until someone deploys the web again.
-- versionCode 5 > every previously uploaded code (1, 2, 3, 4) → Play accepts it. ⚠ vc4 (2.1.0) was
+- versionCode 6 > every previously uploaded code (1, 2, 3, 4, 5) → Play accepts it. ⚠ vc4 (2.1.0) was
   submitted 2026-07-22 and may still be **In review**; a new release on the same track supersedes the
   pending one — expect Play to say so, that is normal.
 - Gate before upload (all green 2026-07-23): `npm run build` · 144 client tests ·
@@ -51,9 +55,9 @@
 1. **play.google.com/console** → pick **مواقيت الصلاة**.
 2. Left nav: **Test and release → Testing → Closed testing** → open your existing track (the one your
    12 testers are already on) → **Create new release**.
-3. Under **App bundles**, **Upload** the bundle named in ⓪ (now `prayer-v2.1.1-vc5.aab`). Play App Signing is already on — it
+3. Under **App bundles**, **Upload** the bundle named in ⓪ (now `prayer-v2.1.1-vc6.aab`). Play App Signing is already on — it
    re-signs with the app key automatically; nothing to configure.
-4. **Release name** auto-fills from the bundle (now `5 (2.1.1)`) — leave it.
+4. **Release name** auto-fills from the bundle (now `6 (2.1.1)`) — leave it.
 5. **Release notes** — paste the AR text from ② inside the `<ar-XB>`/`ar` language block (or the
    single notes box). **← get my sign-off on the wording first (user-visible text rule).**
 6. **Next → Save**, then **Review release**. Resolve any warnings (a new permission would re-open a
@@ -387,7 +391,8 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.0.0 | 2 | `prayer-v2.0.0-vc2.aab` · `prayer-v2.0.0-vc2-release.apk` · `prayer-v2.0.0-vc2-debug.apk` | built + signed 2026-07-14; web half deployed to prod. Release APK for device testing; debug APK for `chrome://inspect`. |
 | 2.1.0 | 3 | `prayer-v2.1.0-vc3.aab` · `prayer-v2.1.0-vc3-debug.apk` | built + signed 2026-07-19; superseded by vc4 before upload. Full v2.1 client also deployed to the prod web this day. Debug APK real-device-verified on a Pixel 7 Pro (swipe, tab bar, compass). |
 | 2.1.0 | 4 | `prayer-v2.1.0-vc4.aab` | **uploaded 2026-07-22** to Closed testing – Alpha as release `4 (2.1.0)`, AR notes attached, sent for review (177 countries). |
-| 2.1.1 | 5 | `prayer-v2.1.1-vc5.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule) + monthly table removed / tab renamed «الاتجاهات» (`FRONTEND.md` §11). |
+| 2.1.1 | 5 | `prayer-v2.1.1-vc5.aab` | **STALE — do not ship.** Alarm fix only; uploaded to the bundle library 2026-07-23 before the month-table removal landed, which burned the version code. |
+| 2.1.1 | 6 | `prayer-v2.1.1-vc6.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule) + monthly table removed / tab renamed «الاتجاهات» (`FRONTEND.md` §11). |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —

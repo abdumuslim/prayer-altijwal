@@ -5,7 +5,7 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
-## [2.1.1] — 2026-07-23 (versionCode 5)
+## [2.1.1] — 2026-07-23 (versionCode 6)
 
 ### Removed
 - **The monthly table is gone from the app.** It had been open by default since 2.1.0, so every
