@@ -63,6 +63,20 @@ public class AlarmActivity extends Activity {
 
     private android.window.OnBackInvokedCallback backCallback;
 
+    /**
+     * Closes the screen when the ring ends (Stop from the notification action, the
+     * 2-minute cap, or the shortService timeout). Needed because the full-screen
+     * intent no longer carries FLAG_ACTIVITY_NO_HISTORY — the screen now survives
+     * unlocking/navigating away, so something must retire it deliberately.
+     */
+    private final android.content.BroadcastReceiver endedReceiver =
+            new android.content.BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    finish();
+                }
+            };
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView clock;
     private TextView period;
@@ -266,7 +280,55 @@ public class AlarmActivity extends Activity {
 
         setContentView(root);
         blockBack();
+        androidx.core.content.ContextCompat.registerReceiver(this, endedReceiver,
+                new android.content.IntentFilter(AlarmService.ACTION_ENDED),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
         handler.postDelayed(tick, 1000);
+    }
+
+    /**
+     * A second alarm firing while this screen is still up reuses the singleInstance
+     * activity, so rebuild it against the new extras (title, countdown, palette)
+     * instead of leaving the previous alarm's content on screen.
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // The reshow intent (onStop) carries no alarm data — it only brings this
+        // same screen back to the front, so keep the current content.
+        if (intent == null || !intent.hasExtra("at")) return;
+        setIntent(intent);
+        recreate();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Relaunched from a stale notification, or resumed just after the ring
+        // ended: never show a ringing screen for an alarm that is already over.
+        if (!AlarmService.isRinging()) finish();
+    }
+
+    /**
+     * A ringing alarm may not be left hidden. On a gesture-navigation phone the
+     * swipe people use to unlock IS the home gesture, so it shoved the ringing
+     * screen behind the launcher (before this it also destroyed it — the intent
+     * carried NO_HISTORY) leaving an audible alarm with no visible way to stop it.
+     * While the ring continues, put the screen straight back in front. Only when
+     * the display is on: with the screen off the activity is already top of its
+     * task and reappears on wake, and relaunching would light the screen up in a
+     * loop.
+     */
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (isFinishing() || !AlarmService.isRinging()) return;
+        android.os.PowerManager pm =
+                (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm == null || !pm.isInteractive()) return;
+        startActivity(new Intent(this, AlarmActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }
 
     /**
@@ -426,6 +488,11 @@ public class AlarmActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        try {
+            unregisterReceiver(endedReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // never registered (onCreate bailed early) — nothing to undo
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
             backCallback = null;

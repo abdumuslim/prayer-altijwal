@@ -376,6 +376,51 @@ emulator afterwards:
   (native-only surface). Verified: selection persists, alarms re-arm live on tone change, fired
   alarm plays the device tone (audio track active, no MediaPlayer errors).
 
+### 2h. Ringing screen vanished when the phone was unlocked (real device, 2026-07-23)
+
+**Report (user, Pixel 7 Pro):** the alarm fired and the full-screen ring screen appeared over the
+lock screen; *trying to unlock the phone made it disappear* — permanently, while the tone kept
+playing. It should stay up (or come back after the unlock) until it is deliberately stopped.
+
+**Root cause (reproduced on `prayer36`, then on the user's Pixel):** `AlarmService.buildNotification`
+built the full-screen intent with `Intent.FLAG_ACTIVITY_NO_HISTORY`. That flag means *"finish this
+activity as soon as the user navigates away from it"* — and on a gesture-navigation phone the
+swipe people use to unlock **is** the home gesture, so Android **destroyed** `AlarmActivity` while
+`AlarmService` kept ringing headless with no visible way back to Stop. Emulator evidence (locked
+device, alarm ringing): before the fix, one bottom swipe → `dumpsys activity activities` reports
+**0** `AlarmActivity` records with the `ServiceRecord` still alive; pressing HOME does the same.
+
+**Fix (native only, no web/string/server changes):**
+1. `AlarmService.buildNotification` — **drop `FLAG_ACTIVITY_NO_HISTORY`** (keep `NEW_TASK`). The ring
+   screen now survives unlocking and navigation.
+2. `AlarmActivity.onStop` — while the ring continues, put the screen straight back in front
+   (`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_REORDER_TO_FRONT`), but **only when the display is
+   interactive**: with the screen off the activity is already top of its task and reappears on wake,
+   and relaunching would light the screen back up in a loop.
+3. Because the screen no longer self-destructs, it must be retired with the ring: `AlarmService`
+   broadcasts `ACTION_ENDED` (`com.altijwal.prayer.ALARM_ENDED`, `setPackage`-scoped) from
+   `stopEverything()` — Stop, the 2-minute cap and the `onTimeout` backstop all funnel through it —
+   and `AlarmActivity` registers a `RECEIVER_NOT_EXPORTED` receiver that finishes on it. The private
+   `ringing` field became `static volatile sRinging` + `isRinging()` so `onResume` can also close a
+   screen relaunched from a stale notification.
+4. `AlarmActivity.onNewIntent` — a second alarm firing into the live `singleInstance` screen now
+   rebuilds it against the new extras (`setIntent` + `recreate`) instead of showing the previous
+   prayer. Intents without an `at` extra (the reshow in step 2) keep the current content.
+
+**Known OS limit (not fixable):** if the user deliberately presses **home** while the alarm rings,
+Android's anti-hijack policy blocks the relaunch — logcat shows `Background activity launch blocked!`
+with `appSwitchState: 0` (an FGS is not a BAL exemption). The ongoing notification remains the way
+back. The *unlock* path, which is what was reported, is allowed (`BAL_ALLOW_FOREGROUND`).
+
+**Verification.** Emulator (`prayer36`, PIN set via `locksettings set-pin`): fire → swipe-to-unlock →
+`AlarmActivity` is `topResumedActivity` again and the tone keeps playing; ✕ swipe-up still stops
+(activity **and** service gone); Stop while the screen is hidden also kills the hidden screen.
+Real device (user's Pixel 7 Pro, adb over wireless debugging, rule armed through the app so the fire
+comes from `AlarmManager`): fired 17:42:01 → alarm screen top-resumed, **survived the unlock**, then
+stopped deliberately by the user. ⚠ On a non-rooted phone the `am broadcast` smoke test of §4.3 does
+**not** work with the screen off — the app process is frozen/cached and the shell broadcast is never
+delivered (and a background FGS start would be refused). Test with a real armed rule instead.
+
 ### 2d. Test environment (already provisioned this session)
 
 A **second SDK root on D:** (nothing new written to C: except a possible <1 KB AVD `.ini`) — the app's

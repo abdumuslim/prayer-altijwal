@@ -28,8 +28,26 @@ public class AlarmService extends Service {
     public static final String ACTION_STOP = "com.altijwal.prayer.STOP_ALARM";
     /** Fired by the notification's delete intent — see onStartCommand. */
     public static final String ACTION_REPOST = "com.altijwal.prayer.REPOST_ALARM";
+    /**
+     * Broadcast (app-internal, NOT exported) the instant the ring ends, for any
+     * reason: Stop, the 2-minute cap, or the shortService timeout. AlarmActivity
+     * listens and finishes itself — the ringing screen must never outlive the
+     * ring now that it is no longer a NO_HISTORY activity.
+     */
+    public static final String ACTION_ENDED = "com.altijwal.prayer.ALARM_ENDED";
     private static final int FGS_ID = 0xA1A2;
     private static final long RING_MS = 2 * 60_000L;
+
+    /**
+     * True while an alarm is actually ringing. Read by AlarmActivity on resume so
+     * a screen relaunched from a stale notification (or one that resumes just
+     * after the ring ended) closes itself instead of showing a dead alarm.
+     */
+    private static volatile boolean sRinging;
+
+    public static boolean isRinging() {
+        return sRinging;
+    }
 
     private MediaPlayer player;
     private Vibrator vibrator;
@@ -38,7 +56,6 @@ public class AlarmService extends Service {
 
     // Last fire's notification content, kept so a swiped-away notification can be
     // rebuilt identically (users were dismissing the alarm by swiping it out).
-    private boolean ringing;
     private String lastTitle = "";
     private String lastBody = "";
     private String lastTarget = "";
@@ -64,7 +81,7 @@ public class AlarmService extends Service {
         // delete intent lands here: while we are still ringing, put it straight
         // back. Only a real Stop (or the 2-min cap) silences the alarm.
         if (intent != null && ACTION_REPOST.equals(intent.getAction())) {
-            if (ringing) {
+            if (sRinging) {
                 AlarmChannels.ensure(this);
                 androidx.core.app.NotificationManagerCompat.from(this)
                         .notify(FGS_ID, buildNotification(lastTitle, lastBody, lastTarget,
@@ -93,7 +110,7 @@ public class AlarmService extends Service {
 
     private void startForegroundWithNotification(String title, String body, String target,
                                                  long at, long anchorAt, String untilLabel) {
-        ringing = true;
+        sRinging = true;
         lastTitle = title;
         lastBody = body;
         lastTarget = target;
@@ -116,7 +133,12 @@ public class AlarmService extends Service {
     private android.app.Notification buildNotification(String title, String body, String target,
                                                        long at, long anchorAt, String untilLabel) {
         Intent full = new Intent(this, AlarmActivity.class);
-        full.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
+        // NO_HISTORY must NOT be set: it finishes the ringing screen the moment the
+        // user navigates away from it, and unlocking a secured phone counts as
+        // navigating away — the alarm screen vanished for good while the service
+        // kept ringing headless. The screen is instead torn down deliberately when
+        // the ring ends (ACTION_ENDED below).
+        full.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         full.putExtra("title", title);
         full.putExtra("body", body);
         full.putExtra("target", target);
@@ -207,7 +229,12 @@ public class AlarmService extends Service {
     }
 
     private void stopEverything() {
-        ringing = false; // stop re-posting: a delete after this is a real dismissal
+        boolean wasRinging = sRinging;
+        sRinging = false; // stop re-posting: a delete after this is a real dismissal
+        // Tear the ringing screen down with the ring (it survives navigation now).
+        if (wasRinging) {
+            sendBroadcast(new Intent(ACTION_ENDED).setPackage(getPackageName()));
+        }
         handler.removeCallbacks(autoStop);
         releasePlayer();
         if (vibrator != null) {
