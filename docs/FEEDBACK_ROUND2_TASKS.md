@@ -71,7 +71,10 @@ re-entry + pull-down, broken on Galaxy A70/A21, row redesign · glass tab bar of
 - [x] engine gate: `astronomy` appears only in the lazy native chunk (dynamic import, not preloaded)
 - [x] **deployed to production** (travel times + embedKey verified live)
 - [x] on-device: masjid list auto-loads, travel times, embedded map, refresh, glass rendering
-- [ ] alarm ring on device · pull-to-refresh gesture on device · A21-class compass
+- [x] **alarm ring on device (2026-07-23, Pixel 7 Pro):** a real armed rule fired over the lock
+      screen, the ring screen survived the unlock, and the ✕ swipe stopped it — after the
+      `NO_HISTORY` fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, shipped as 2.1.1 / vc5)
+- [ ] pull-to-refresh gesture on device · A21-class compass
 
 ## Still owed / human tasks
 - Remove the user's home IP from the Places key allowlist (currently **Application restrictions =

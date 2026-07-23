@@ -5,6 +5,18 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.1.1] — 2026-07-23 (versionCode 5)
+
+### Fixed
+- **The ringing alarm screen no longer disappears when you unlock the phone.** Its full-screen intent
+  carried `FLAG_ACTIVITY_NO_HISTORY`, which finishes the screen the moment you navigate away from it
+  — and on a gesture-navigation phone the swipe used to unlock *is* the home gesture, so Android
+  destroyed the alarm screen for good while the tone kept playing with no visible way to stop it. The
+  screen now survives the unlock and puts itself back in front while the alarm is still ringing, and
+  is closed deliberately when the ring ends (Stop, the 2-minute cap, or the service timeout).
+- A second alarm firing while the ring screen is still up now shows the new prayer instead of the
+  previous one.
+
 ## [2.1.0] — 2026-07-22 (versionCode 4)
 
 Second sideload-feedback round. Reminders, alarm safety, the masjid section and the glass tab bar.

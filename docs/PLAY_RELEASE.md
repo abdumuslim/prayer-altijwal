@@ -29,15 +29,20 @@
 > something structural changes. To push an update you do just this section. Everything the Console
 > asks that isn't covered here keeps its Phase-4 answer.
 
-### ⓪ What's ready for THIS release (v2.1.0)
+### ⓪ What's ready for THIS release (v2.1.1)
 
-- **Signed bundle:** `D:\keys\releases\prayer-v2.1.0-vc3.aab` — versionName **2.1.0**, versionCode
-  **3**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-19; upload this
+- **Signed bundle:** `D:\keys\releases\prayer-v2.1.1-vc5.aab` — versionName **2.1.1**, versionCode
+  **5**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-23; upload this
   file as-is.
-- **What changed:** swipe navigation, compass redesign + honest calibration warning, nearest-masjid
-  GPS fix + husseiniya exclusion, tab-bar/gesture-bar fix, month table open by default, glass design
-  pass, in-app font-size removed. Full list: `CHANGELOG.md` §2.1.0.
-- versionCode 3 > every previously uploaded code (1, and 2 if you uploaded it) → Play accepts it.
+- **What changed:** one real-device alarm fix — the ringing full-screen alarm no longer disappears
+  when you unlock the phone (`FLAG_ACTIVITY_NO_HISTORY` was finishing it; the swipe used to unlock is
+  the home gesture). `CHANGELOG.md` §2.1.1 · `docs/NATIVE_ALARM_FIXES_SPEC.md` §2h. Native-only —
+  the web app and the deployed site are untouched.
+- versionCode 5 > every previously uploaded code (1, 2, 3, 4) → Play accepts it. ⚠ vc4 (2.1.0) was
+  submitted 2026-07-22 and may still be **In review**; a new release on the same track supersedes the
+  pending one — expect Play to say so, that is normal.
+- Gate before upload (all green 2026-07-23): `npm run build` · 144 client tests ·
+  `findstr /m astronomy client\dist\assets\*.js` → only `api-*.js` · `META-INF/UPLOAD.RSA` in the AAB.
 
 ### ① Upload to the closed track (Play Console — your login)
 
@@ -53,7 +58,13 @@
    Phase-4 declaration — this release adds none, so none should appear). **Start rollout to Closed
    testing** → confirm.
 
-### ② Release notes «ما الجديد» — AR draft (⚠ NEEDS YOUR APPROVAL before pasting)
+### ② Release notes «ما الجديد» — AR (v2.1.1, **user-approved 2026-07-23**)
+
+```
+• إصلاح: شاشة المنبّه لم تعد تختفي عند فتح قفل الهاتف، وتبقى ظاهرة حتى توقفها بنفسك.
+```
+
+<details><summary>v2.1.0 (vc3/vc4) notes — shipped 2026-07-22</summary>
 
 ```
 • تصفّح أسرع: مرّر بإصبعك للتنقل بين التبويبات.
@@ -62,6 +73,7 @@
 • الجدول الشهري يفتح تلقائيًا في تبويب المواقيت.
 • تحسينات في شريط التنقل السفلي، التصميم، والأداء.
 ```
+</details>
 
 ### ③ Keeping the 12 testers rolling (your actual question)
 
@@ -370,7 +382,9 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 |---|---|---|---|
 | 1.0 | 1 | `prayer-v1.0-vc1.aab` | first closed-track release |
 | 2.0.0 | 2 | `prayer-v2.0.0-vc2.aab` · `prayer-v2.0.0-vc2-release.apk` · `prayer-v2.0.0-vc2-debug.apk` | built + signed 2026-07-14; web half deployed to prod. Release APK for device testing; debug APK for `chrome://inspect`. |
-| 2.1.0 | 3 | `prayer-v2.1.0-vc3.aab` · `prayer-v2.1.0-vc3-debug.apk` | **built + signed 2026-07-19, READY to upload** to the closed track (Update runbook above). Full v2.1 client also deployed to the prod web this day. Debug APK real-device-verified on a Pixel 7 Pro (swipe, tab bar, compass). |
+| 2.1.0 | 3 | `prayer-v2.1.0-vc3.aab` · `prayer-v2.1.0-vc3-debug.apk` | built + signed 2026-07-19; superseded by vc4 before upload. Full v2.1 client also deployed to the prod web this day. Debug APK real-device-verified on a Pixel 7 Pro (swipe, tab bar, compass). |
+| 2.1.0 | 4 | `prayer-v2.1.0-vc4.aab` | **uploaded 2026-07-22** to Closed testing – Alpha as release `4 (2.1.0)`, AR notes attached, sent for review (177 countries). |
+| 2.1.1 | 5 | `prayer-v2.1.1-vc5.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h), verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule. |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
