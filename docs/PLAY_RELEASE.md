@@ -51,9 +51,9 @@
 1. **play.google.com/console** → pick **مواقيت الصلاة**.
 2. Left nav: **Test and release → Testing → Closed testing** → open your existing track (the one your
    12 testers are already on) → **Create new release**.
-3. Under **App bundles**, **Upload** `prayer-v2.1.0-vc3.aab`. Play App Signing is already on — it
+3. Under **App bundles**, **Upload** the bundle named in ⓪ (now `prayer-v2.1.1-vc5.aab`). Play App Signing is already on — it
    re-signs with the app key automatically; nothing to configure.
-4. **Release name** auto-fills to `3 (2.1.0)` — leave it.
+4. **Release name** auto-fills from the bundle (now `5 (2.1.1)`) — leave it.
 5. **Release notes** — paste the AR text from ② inside the `<ar-XB>`/`ar` language block (or the
    single notes box). **← get my sign-off on the wording first (user-visible text rule).**
 6. **Next → Save**, then **Review release**. Resolve any warnings (a new permission would re-open a
@@ -95,7 +95,7 @@
 
 ### ④ After rollout
 
-1. Copy the shipped AAB into the release history table below (already done for vc3).
+1. Copy the shipped AAB into the release history table below (already done through vc5).
 2. Watch the **Pre-launch report** (Console → Test and release → Pre-launch report) — auto-runs the
    build on real Google devices; fix anything it flags before/for the next bump.
 3. Sideload note: the Play copy is app-key-signed, so a locally-signed `*-release.apk` won't install
