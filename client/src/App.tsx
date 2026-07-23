@@ -282,12 +282,7 @@ function App() {
           showLocationNeeded={showLocationNeeded}
           onOpenSearch={() => setSearchOpen(true)}
         />
-        <TimesPage
-          location={location}
-          times={times}
-          settings={settings}
-          active={tab === "times"}
-        />
+        <TimesPage location={location} times={times} active={tab === "times"} />
         <ReportsPage
           stats={worship.stats}
           today={worship.today}

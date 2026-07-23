@@ -150,7 +150,7 @@ gated by build/test commands.
 |---|---|
 | D1 | **v2.0.0** semver now; `client/package.json` is the version source of truth; Android `versionName` = semver, `versionCode` monotonic **+1 per Play upload** (this release → 2). Server version independent. |
 | D2 | Redesign applies **everywhere** — web (prayer.altijwal.com) and native are the same client; no native-only layout fork. |
-| D3 | **4 bottom tabs**: الرئيسية (hero clock) · المواقيت (today list + month table) · التقارير (reports) · الإعدادات (settings). Search/location stays a Home header action. Tab labels are user-approved. |
+| D3 | **4 bottom tabs**: الرئيسية (hero clock) · ~~المواقيت (today list + month table)~~ → **الاتجاهات (qibla compass + nearest masjids; renamed + month table removed 2026-07-23, `FRONTEND.md` §11)** · التقارير (reports) · الإعدادات (settings). Search/location stays a Home header action. Tab labels are user-approved. |
 | D4 | **Android Auto deferred**: Google Play only accepts media/navigation/POI/IoT/weather car categories (verified 2026-07-12; no utility/religious category). Instead ship an Android **home-screen widget**. Revisit Auto when Google opens widgets/new surfaces (announced direction, May-2026 Android blog). |
 | D5 | **Theme gallery = distinct design languages, not recolors**: `night` الليل (current look, default) · `glass` (Apple iOS-26 Liquid Glass replica) · `material` (Google Material 3/Expressive) · `contrast` (high-contrast a11y). Adding a future theme must only require a new CSS block + registry entry. |
 | D6 | **A11y package — all four**: WCAG contrast in every theme, ≥48px touch targets, ARIA labels, visible focus, `prefers-reduced-motion`; in-app font-size setting; high-contrast theme; follow Android system font scale. |

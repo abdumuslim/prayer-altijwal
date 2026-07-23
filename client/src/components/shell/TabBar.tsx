@@ -8,15 +8,17 @@
 // passes visibly behind the bar (the glass capsule must refract real content,
 // not empty background). Owns the bottom safe-area inset.
 
-import { CalendarClock, ChartColumnBig, House, Settings2 } from "lucide-react";
+import { ChartColumnBig, Compass, House, Settings2 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { StringKey } from "@/i18n/strings.en";
 
+// `times` keeps its internal id (persisted tab state, pager order, deep links);
+// the tab itself is the qibla+masjids page since 2026-07-23 — see nav.times.
 export type TabId = "home" | "times" | "reports" | "settings";
 
 const TABS: { id: TabId; labelKey: StringKey; icon: typeof House }[] = [
   { id: "home", labelKey: "nav.home", icon: House },
-  { id: "times", labelKey: "nav.times", icon: CalendarClock },
+  { id: "times", labelKey: "nav.times", icon: Compass },
   { id: "reports", labelKey: "nav.reports", icon: ChartColumnBig },
   { id: "settings", labelKey: "nav.settings", icon: Settings2 },
 ];

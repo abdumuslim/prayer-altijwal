@@ -62,7 +62,7 @@ export const ar: Record<StringKey, string> = {
 
   // Bottom navigation (v2 shell — labels user-approved)
   "nav.home": "الرئيسية",
-  "nav.times": "المواقيت",
+  "nav.times": "الاتجاهات",
   "nav.reports": "التقارير",
   "nav.settings": "الإعدادات",
   // A11y (Phase 8 — PROPOSED, pending user approval): the nav landmark name;
@@ -70,13 +70,6 @@ export const ar: Record<StringKey, string> = {
   "nav.label": "التنقل",
 
   // المواقيت tab (strings user-approved in the v2 preview)
-  "times.todayTitle": "مواقيت اليوم",
-  "times.monthTitle": "الجدول الشهري",
-  "times.thisMonth": "هذا الشهر",
-  "times.prevMonth": "الشهر السابق",
-  "times.nextMonth": "الشهر التالي",
-  "times.dayCol": "اليوم",
-  "times.hijriCol": "هجري",
 
   // بوصلة القبلة (QIBLA_MASJID_SPEC §7 — PROPOSED strings, pending user approval)
   "qibla.title": "اتجاه القبلة",

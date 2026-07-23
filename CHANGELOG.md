@@ -7,6 +7,16 @@ from 2.0.0 (client `package.json` is the source of truth; Android `versionName` 
 
 ## [2.1.1] — 2026-07-23 (versionCode 5)
 
+### Removed
+- **The monthly table is gone from the app.** It had been open by default since 2.1.0, so every
+  visit to that tab rebuilt a whole month — on the phone, the engine computing ~30 days offline and
+  ~30 rows rendered — for a feature that went unused. The server endpoint
+  (`GET /api/prayer-times/month`) is untouched, so restoring the table is a revert.
+
+### Changed
+- The second tab is now **«الاتجاهات»** with a compass icon (was «المواقيت» with a calendar): with
+  the table gone it holds the qibla compass and the nearest masjids, nothing about times.
+
 ### Fixed
 - **The ringing alarm screen no longer disappears when you unlock the phone.** Its full-screen intent
   carried `FLAG_ACTIVITY_NO_HISTORY`, which finishes the screen the moment you navigate away from it

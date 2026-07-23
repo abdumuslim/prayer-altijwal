@@ -138,7 +138,9 @@ toggle set into the multi-rule model above.
   step (224→208, etc.) to make room.
 
 🔭 **Deferred (future, documented hooks only):** Qibla compass, monthly times table. *(Both since
-picked up: the monthly table shipped with v2 — Times tab, `V2_REDESIGN_SPEC.md` Phase 5; Qibla is
+picked up: the monthly table shipped with v2 — Times tab, `V2_REDESIGN_SPEC.md` Phase 5 (**removed
+from the app again on 2026-07-23 — unused and it rebuilt a month per tab visit; the server endpoint
+stays, `FRONTEND.md` §11**); Qibla is
 spec'd — expanded with a nearest-masjid finder — in `QIBLA_MASJID_SPEC.md`, 2026-07-13, not yet
 built.)*
 

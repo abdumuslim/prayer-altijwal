@@ -83,7 +83,9 @@
 > `geomagnetism` package — it DID carry the 2025 coefficients, no vendoring needed; NOAA
 > test-vector snapshot tests) · `useCompassHeading` (native → web-absolute → iOS → static) ·
 > `QiblaCompass` + `NearestMasjids` in a restructured Times tab (strip → qibla → masjids → month
-> table DEMOTED into a collapsed `CollapsibleSection`, `useMonthTimes` gated on section-open) ·
+> table DEMOTED into a collapsed `CollapsibleSection`, `useMonthTimes` gated on section-open —
+> **the month table was later REMOVED outright and the tab renamed «الاتجاهات» on 2026-07-23;
+> this tab is now qibla + masjids only, see `docs/FRONTEND.md` §11**) ·
 > `CompassPlugin.java` (ROTATION_VECTOR + GeomagneticField, display-rotation remap, `pulse()`
 > haptic) · `server/src/places/` proxy per §6a (+`degraded: true` on upstream failure so the
 > client can tell error from empty) · `StoredLocation.source` migration ("gps"|"search"|"default").

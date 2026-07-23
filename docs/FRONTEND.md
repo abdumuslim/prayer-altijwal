@@ -445,14 +445,26 @@ compute. Full detail: `NATIVE_ALARM_SPEC.md`. Frontend-relevant pieces:
   `OVER_SCROLL_NEVER` (the horizontal overscroll-stretch broke the tab swipe) and the textZoom cap
   (§12).
 
-## 11. Times tab: qibla + nearest masjid (2026-07-14 — `QIBLA_MASJID_SPEC.md`)
+## 11. «الاتجاهات» tab: qibla + nearest masjid (2026-07-14 — `QIBLA_MASJID_SPEC.md`)
 
-Order (2026-07-19): `qibla/QiblaCompass` (first) → `masjid/NearestMasjids` → month table in a
-`CollapsibleSection` («الجدول الشهري», **OPEN by default** since 2026-07-19 — was closed). The
-**today strip was removed** from this tab (a duplicate of Home's; its per-prayer check-ins moved
-to the Home strip — §8). `CollapsibleSection` has a controlled mode (`open`/`onToggle`);
-`useMonthTimes` stays gated on `active && monthOpen`, so nothing fetches while another tab is
-shown. The masjid list is server-filtered: husseiniyas (all spellings incl. Persian script),
+Contents (2026-07-23): `qibla/QiblaCompass` (first) → `masjid/NearestMasjids`. Nothing else.
+
+**The monthly table was REMOVED from the app on 2026-07-23** (user, shipped in 2.1.1/vc5): it had
+been default-OPEN since 2026-07-19, so every visit to this tab rebuilt a whole month — on native
+that is the engine computing ~30 days offline plus ~30 rows rendered — for a feature the user
+judged unused. Deleted client-side: `components/times/{MonthTable,MonthNav}.tsx`,
+`hooks/useMonthTimes.ts`, `native/month.ts` (+ its facade export/types), `fetchMonthTimes`, the
+`MonthTimesResponse`/`MonthDayRow` types and every `times.*` string. **The server keeps
+`GET /api/prayer-times/month`** (`month-payload.ts` + tests, still green) — no client calls it, and
+it costs nothing idle, so bringing the table back is a revert, not a rewrite. Main bundle 421 → 415
+kB, native chunk 185 → 183 kB.
+
+With the table gone the tab is no longer about times, so it was **renamed «الاتجاهات»**
+(user-approved 2026-07-23; EN "Directions") with a **compass** icon in place of the calendar-clock.
+The internal `TabId` stays `"times"` — persisted tab state, pager order and deep links index by it.
+
+The **today strip was removed** from this tab earlier (a duplicate of Home's; its per-prayer
+check-ins moved to the Home strip — §8). The masjid list is server-filtered: husseiniyas (all spellings incl. Persian script),
 موكب stations and مضيف halls never appear (`server/src/places/google-places.ts`, user rule —
 `QIBLA_MASJID_SPEC.md` header).
 

@@ -5,4 +5,3 @@
 
 export { computeLocalPrayerTimes } from "./local-times";
 export { computeSchedule } from "./schedule";
-export { computeLocalMonth } from "./month";

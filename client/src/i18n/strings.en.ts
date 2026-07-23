@@ -61,18 +61,11 @@ export const en = {
 
   // Bottom navigation (v2 shell — labels user-approved)
   "nav.home": "Home",
-  "nav.times": "Times",
+  "nav.times": "Directions",
   "nav.reports": "Reports",
   "nav.settings": "Settings",
 
   // Times tab
-  "times.todayTitle": "Today's Times",
-  "times.monthTitle": "Monthly Table",
-  "times.thisMonth": "This Month",
-  "times.prevMonth": "Previous month",
-  "times.nextMonth": "Next month",
-  "times.dayCol": "Day",
-  "times.hijriCol": "Hijri",
 
   // Qibla compass (QIBLA_MASJID_SPEC §7 — mirrors of the proposed AR strings)
   "qibla.title": "Qibla Direction",

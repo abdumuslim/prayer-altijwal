@@ -1,46 +1,30 @@
-// المواقيت tab — restructured for the qibla + nearest-masjid feature pair
-// (docs/QIBLA_MASJID_SPEC.md §7): qibla compass → nearest masjids → month table
-// in a collapsible section («الجدول الشهري», OPEN by default since 2026-07-19 —
-// useMonthTimes stays gated on `active && monthOpen` so nothing fires off-tab).
-// The today prayer strip was removed (duplicate of the Home strip — user,
-// 2026-07-19); its per-prayer check-ins now live on the Home strip instead. The
+// Second tab — qibla compass + nearest masjids (docs/QIBLA_MASJID_SPEC.md §7).
+// The monthly table was REMOVED here on 2026-07-23 (user): it rebuilt a whole
+// month on every visit to this tab — on the phone that is the engine computing
+// ~30 days offline plus ~30 rows rendered — for a feature nobody was using.
+// The today prayer strip went earlier (duplicate of the Home strip — user,
+// 2026-07-19); its per-prayer check-ins live on the Home strip instead. The
 // compass heading hook lives HERE so the qibla card and the masjid bearing
 // arrows share one sensor stream; sensors stop whenever the tab is hidden
 // (keep-mounted tabs).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarDays } from "lucide-react";
-import { useI18n } from "@/i18n/I18nProvider";
 import { QiblaCompass } from "@/components/qibla/QiblaCompass";
 import { NearestMasjids } from "@/components/masjid/NearestMasjids";
-import { MonthNav } from "@/components/times/MonthNav";
-import { MonthTable } from "@/components/times/MonthTable";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { hasGeolocationPermission } from "@/lib/geolocation";
 import { useCompassHeading } from "@/hooks/useCompassHeading";
-import { useMonthTimes } from "@/hooks/useMonthTimes";
-import { LoadingState } from "@/components/StatusViews";
-import { localDayKey } from "@/lib/civil-day";
 import type { useLocation } from "@/hooks/useLocation";
 import type { usePrayerTimes } from "@/hooks/usePrayerTimes";
-import type { UseSettings } from "@/hooks/useSettings";
 
 interface TimesPageProps {
   location: ReturnType<typeof useLocation>;
   times: ReturnType<typeof usePrayerTimes>;
-  settings: UseSettings;
   /** Tab visibility (pages are keep-mounted) — gates sensors + lazy loads. */
   active: boolean;
 }
 
-export function TimesPage({ location, times, settings, active }: TimesPageProps) {
-  const { t, lang } = useI18n();
-  // Month section OPEN by default (user, 2026-07-19 — was default-closed). The
-  // `active && monthOpen` gate below still defers the month request/compute
-  // until the Times tab is actually shown, so nothing fires from other tabs.
-  const [monthOpen, setMonthOpen] = useState(true);
-
+export function TimesPage({ location, times, active }: TimesPageProps) {
   const loc = location.location;
   const compass = useCompassHeading(
     loc ? { lat: loc.lat, lon: loc.lon, elevation: loc.elevation } : null,
@@ -52,10 +36,10 @@ export function TimesPage({ location, times, settings, active }: TimesPageProps)
     if (!active) stopCompass();
   }, [active, stopCompass]);
 
-  // Auto-start the compass whenever the Times tab is shown, EXCEPT on iOS-web
-  // where the sensor permission needs an explicit button tap. Returning to the
-  // tab re-fires (stop() reset status to "idle") → "starts by itself, never
-  // asks" (docs/QIBLA_MASJID_SPEC.md — the user's one-time-permission request).
+  // Auto-start the compass whenever this tab is shown, EXCEPT on iOS-web where
+  // the sensor permission needs an explicit button tap. Returning to the tab
+  // re-fires (stop() reset status to "idle") → "starts by itself, never asks"
+  // (docs/QIBLA_MASJID_SPEC.md — the user's one-time-permission request).
   useEffect(() => {
     if (active && loc && compass.status === "idle" && !compass.needsGesture) {
       void startCompass();
@@ -84,19 +68,7 @@ export function TimesPage({ location, times, settings, active }: TimesPageProps)
     await requestGpsStaged().catch(() => undefined);
   }, [requestGpsStaged]);
 
-  const month = useMonthTimes({
-    location: loc,
-    lang,
-    method: settings.method,
-    methodAuto: settings.methodAuto,
-    asr: settings.asr,
-    // The collapsed month section defers its (web) request / (native) compute
-    // until the user actually opens it.
-    active: active && monthOpen,
-  });
-
   if (!times.data) return null;
-  const todayKey = loc ? localDayKey(loc.tz, times.now) : "";
 
   return (
     <>
@@ -115,32 +87,6 @@ export function TimesPage({ location, times, settings, active }: TimesPageProps)
           />
         </>
       )}
-
-      <CollapsibleSection
-        icon={<CalendarDays className="size-5" />}
-        iconClass="bg-teal/10 text-teal"
-        title={t("times.monthTitle")}
-        open={monthOpen}
-        onToggle={setMonthOpen}
-      >
-        <div className="flex flex-col gap-2">
-          <MonthNav
-            monthKey={month.monthKey}
-            data={month.data}
-            isCurrentMonth={month.isCurrentMonth}
-            onPrev={month.prevMonth}
-            onNext={month.nextMonth}
-            onReset={month.resetMonth}
-          />
-          {month.data ? (
-            <MonthTable days={month.data.days} todayKey={todayKey} />
-          ) : month.loading ? (
-            <LoadingState />
-          ) : month.error ? (
-            <p className="text-center text-sm text-imminent/80">{month.error}</p>
-          ) : null}
-        </div>
-      </CollapsibleSection>
     </>
   );
 }
