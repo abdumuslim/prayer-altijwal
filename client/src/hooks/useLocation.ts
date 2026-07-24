@@ -13,6 +13,7 @@ import {
   getCurrentPosition,
 } from "@/lib/geolocation";
 import { loadState, patchState, type StoredLocation } from "@/lib/storage";
+import { runStagedFix } from "@/lib/gps-staging";
 
 export type LocationStatus =
   | "idle"
@@ -30,7 +31,8 @@ export interface UseLocation {
   resolving: boolean;
   /** Options override e.g. { enableHighAccuracy: true, maximumAge: 0 } for the
    *  nearest-masjid precise fix (docs/QIBLA_MASJID_SPEC.md §6b). */
-  requestGps: (options?: PositionOptions) => Promise<void>;
+  /** Resolves to whether a usable GPS fix was obtained (never rejects). */
+  requestGps: (options?: PositionOptions, opts?: { silent?: boolean }) => Promise<boolean>;
   /** Two-stage fix for the masjid list — see the implementation comment. */
   requestGpsStaged: () => Promise<void>;
   setLocation: (loc: StoredLocation, detectedMethod?: string | null) => void;
@@ -81,97 +83,99 @@ export function useLocation(): UseLocation {
     [],
   );
 
-  const requestGps = useCallback(async (options?: PositionOptions) => {
-    setStatus("loading");
-    setErrorKind(null);
-    try {
-      const coords = await getCurrentPosition(options);
+  const requestGps = useCallback(
+    async (options?: PositionOptions, opts?: { silent?: boolean }): Promise<boolean> => {
+      // A silent call is the background PRECISE refine (gps-staging.ts): it may
+      // upgrade the fix on success but must never show a spinner or an error, so
+      // a slow/failed high-accuracy lock can't flash over a list already painted
+      // from a coarse fix (docs/QIBLA_MASJID_SPEC.md — the false-error bug).
+      // Returns whether a usable GPS fix was obtained — the staging keys off this,
+      // never a rejection (this function reports failures via UI state instead).
+      const silent = opts?.silent ?? false;
+      if (!silent) {
+        setStatus("loading");
+        setErrorKind(null);
+      }
       try {
-        const rev = await reverseGeocode(coords.lat, coords.lon);
-        const loc: StoredLocation = {
-          city: rev.city,
-          cityAr: rev.cityAr,
-          country: rev.country,
-          tz: rev.tz,
-          lat: coords.lat,
-          lon: coords.lon,
-          elevation: rev.elevation,
-          source: "gps",
-        };
-        setLocationState(loc);
-        setDetectedMethod(rev.method ?? null);
-        setStatus("ready");
-        patchState({ location: loc });
-      } catch {
-        // Got coords but reverse lookup failed — still usable with device tz.
-        const loc: StoredLocation = {
-          city: null,
-          country: null,
-          tz: deviceTimeZone(),
-          lat: coords.lat,
-          lon: coords.lon,
-          elevation: null,
-          source: "gps",
-        };
-        setLocationState(loc);
-        setStatus("ready");
-        setErrorKind("fetch");
-        patchState({ location: loc });
+        const coords = await getCurrentPosition(options);
+        try {
+          const rev = await reverseGeocode(coords.lat, coords.lon);
+          const loc: StoredLocation = {
+            city: rev.city,
+            cityAr: rev.cityAr,
+            country: rev.country,
+            tz: rev.tz,
+            lat: coords.lat,
+            lon: coords.lon,
+            elevation: rev.elevation,
+            source: "gps",
+          };
+          setLocationState(loc);
+          setDetectedMethod(rev.method ?? null);
+          if (!silent) setStatus("ready");
+          patchState({ location: loc });
+        } catch {
+          // Got coords but reverse lookup failed — still usable with device tz.
+          const loc: StoredLocation = {
+            city: null,
+            country: null,
+            tz: deviceTimeZone(),
+            lat: coords.lat,
+            lon: coords.lon,
+            elevation: null,
+            source: "gps",
+          };
+          setLocationState(loc);
+          if (!silent) {
+            setStatus("ready");
+            setErrorKind("fetch");
+          }
+          patchState({ location: loc });
+        }
+        return true; // a GPS fix landed (source: "gps") even if reverse failed
+      } catch (err) {
+        // Failure: a silent refine keeps whatever fix is already shown; a
+        // non-silent attempt surfaces the typed error. Either way, report no fix.
+        if (!silent) {
+          const denied =
+            err instanceof GeolocationFailure && err.kind === "denied";
+          const kind: UseLocation["errorKind"] = denied
+            ? "denied"
+            : err instanceof GeolocationFailure && err.kind === "timeout"
+              ? "timeout"
+              : "unavailable";
+          setStatus(denied ? "denied" : "error");
+          setErrorKind(kind);
+          // On unsupported geolocation, keep the Baghdad default rather than
+          // leaving the UI empty. (Denied/timeout keep whatever is shown.)
+          if (!denied && err instanceof GeolocationFailure && err.kind === "unsupported") {
+            setLocationState(BAGHDAD_DEFAULT);
+            setDetectedMethod(null);
+            patchState({ location: BAGHDAD_DEFAULT });
+          }
+        }
+        return false;
       }
-    } catch (err) {
-      const denied =
-        err instanceof GeolocationFailure && err.kind === "denied";
-      const kind: UseLocation["errorKind"] = denied
-        ? "denied"
-        : err instanceof GeolocationFailure && err.kind === "timeout"
-          ? "timeout"
-          : "unavailable";
-      setStatus(denied ? "denied" : "error");
-      setErrorKind(kind);
-      // On unsupported geolocation, keep the Baghdad default rather than leaving
-      // the UI empty. (Denied/timeout simply keep whatever location is shown.)
-      if (!denied && err instanceof GeolocationFailure && err.kind === "unsupported") {
-        setLocationState(BAGHDAD_DEFAULT);
-        setDetectedMethod(null);
-        patchState({ location: BAGHDAD_DEFAULT });
-      }
-    }
-  }, []);
+    },
+    [],
+  );
 
   /**
-   * Two-stage GPS for the nearest-masjid list (user, 2026-07-22: "the masjid
-   * list is slow to appear", and never appeared at all on a Galaxy A70/A21).
+   * Staged GPS for the nearest-masjid list (user, 2026-07-22: "the masjid list
+   * is slow to appear", and never appeared at all on a Galaxy A70/A21; 2026-07-24:
+   * an intermittent cold-fix failure showed an error instead of the list).
    *
    * A single high-accuracy, `maximumAge: 0` fix makes the user wait for a cold
-   * GNSS lock — tens of seconds on a budget phone, and a hard failure at the
-   * 12 s default timeout indoors. So: take a CACHED/coarse fix first (the list
-   * appears within a second), then refine in the background and only re-publish
-   * if the precise fix landed in a different ~300 m cell, which is the only case
-   * that can change the results.
+   * GNSS lock — tens of seconds on a budget phone, a hard failure indoors. So the
+   * orchestration (lib/gps-staging.ts, unit-tested): paint from the LAST KNOWN
+   * position first, fall back patiently on a cold device, and refine precisely in
+   * the background — SILENTLY, so a slow refine never flashes an error over a list
+   * that is already correct.
    */
-  const requestGpsStaged = useCallback(async () => {
-    let fast = false;
-    try {
-      await requestGps({
-        enableHighAccuracy: false,
-        maximumAge: 5 * 60_000,
-        timeout: 8_000,
-      });
-      fast = true;
-    } catch {
-      // Ignored: requestGps reports its own failure; stage 2 is the real attempt.
-    }
-    try {
-      await requestGps({
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        // Generous: this runs in the background with a usable fix already shown.
-        timeout: 30_000,
-      });
-    } catch {
-      if (!fast) throw new Error("gps unavailable");
-    }
-  }, [requestGps]);
+  const requestGpsStaged = useCallback(
+    () => runStagedFix((options, opts) => requestGps(options, opts)),
+    [requestGps],
+  );
 
   // One-time upgrade for locations persisted before Arabic names existed (no
   // `cityAr` field): backfill it (and refresh names) from a reverse lookup by the

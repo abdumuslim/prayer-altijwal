@@ -32,6 +32,9 @@ const ARROW_INTERVAL_MS = 100;
  * finer just re-requests a response we know is identical.
  */
 const GRID_DEG = 0.003;
+/** One quiet retry before the section admits a fetch error — the proxy can hiccup
+ *  (upstream 5 s timeout, the ADR-011 budget breaker) on an otherwise-fine call. */
+const RETRY_DELAY_MS = 1_500;
 
 interface NearestMasjidsProps {
   location: StoredLocation;
@@ -142,30 +145,47 @@ export function NearestMasjids({
     fetchedForRef.current = sig;
 
     const abort = new AbortController();
+    let retryTimer = 0;
     // Keep any existing list on screen while refreshing — a re-entry that blanks
     // the section then repaints it reads as a bug.
     setState((s) => (s.kind === "ready" ? s : { kind: "loading" }));
-    fetchNearbyMasjids(location.lat, location.lon, abort.signal)
-      .then((res) => {
-        if (!res.enabled) {
-          setState({ kind: "disabled" });
-        } else if (res.degraded) {
-          setState({ kind: "error" });
-          fetchedForRef.current = null; // upstream hiccup — retry on next visit
-        } else {
-          setState({
-            kind: "ready",
-            masjids: res.masjids.slice(0, MAX_ROWS),
-            embedKey: res.embedKey,
-          });
-        }
-      })
-      .catch(() => {
-        if (abort.signal.aborted) return;
+
+    // A transient upstream hiccup gets one quiet retry before the section admits
+    // an error — a single failed poll shouldn't strand the user on «تعذّر…».
+    const fail = (retriesLeft: number) => {
+      if (retriesLeft > 0) {
+        retryTimer = window.setTimeout(() => attempt(retriesLeft - 1), RETRY_DELAY_MS);
+      } else {
         setState({ kind: "error" });
-        fetchedForRef.current = null;
-      });
-    return () => abort.abort();
+        fetchedForRef.current = null; // retry again on the next visit too
+      }
+    };
+    const attempt = (retriesLeft: number) => {
+      fetchNearbyMasjids(location.lat, location.lon, abort.signal)
+        .then((res) => {
+          if (!res.enabled) {
+            setState({ kind: "disabled" });
+          } else if (res.degraded) {
+            fail(retriesLeft);
+          } else {
+            setState({
+              kind: "ready",
+              masjids: res.masjids.slice(0, MAX_ROWS),
+              embedKey: res.embedKey,
+            });
+          }
+        })
+        .catch(() => {
+          if (abort.signal.aborted) return;
+          fail(retriesLeft);
+        });
+    };
+    attempt(1);
+
+    return () => {
+      abort.abort();
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [active, isGpsFix, location.lat, location.lon, refreshNonce]);
 
   const retry = useCallback(() => {
