@@ -64,6 +64,46 @@
    Phase-4 declaration — this release adds none, so none should appear). **Start rollout to Closed
    testing** → confirm.
 
+### ①b The «deploy» command — Claude publishes via Chrome (verified end-to-end 2026-07-24, v2.1.2/vc7)
+
+When the user says **"deploy"**, this is the process (assumes ⓪'s signed AAB is built + archived).
+The user must be signed into Play Console in **their own Chrome** — the `claude-in-chrome` extension
+drives their authenticated session (Playwright would be a fresh, logged-out session). The exact
+click-path that worked:
+
+1. `navigate` → `https://play.google.com/console` → **Choose developer account** → click **AL-Tijwal**.
+   ⚠ Use the `find` tool for the row, not raw coordinates — a mis-click lands on "Create a new
+   developer account" / the signup flow (`/console/u/0/signup`); if that happens, `navigate` **back**.
+2. App list → open **مواقيت الصلاة** (`com.altijwal.prayer`; app URL is `.../app/4975799181636642377/`).
+3. Left nav **Test and release → Testing → Closed testing** → open the **Alpha** track
+   (`.../tracks/4697740499076933696`) → **Create new release** (top-right).
+4. **Upload the bundle — THIS STEP IS THE USER'S, not automatable.** The `file_upload` tool can't do
+   it: the AAB is ~12 MB (tool caps at **10 MB**) AND lives in `D:\keys\releases\` (outside the
+   session's readable folders). Hand off explicitly: "drag `prayer-vX.Y.Z-vcN.aab` into the *Drop app
+   bundles here* zone (or click Upload and pick it)." Then wait for their confirmation.
+5. Release name auto-fills `N (X.Y.Z)` — leave it. The previous vc drops to **"Not included"**
+   (correct — the new build supersedes it).
+6. **Release notes** — the field pre-fills `<ar>…</ar>` tags. Click in → `ctrl+a` → `type` the whole
+   block **including the tags**. **⚠ Get the AR wording user-approved FIRST** (user-visible text rule;
+   propose options, see §②). Verify with `zoom` (RTL + the `•` bullet can look scrambled at small
+   size but it saves correctly; watch for "Release notes provided for 1 language").
+7. **Next** → **Preview and confirm**. The lone **Warning** — *"no deobfuscation file"* — is BENIGN
+   (expected with `minifyEnabled false`; it appears on every release). Check device support is
+   unchanged (no "Devices no longer supported").
+8. **Save** → dialog **"Go to Publishing overview?"** → **Go to overview**. Save is **reversible** —
+   it stages the change in Publishing overview; it does **not** publish.
+9. **Publishing overview** (Managed publishing is OFF) → **Submit 1 change for review** → confirm
+   **Send changes for review**. Status flips to **"Changes in review"** (a **Remove changes** button
+   pulls it back until review starts). Quick checks run (≤14 min) → Google review → auto-publish to
+   the testers; they auto-update within hours.
+
+**Safety boundary:** step 8 **Save** is reversible; step 9 **Send changes for review** is the
+outward-facing publish — do it only on the user's explicit go-ahead **for that release**. Note step 4
+(uploading the AAB) already **burns the versionCode** even into a later-discarded draft, so only ever
+deploy a FINAL build. If the change is **shared client code** (e.g. the masjid/GPS fix), a web
+redeploy (`docs/DEPLOYMENT.md`) ships the same improvement to the live site — mention it, but it's a
+separate, optional action from this Play deploy.
+
 ### ② Release notes «ما الجديد» — AR (v2.1.2, **user-approved 2026-07-24**)
 
 ```

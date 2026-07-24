@@ -63,7 +63,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | **v2.0.0 redesign** — 4-tab shell, theme engine/gallery (Liquid Glass, Material, contrast, kashi exploration), monthly table, reports, a11y, widget; versioning policy | `docs/V2_REDESIGN_SPEC.md` (spec + CHECKPOINT status header: phases done, session decisions, what's next) |
 | **Qibla + nearest masjid** — accurate compass (native fused sensor + declination), Google Places proxy, Maps/Waze deep links, Times-tab restructure. **BUILT + deployed (session 4); key live** | `docs/QIBLA_MASJID_SPEC.md` |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
-| Publishing the Android app to Google Play (account, signing/AAB, console forms, testing tracks) | `docs/PLAY_RELEASE.md` |
+| Publishing the Android app to Google Play — **incl. the "deploy" command** (bump→signed AAB→Play closed track via the Chrome-driven Console flow); account, signing/AAB, console forms, testing tracks | `docs/PLAY_RELEASE.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |
 | SSH/VPS access, credentials, secrets, routine ops | `docs/OPERATIONS.md` ⚠️ local-only (gitignored); if absent, ask the user |
 

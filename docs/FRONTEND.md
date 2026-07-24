@@ -493,14 +493,26 @@ check-ins moved to the Home strip — §8). The masjid list is server-filtered: 
   haptic per alignment entry (`Compass.pulse()` native / `navigator.vibrate` web) + an aria-live
   announcement.
 - **`NearestMasjids`** is gated on `location.source === "gps"` (additive `StoredLocation.source`
-  migration; `requestGps` now accepts `PositionOptions` — the section passes
-  `{enableHighAccuracy:true, maximumAge:0}`). On the APK the fix comes from
-  `@capacitor/geolocation` (§1 — the WebView path could never get one), and a denied/failed
-  request surfaces `error.locationDenied`/`error.location` under the opt-in button via the
-  `gpsErrorKind` prop (2026-07-19 — it used to fail silently). `enabled:false` from the proxy
-  hides the section entirely; `degraded:true` shows the error state and clears the fetch memo so
-  the next visit retries. Rows: distance («850 م» / «1.2 كم», Latin digits), live bearing arrow,
-  Maps/Waze deep links (`<a target="_blank" rel="noopener noreferrer">`).
+  migration). On the APK the fix comes from `@capacitor/geolocation` (§1 — the WebView path could
+  never get one), and a denied/failed request surfaces `error.locationDenied`/`error.location`
+  under the opt-in button via the `gpsErrorKind` prop (2026-07-19 — it used to fail silently).
+  `enabled:false` from the proxy hides the section entirely. Rows: distance («850 م» / «1.2 كم»,
+  Latin digits), live bearing arrow, Maps/Waze deep links (`<a target="_blank" rel="noopener noreferrer">`).
+- **Cold-GPS resilience (2026-07-24, `lib/gps-staging.ts` — v2.1.2 · `QIBLA_MASJID_SPEC.md` Session 7).**
+  The section used to error on the first cold visit: on a device with no recent fix (GNSS cold /
+  indoors) BOTH staged-GPS timeouts expired before one landed, so `source` never became `"gps"` and
+  it showed a location error until a fix eventually self-healed (this, NOT Samsung Auto Blocker,
+  which was investigated live and RULED OUT — it only blocks wireless adb). `requestGpsStaged`
+  (auto-run by TimesPage when the tab is active + permission granted) now **paints from the
+  last-known position first** (`maximumAge` 5 min → 1 h), **falls back to a patient coarse attempt**
+  (20 s) on a truly cold device, and runs the precise refine **SILENTLY** — a slow/failed precise
+  lock never flashes an error over a list already painted. The orchestration is the pure,
+  unit-tested `runStagedFix(requestFix)`. **Gotcha — `requestGps` returns `Promise<boolean>` (fix
+  obtained?) and NEVER rejects** (it reports failures via UI state); the staging keys off the
+  boolean, not exceptions. A code review caught the original exception-based version as dead code
+  (the patient fallback was unreachable, the refine always silent) — do not build control flow on
+  `requestGps` throwing. The masjid fetch also **retries once** (1.5 s) on a transient
+  `degraded`/network failure before showing «تعذّر…», then clears the memo so the next visit retries.
 
 ## 12. Accessibility system (Phase 8, 2026-07-14 — ADR-010)
 
