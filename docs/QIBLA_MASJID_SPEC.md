@@ -1,5 +1,25 @@
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
+> **Session 7 (2026-07-24, v2.1.2 / versionCode 7) — nearest-masjid "doesn't work" fix. BUILT (signed
+> AAB), NOT yet field-verified.** A tester's Samsung (Galaxy A57, Play install, vc6) saw an error in
+> the أقرب المساجد section. Live adb diagnosis **RULED OUT Samsung Auto Blocker** (the feature also
+> works with Auto Blocker ON — the earlier "off → worked" was coincidental GPS warm-up; Auto Blocker
+> only blocks *wireless adb*) and confirmed server proxy, location permission, and network all healthy.
+> **Root cause: intermittent COLD-GPS-fix failure on first use** — the list gates on
+> `location.source === "gps"`, and on a cold device (no cached fix, GNSS cold/indoors) BOTH staged-GPS
+> timeouts expired → `source` never became `"gps"` → prompt + location error; it self-heals once any
+> fix lands (hence "it works now"). **Fix (behaviour-only, NO new strings):**
+> `client/src/lib/gps-staging.ts` (NEW, pure + unit-tested) — paint from the LAST KNOWN position first
+> (`maximumAge` 5 min → 1 h), a **patient coarse fallback** (20 s) for a genuinely cold device, and a
+> **SILENT precise refine** that never flashes an error over a list already painted;
+> `hooks/useLocation.ts` `requestGps` now returns `Promise<boolean>` — a code-review **HIGH**: it never
+> rejected (reports failures via UI state), so the staging's exception-based control flow was dead
+> (patient fallback unreachable, refine always silent); `components/masjid/NearestMasjids.tsx` retries
+> the fetch once (1.5 s) before showing «تعذّر…». Gates green: client build + engine gate + server 175
+> + client 148 (incl. 4 new staging tests). Signed AAB (vc7) at
+> `client/android/app/build/outputs/bundle/release/app-release.aab`. **OPEN:** user uploads to the
+> closed/internal track (their login) + field-tests the cold-GPS case on the real device.
+>
 > **Session 6 (2026-07-22, v2.1.0 / versionCode 4) — feedback round 2, BUILT + DEPLOYED.**
 > **Masjid rows redesigned:** the Maps/Waze chips left the row; tapping a row now EXPANDS it with a
 > live Google **Maps Embed API** directions map (device → masjid, auto-fits both ends) and the two

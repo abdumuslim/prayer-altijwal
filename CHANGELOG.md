@@ -5,6 +5,21 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.1.2] — 2026-07-24 (versionCode 7)
+
+### Fixed
+- **«أقرب المساجد» no longer fails with an error on the first visit.** The list waits for a real GPS
+  fix, and on a cold device (no recent fix, GNSS cold or indoors) both staged location attempts could
+  time out before one landed — so the section showed a location error instead of the mosques, then
+  quietly started working once any fix arrived. It now paints from the **last known position first**
+  (the list appears almost immediately whenever the phone has any recent fix), falls back to a
+  **patient coarse attempt** on a genuinely cold device, and refines to a precise fix **silently** in
+  the background — a slow precise lock can no longer flash a stale error over a list that is already
+  correct. The mosque fetch also **retries once** on a transient network hiccup before showing an
+  error. (Diagnosed live on a tester's Samsung; Samsung Auto Blocker was investigated and ruled out —
+  the cause was this cold-fix race. New unit-tested `lib/gps-staging.ts`; behaviour-only, no text
+  changes.)
+
 ## [2.1.1] — 2026-07-23 (versionCode 6)
 
 ### Removed

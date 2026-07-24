@@ -29,25 +29,25 @@
 > something structural changes. To push an update you do just this section. Everything the Console
 > asks that isn't covered here keeps its Phase-4 answer.
 
-### ⓪ What's ready for THIS release (v2.1.1)
+### ⓪ What's ready for THIS release (v2.1.2)
 
-- **Signed bundle:** `D:\keys\releases\prayer-v2.1.1-vc6.aab` — versionName **2.1.1**, versionCode
-  **6**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-23; upload this
-  file as-is.
-- ⚠ **vc5 is burned:** an earlier vc5 bundle (alarm fix only, before the month-table removal) was
-  uploaded to the bundle library on 2026-07-23 and can never be replaced — Play consumes a
-  versionCode on upload, even into a draft that is later discarded. **Do not add vc5 from the
-  library**; it is the stale build. Lesson: upload only once the code is final, or bump first.
-- **What changed:** (1) the ringing full-screen alarm no longer disappears when you unlock the phone
-  (`FLAG_ACTIVITY_NO_HISTORY` was finishing it; the swipe used to unlock is the home gesture) —
-  `docs/NATIVE_ALARM_FIXES_SPEC.md` §2h; (2) the **monthly table was removed** (it rebuilt a month on
-  every visit to that tab) and the tab was **renamed «الاتجاهات»** with a compass icon —
-  `docs/FRONTEND.md` §11. Full list: `CHANGELOG.md` §2.1.1. ⚠ Unlike the alarm fix, (2) is
-  **shared web code** — the live site keeps the table until someone deploys the web again.
-- versionCode 6 > every previously uploaded code (1, 2, 3, 4, 5) → Play accepts it. ⚠ vc4 (2.1.0) was
-  submitted 2026-07-22 and may still be **In review**; a new release on the same track supersedes the
-  pending one — expect Play to say so, that is normal.
-- Gate before upload (all green 2026-07-23): `npm run build` · 144 client tests ·
+- **Signed bundle:** `D:\keys\releases\prayer-v2.1.2-vc7.aab` — versionName **2.1.2**, versionCode
+  **7**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-24
+  (`META-INF/UPLOAD.RSA` present in the AAB); upload this file as-is.
+- **What changed:** the **«أقرب المساجد» section no longer errors on the first visit.** It waits for a
+  real GPS fix, and on a cold device (no recent fix, GNSS cold/indoors) both staged location attempts
+  could time out before one landed → a location error instead of the mosques, self-healing once any
+  fix arrived. Now it paints from the **last known position first**, falls back to a **patient coarse
+  attempt** on a cold device, and **refines silently** in the background; the mosque fetch **retries
+  once** on a transient hiccup. Diagnosed live on a tester's Samsung — **Samsung Auto Blocker was
+  investigated and ruled out** (the feature works with it ON; it only blocks wireless adb). Full
+  detail: `CHANGELOG.md` §2.1.2, `docs/QIBLA_MASJID_SPEC.md` Session 7. ⚠ **Shared client code**
+  (`lib/gps-staging.ts`, `useLocation.ts`, `NearestMasjids.tsx`) — a web redeploy (`docs/DEPLOYMENT.md`)
+  would ship the same reliability to the live site's masjid section, but it's **optional**; this Play
+  update is what fixes it for the app testers.
+- versionCode 7 > every previously uploaded code (1–6) → Play accepts it.
+- Gate before upload (all green 2026-07-24): `npm run build` · **148** client tests · **175** server
+  tests · code-review HIGH resolved + regression-tested ·
   `findstr /m astronomy client\dist\assets\*.js` → only `api-*.js` · `META-INF/UPLOAD.RSA` in the AAB.
 
 ### ① Upload to the closed track (Play Console — your login)
@@ -55,21 +55,28 @@
 1. **play.google.com/console** → pick **مواقيت الصلاة**.
 2. Left nav: **Test and release → Testing → Closed testing** → open your existing track (the one your
    12 testers are already on) → **Create new release**.
-3. Under **App bundles**, **Upload** the bundle named in ⓪ (now `prayer-v2.1.1-vc6.aab`). Play App Signing is already on — it
+3. Under **App bundles**, **Upload** the bundle named in ⓪ (now `prayer-v2.1.2-vc7.aab`). Play App Signing is already on — it
    re-signs with the app key automatically; nothing to configure.
-4. **Release name** auto-fills from the bundle (now `6 (2.1.1)`) — leave it.
+4. **Release name** auto-fills from the bundle (now `7 (2.1.2)`) — leave it.
 5. **Release notes** — paste the AR text from ② inside the `<ar-XB>`/`ar` language block (or the
    single notes box). **← get my sign-off on the wording first (user-visible text rule).**
 6. **Next → Save**, then **Review release**. Resolve any warnings (a new permission would re-open a
    Phase-4 declaration — this release adds none, so none should appear). **Start rollout to Closed
    testing** → confirm.
 
-### ② Release notes «ما الجديد» — AR (v2.1.1, **user-approved 2026-07-23**)
+### ② Release notes «ما الجديد» — AR (v2.1.2, **user-approved 2026-07-24**)
+
+```
+• إصلاح «أقرب المساجد»: تظهر القائمة الآن بشكل أسرع وأكثر موثوقية دون رسالة خطأ.
+```
+
+<details><summary>v2.1.1 (vc6) notes — shipped 2026-07-23</summary>
 
 ```
 • إصلاح: شاشة المنبّه لم تعد تختفي عند فتح قفل الهاتف، وتبقى ظاهرة حتى توقفها بنفسك.
 • تحسينات في الأداء وسرعة التطبيق.
 ```
+</details>
 
 <details><summary>v2.1.0 (vc3/vc4) notes — shipped 2026-07-22</summary>
 
@@ -393,6 +400,7 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.1.0 | 4 | `prayer-v2.1.0-vc4.aab` | **uploaded 2026-07-22** to Closed testing – Alpha as release `4 (2.1.0)`, AR notes attached, sent for review (177 countries). |
 | 2.1.1 | 5 | `prayer-v2.1.1-vc5.aab` | **STALE — do not ship.** Alarm fix only; uploaded to the bundle library 2026-07-23 before the month-table removal landed, which burned the version code. |
 | 2.1.1 | 6 | `prayer-v2.1.1-vc6.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule) + monthly table removed / tab renamed «الاتجاهات» (`FRONTEND.md` §11). |
+| 2.1.2 | 7 | `prayer-v2.1.2-vc7.aab` | built + signed 2026-07-24 — nearest-masjid cold-GPS resilience fix: last-known-first + patient coarse fallback + silent refine + fetch retry (`QIBLA_MASJID_SPEC.md` Session 7). Samsung Auto Blocker investigated + ruled out. Gates green (build · 148 client · 175 server · engine gate · code-review HIGH resolved). ⚠ NOT yet field-verified on the actual cold-GPS case. |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
@@ -425,8 +433,8 @@ cd android; .\gradlew.bat bundleRelease         # AAB for Play
 
 ## Open items on you
 
-**For the v2.1.0 update (now):** just the **Update runbook** at the top —
-(1) OK the AR release notes in §②, (2) upload `prayer-v2.1.0-vc3.aab` to the closed track, (3) keep
+**For the v2.1.2 update (now):** just the **Update runbook** at the top —
+(1) OK the AR release notes in §②, (2) upload `prayer-v2.1.2-vc7.aab` to the closed track, (3) keep
 ≥12 testers opted in. Nothing else blocks; the one-time items below are already done.
 
 **One-time setup (done — kept for reference):**
