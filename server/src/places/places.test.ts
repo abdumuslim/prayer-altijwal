@@ -800,6 +800,31 @@ describe("GET /api/places/travel", () => {
     await stopServer();
   });
 
+  it("records an outcome for a travel request too — every request is counted", async () => {
+    const s = fakeStats();
+    const app = express();
+    app.use(
+      createPlacesRouter({ apiKey: "key", governor: fakeGovernor(true).governor, stats: s.recorder }),
+    );
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        const { port } = server.address() as AddressInfo;
+        base = `http://127.0.0.1:${port}`;
+        resolve();
+      });
+    });
+    mockTravel.mockResolvedValue([{ walkMin: 62, driveMin: 11 }]);
+
+    await fetch(url()); // paid
+    await fetch(url()); // served from the travel cache
+
+    expect(s.outcomes).toEqual([
+      { outcome: "travel_live", units: 2 },
+      { outcome: "travel_cached", units: 0 },
+    ]);
+    await stopServer();
+  });
+
   it("returns REAL times for one masjid and caches them", async () => {
     await startServer("key");
     mockTravel.mockResolvedValue([{ walkMin: 62, driveMin: 11 }]);

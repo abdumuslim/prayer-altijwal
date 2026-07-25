@@ -18,7 +18,11 @@ export type PlacesOutcome =
   | "denied_client"
   | "denied_ip"
   | "degraded_upstream"
-  | "disabled";
+  | "disabled"
+  // On-expand travel lookups. Separate names so the rollup shows what each
+  // endpoint costs, rather than blending two different prices into one row.
+  | "travel_live"
+  | "travel_cached";
 
 export interface PlacesStatsRecorder {
   noteOutcome(day: string, hour: number, outcome: PlacesOutcome, units: number): void;

@@ -172,6 +172,19 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       { lat: dlat, lon: dlon },
       spender(UNITS_PER_TRAVEL_LOOKUP, s),
     );
+
+    if (deps.stats) {
+      const day = s?.day ?? ptDayKey();
+      const hour = s?.hour ?? new Date().getUTCHours();
+      const spent = s?.spent() ?? 0;
+      const outcome: PlacesOutcome = !found
+        ? (s?.deniedReason() ?? "degraded_upstream")
+        : spent > 0
+          ? "travel_live"
+          : "travel_cached";
+      deps.stats.noteOutcome(day, hour, outcome, spent);
+    }
+
     if (!found) {
       // The client keeps its own estimate — this is not an error state.
       res.json({ enabled: true, walkMin: null, driveMin: null, degraded: true });
