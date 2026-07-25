@@ -5,6 +5,37 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.2.0] — 2026-07-25 (versionCode 8)
+
+### Added
+- **«أقرب المساجد» now works offline and without spending API quota.** A resident masjid dataset for
+  Iraq (9,835 entries from OpenStreetMap, ODbL) ships with the app's backend, so in any well-mapped
+  area the list is answered locally — no Google call at all. Where the local data is thin (rural
+  areas, mapping gaps) Google is still queried, and the two sources are merged rather than one
+  replacing the other.
+- **Users can add a masjid they know** («أضف مسجداً») at their current position. The contributor sees
+  it in their own list immediately; everyone else sees it once it is reviewed. Contributions must be
+  the user's own knowledge — copying from Google Maps is explicitly asked against, and is what would
+  make the dataset unusable.
+- **The list is kept on the device**, so re-opening the app paints instantly and a phone with no
+  connection still shows the last known masjids.
+
+### Changed
+- **Walking/driving times in the list are now estimates** («نحو 6 دقائق مشيًا»), calculated from
+  distance. Tapping a masjid open fetches the real routed time for that one. This was the single
+  change that mattered most for cost: pricing all five visible rows on every lookup was consuming ten
+  billed routing elements at a time and capped the whole feature at roughly 1,000 lookups a month.
+- **The list no longer re-fetches as you move around** — only when you open the tab and when you pull
+  down to refresh. Distances and the direction arrows still track your position live.
+- Masjid data is credited under the list, as OpenStreetMap's licence requires.
+
+### Fixed
+- A redeploy no longer discards the cached masjid data, and results are now shared correctly between
+  people in the same neighbourhood instead of being re-bought per person.
+
+Full rationale — including why the masjid data could not simply be copied from Google, and how the
+spending limits pace themselves — in `docs/DECISIONS.md` ADR-014 and `docs/QIBLA_MASJID_SPEC.md` §6d.
+
 ## [2.1.2] — 2026-07-24 (versionCode 7)
 
 ### Fixed
