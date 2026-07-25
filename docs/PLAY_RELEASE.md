@@ -104,11 +104,19 @@ deploy a FINAL build. If the change is **shared client code** (e.g. the masjid/G
 redeploy (`docs/DEPLOYMENT.md`) ships the same improvement to the live site — mention it, but it's a
 separate, optional action from this Play deploy.
 
-### ② Release notes «ما الجديد» — AR (v2.1.2, **user-approved 2026-07-24**)
+### ② Release notes «ما الجديد» — AR (v2.2.0, **user-approved 2026-07-25**)
+
+```
+• أقرب المساجد: أسرع، وتعمل بدون إنترنت، مع إمكانية إضافة مسجد غير موجود.
+• تحسينات في الأداء واستهلاك البيانات.
+```
+
+<details><summary>v2.1.2 (vc7) notes — shipped 2026-07-24</summary>
 
 ```
 • إصلاح «أقرب المساجد»: تظهر القائمة الآن بشكل أسرع وأكثر موثوقية دون رسالة خطأ.
 ```
+</details>
 
 <details><summary>v2.1.1 (vc6) notes — shipped 2026-07-23</summary>
 
@@ -441,6 +449,7 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.1.1 | 5 | `prayer-v2.1.1-vc5.aab` | **STALE — do not ship.** Alarm fix only; uploaded to the bundle library 2026-07-23 before the month-table removal landed, which burned the version code. |
 | 2.1.1 | 6 | `prayer-v2.1.1-vc6.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule) + monthly table removed / tab renamed «الاتجاهات» (`FRONTEND.md` §11). |
 | 2.1.2 | 7 | `prayer-v2.1.2-vc7.aab` | built + signed 2026-07-24 — nearest-masjid cold-GPS resilience fix: last-known-first + patient coarse fallback + silent refine + fetch retry (`QIBLA_MASJID_SPEC.md` Session 7). Samsung Auto Blocker investigated + ruled out. Gates green (build · 148 client · 175 server · engine gate · code-review HIGH resolved). ⚠ NOT yet field-verified on the actual cold-GPS case. |
+| 2.2.0 | 8 | `prayer-v2.2.0-vc8.aab` | **uploaded + sent for review 2026-07-25** as release `8 (2.2.0)`. Places quota work (ADR-014): resident OSM masjid dataset (9,835 rows) + user contributions + estimated travel times with a real lookup on expand + fetch discipline + offline list. Server half deployed to prod the same day. Gates green (build · 157 client · 286 server · engine gate) and **device-verified on the user's Pixel 7 Pro** before upload. Console checks: 0 devices lost, +2.51 KB, only the benign no-deobfuscation warning. |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
@@ -473,9 +482,10 @@ cd android; .\gradlew.bat bundleRelease         # AAB for Play
 
 ## Open items on you
 
-**For the v2.1.2 update (now):** just the **Update runbook** at the top —
-(1) OK the AR release notes in §②, (2) upload `prayer-v2.1.2-vc7.aab` to the closed track, (3) keep
-≥12 testers opted in. Nothing else blocks; the one-time items below are already done.
+**v2.2.0 / vc8 is IN REVIEW (sent 2026-07-25)** — nothing is owed on it beyond keeping ≥12 testers
+opted in. Once Google's review clears, Play auto-updates the testers within hours. For the *next*
+update, follow the **Update runbook** at the top: (1) get the AR release notes OK'd in §②, (2) build +
+archive the AAB, (3) upload it to the closed track.
 
 **One-time setup (done — kept for reference):**
 1. ~~Pay the $25 + finish identity verification.~~ ✅
