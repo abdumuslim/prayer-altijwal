@@ -8,7 +8,9 @@ import type {
   DeclinationResponse,
   GovernoratesResponse,
   Lang,
+  MasjidContributionBody,
   MasjidsResponse,
+  MasjidTravelResponse,
   PrayerAlert,
   PrayerTimesResponse,
   PushSubscribeBody,
@@ -16,6 +18,7 @@ import type {
   VapidKeyResponse,
 } from "@/types/api";
 import { isNative } from "@/lib/native";
+import { getClientId } from "@/lib/client-id";
 
 // In the native (Capacitor) app the page origin is https://localhost, so API
 // calls must target the deployed backend absolutely (CORS is enabled server-side
@@ -149,6 +152,15 @@ export function fetchDeclination(
   );
 }
 
+/**
+ * The two Places endpoints are the only ones that can cost money, so they carry
+ * the anonymous installation id: it buys this device a fair per-client share of
+ * the daily budget instead of being throttled behind a shared IP (ADR-014).
+ */
+function placesHeaders(): Record<string, string> {
+  return { "X-Client-Id": getClientId() };
+}
+
 export function fetchNearbyMasjids(
   lat: number,
   lon: number,
@@ -156,9 +168,40 @@ export function fetchNearbyMasjids(
 ): Promise<MasjidsResponse> {
   return request<MasjidsResponse>(
     `/api/places/masjids${qs({ lat, lon })}`,
-    undefined,
+    { headers: placesHeaders() },
     signal,
   );
+}
+
+/**
+ * REAL travel time to one masjid, fetched only when the user expands its row.
+ * The list itself shows a free estimate — pricing every visible row eagerly was
+ * what capped the whole feature at ~1 000 lookups/month (ADR-014).
+ */
+export function fetchMasjidTravel(
+  lat: number,
+  lon: number,
+  dlat: number,
+  dlon: number,
+  signal?: AbortSignal,
+): Promise<MasjidTravelResponse> {
+  return request<MasjidTravelResponse>(
+    `/api/places/travel${qs({ lat, lon, dlat, dlon })}`,
+    { headers: placesHeaders() },
+    signal,
+  );
+}
+
+/**
+ * Submit a masjid the user knows about that neither source lists. Free — no
+ * budget is involved; the server applies a per-client daily cap.
+ */
+export function contributeMasjid(body: MasjidContributionBody): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/api/places/masjids/contribute", {
+    method: "POST",
+    headers: placesHeaders(),
+    body: JSON.stringify(body),
+  });
 }
 
 export function fetchVapidKey(signal?: AbortSignal): Promise<VapidKeyResponse> {

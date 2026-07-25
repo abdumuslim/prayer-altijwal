@@ -27,6 +27,15 @@ const EnvSchema = z.object({
   // restricted to the Embed API (free/unmetered) in GCP; never point this at the
   // Places key. Absent ⇒ rows expand with the deep-link buttons only.
   GOOGLE_MAPS_EMBED_KEY: z.string().min(1).optional(),
+  // Self-imposed monthly ceiling on PAID upstream work, counted in UNITS: a live
+  // masjid search costs 1 (= 1 Places call) and an on-expand travel lookup costs
+  // 2 (= 2 Routes elements). Because a unit is never cheaper than the SKU it
+  // buys, one cap bounds BOTH free tiers at once: at 4500 units we can consume
+  // at most 4500 Places calls (free tier 5000) and at most 4500 Routes elements
+  // (free tier 10000), whatever the mix. Kept below both for headroom.
+  PLACES_MONTHLY_UNIT_CAP: z.coerce.number().int().nonnegative().default(4500),
+  // Guards GET /api/places/usage. Absent ⇒ that route 404s.
+  ADMIN_TOKEN: z.string().min(16).optional(),
 });
 
 export interface VapidConfig {
@@ -52,6 +61,10 @@ export interface Config {
   googleMapsApiKey: string | undefined;
   /** Browser-visible Embed-API key (see EnvSchema) — never the Places key. */
   googleMapsEmbedKey: string | undefined;
+  /** Monthly ceiling on paid upstream units (see EnvSchema). */
+  placesMonthlyUnitCap: number;
+  /** Token gating GET /api/places/usage; absent ⇒ the route 404s. */
+  adminToken: string | undefined;
 }
 
 function load(): Config {
@@ -118,6 +131,8 @@ function load(): Config {
     placesEnabled: Boolean(env.GOOGLE_MAPS_API_KEY),
     googleMapsApiKey: env.GOOGLE_MAPS_API_KEY,
     googleMapsEmbedKey: env.GOOGLE_MAPS_EMBED_KEY,
+    placesMonthlyUnitCap: env.PLACES_MONTHLY_UNIT_CAP,
+    adminToken: env.ADMIN_TOKEN,
   };
 }
 

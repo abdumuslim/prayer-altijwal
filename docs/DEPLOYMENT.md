@@ -78,6 +78,9 @@ VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:admin@altijwal.com
 GOOGLE_MAPS_API_KEY=          # optional — nearest-masjid Places proxy; absent ⇒ feature disabled
+GOOGLE_MAPS_EMBED_KEY=        # optional — browser-visible Embed-only key (ADR-013)
+# optional: PLACES_MONTHLY_UNIT_CAP=4500   # ADR-014 spend ceiling, in units
+# optional: ADMIN_TOKEN=                   # gates GET /api/places/usage (min 16 chars)
 # optional: PORT=8000
 ```
 
@@ -88,6 +91,19 @@ Config is **zod-validated at startup** — the process fails fast if a required 
 it `/api/places/masjids` returns `{ enabled: false }` and the client hides the section. The key is
 IP-restricted to this VPS + API-restricted to Places API (New), with a daily quota cap (details in
 `OPERATIONS.md`).
+
+**Spend controls (ADR-014).** `PLACES_MONTHLY_UNIT_CAP` (default 4500) is the server's own ceiling on
+paid upstream work; the GCP-side per-key daily quota remains the hard billing backstop behind it.
+Set the console fuses to roughly **200 Places requests/day** and **400 Routes elements/day**. Watch
+the live picture with `GET /api/places/usage?token=$ADMIN_TOKEN` — it reports the monthly spend, the
+day's pool, the current per-client cap and the observed active-client count.
+
+**New tables** (created by the idempotent DDL at boot, no migration step): `places_cache`,
+`places_usage`, `places_stats`, `places_cell_demand`, `masjid_contributions`.
+
+**Bundled dataset.** `server/data/masjids-iq.json` ships in the image like `cities15000.json`.
+Regenerate with `npm --prefix server run build:masjids`. Its absence is not fatal — the feature just
+loses its free floor and leans on Google.
 
 ---
 

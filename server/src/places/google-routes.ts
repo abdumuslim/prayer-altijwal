@@ -1,6 +1,11 @@
 import { childLogger } from "../logger.js";
 import { RouteMatrixElements } from "../validation/places.js";
-import type { Masjid } from "./google-places.js";
+
+/** Any point with coordinates — a Masjid satisfies this structurally. */
+export interface RoutePoint {
+  lat: number;
+  lon: number;
+}
 
 const log = childLogger("places/routes-api");
 
@@ -26,8 +31,8 @@ function parseMinutes(duration: unknown): number | null {
 }
 
 async function computeMatrix(
-  origin: { lat: number; lon: number },
-  masjids: Masjid[],
+  origin: RoutePoint,
+  masjids: RoutePoint[],
   apiKey: string,
   mode: TravelMode,
 ): Promise<Array<number | null> | null> {
@@ -89,10 +94,15 @@ async function computeMatrix(
  * by the caller's budget breaker. Never throws: returns `null` when neither mode
  * could be fetched, and per-leg nulls otherwise, because travel times are an
  * enhancement — a masjid list without them is still correct.
+ *
+ * Since ADR-014 this is called with a SINGLE destination, on demand, when the
+ * user expands a masjid row — not eagerly for the whole list. A 1×1 matrix is
+ * valid (the API caps only the origins×destinations product) and bills 1 element
+ * per mode.
  */
 export async function fetchTravelMinutes(
-  origin: { lat: number; lon: number },
-  masjids: Masjid[],
+  origin: RoutePoint,
+  masjids: RoutePoint[],
   apiKey: string,
 ): Promise<TravelMinutes[] | null> {
   if (masjids.length === 0) return [];

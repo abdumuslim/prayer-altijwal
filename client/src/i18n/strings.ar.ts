@@ -105,6 +105,24 @@ export const ar: Record<StringKey, string> = {
   "masjid.retry": "إعادة المحاولة",
   "masjid.mapTitle": "خريطة الاتجاهات إلى المسجد",
   "masjid.locating": "جارٍ تحديد موقعك…",
+  // Prefixes an ESTIMATED travel time (computed from distance, no API call).
+  // Drops away once the row is expanded and the real time arrives.
+  "masjid.approx": "نحو",
+  "masjid.stale": "نتائج محفوظة · قد لا تكون محدّثة",
+  "masjid.offline": "أنت غير متصل — نعرض آخر قائمة محفوظة",
+  // ODbL requires visible attribution wherever OpenStreetMap data is shown.
+  "masjid.attribution": "بيانات المساجد: OpenStreetMap ومساهمو التطبيق",
+  "masjid.addCta": "أضف مسجداً",
+  "masjid.addTitle": "إضافة مسجد",
+  "masjid.addName": "اسم المسجد",
+  // The "don't copy from Google Maps" line is not decoration: contributions must
+  // be the user's own knowledge for the resident dataset to stay legally clean.
+  "masjid.addHint": "يُضاف عند موقعك الحالي. اكتب ما تعرفه بنفسك — لا تنسخ من خرائط Google.",
+  "masjid.addSubmit": "إضافة",
+  "masjid.addCancel": "إلغاء",
+  "masjid.addSuccess": "شكراً — أُضيف المسجد وسيظهر لك الآن",
+  "masjid.addError": "تعذّرت الإضافة، حاول لاحقاً",
+  "masjid.addLimit": "بلغت حد الإضافات اليومية",
   "ptr.pull": "اسحب للأسفل للتحديث",
   "ptr.release": "أفلت للتحديث",
   "ptr.refreshing": "جارٍ التحديث…",

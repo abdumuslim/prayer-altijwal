@@ -7,13 +7,25 @@
 // default would mislead (Q5). The section hides itself entirely when the server
 // reports the feature disabled.
 //
-// Refreshes (user, 2026-07-22): on tab re-entry and on pull-to-refresh, because
-// the list used to fetch once per position and then never again.
+// FETCH DISCIPLINE (user, 2026-07-25 — ADR-014). The list is fetched ONCE per
+// mount, when the tab first opens with a real GPS fix, and thereafter only when
+// the user pulls to refresh. It deliberately does NOT refetch on tab re-entry or
+// when the position changes: masjids don't move, so re-asking as the user walks
+// spent quota to redraw the same list. Distances and bearings still track the
+// live position — only the network call is pinned.
+//
+// Travel times in the collapsed row are FREE estimates from straight-line
+// distance («نحو 6 دقائق مشيًا»); the real Routes lookup is spent only when a row
+// is expanded. Pricing all five visible rows eagerly was what capped the feature
+// at ~1 000 lookups/month.
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, MapPin, Navigation2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Loader2, MapPin, Navigation2, Plus } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { fetchNearbyMasjids } from "@/lib/api";
+import { fetchMasjidTravel, fetchNearbyMasjids } from "@/lib/api";
+import { AddMasjidSheet } from "@/components/masjid/AddMasjidSheet";
+import { readMasjidCache, writeMasjidCache } from "@/lib/masjid-cache";
+import { myMasjids } from "@/lib/my-masjids";
 import { haversineKm, initialBearing } from "@/lib/qibla";
 import { cn } from "@/lib/utils";
 import { MarqueeText } from "@/components/ui/MarqueeText";
@@ -26,15 +38,15 @@ import type { Masjid } from "@/types/api";
 const MAX_ROWS = 5;
 /** Bearing arrows repaint at 10 Hz — smooth enough, a third of the sensor rate. */
 const ARROW_INTERVAL_MS = 100;
-/**
- * Position rounding for "have we already fetched this?", matching the server's
- * ~300 m grid cache (server/src/places/cache.ts GRID_DEG = 0.003). Anything
- * finer just re-requests a response we know is identical.
- */
-const GRID_DEG = 0.003;
 /** One quiet retry before the section admits a fetch error — the proxy can hiccup
  *  (upstream 5 s timeout, the ADR-011 budget breaker) on an otherwise-fine call. */
 const RETRY_DELAY_MS = 1_500;
+
+/** Real travel minutes for one masjid, once its row has been expanded. */
+interface RealTravel {
+  walkMin: number | null;
+  driveMin: number | null;
+}
 
 interface NearestMasjidsProps {
   location: StoredLocation;
@@ -57,7 +69,14 @@ type FetchState =
   | { kind: "loading" }
   | { kind: "error" }
   | { kind: "disabled" }
-  | { kind: "ready"; masjids: Masjid[]; embedKey?: string };
+  | {
+      kind: "ready";
+      masjids: Masjid[];
+      embedKey?: string;
+      /** Set only when we're STUCK with a non-current answer — a successful
+       *  refresh clears it, so a passing revalidation never flashes a warning. */
+      note?: "stale" | "offline";
+    };
 
 function formatDistance(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} م`;
@@ -74,8 +93,20 @@ function minuteUnitKey(n: number): "masjid.minute" | "masjid.minuteDual" | "masj
   return "masjid.minute";
 }
 
+/**
+ * Masjids can now come from OpenStreetMap or from another user («osm:» / «usr:»
+ * ids), and those are meaningless to Google. Coordinates always work, so the
+ * place ID is only ever an optional precision upgrade.
+ */
+function isGooglePlaceId(id: string): boolean {
+  return !id.startsWith("osm:") && !id.startsWith("usr:");
+}
+
 function mapsUrl(m: Masjid): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}&destination_place_id=${encodeURIComponent(m.id)}`;
+  const base = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}`;
+  return isGooglePlaceId(m.id)
+    ? `${base}&destination_place_id=${encodeURIComponent(m.id)}`
+    : base;
 }
 
 function wazeUrl(m: Masjid): string {
@@ -88,7 +119,7 @@ function embedUrl(m: Masjid, from: StoredLocation, key: string): string {
   const params = new URLSearchParams({
     key,
     origin: `${from.lat},${from.lon}`,
-    destination: `place_id:${m.id}`,
+    destination: isGooglePlaceId(m.id) ? `place_id:${m.id}` : `${m.lat},${m.lon}`,
     mode: "driving",
     language: "ar",
   });
@@ -126,54 +157,101 @@ export function NearestMasjids({
     }, 150); // let the panel (and its iframe box) lay out first
     return () => window.clearTimeout(id);
   }, [expandedId]);
-  const fetchedForRef = useRef<string | null>(null);
-  const wasActiveRef = useRef(active);
+  const fetchedRef = useRef(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [realTravel, setRealTravel] = useState<Record<string, RealTravel>>({});
+  const travelAskedRef = useRef(new Set<string>());
+  const [adding, setAdding] = useState(false);
+  /** Bumped after a contribution so the list picks up the local copy. */
+  const [mineNonce, setMineNonce] = useState(0);
 
   const isGpsFix = location.source === "gps";
   const { subscribe, getHeading, status: compassStatus } = compass;
   const headingLive = compassStatus === "active";
 
-  // Returning to the tab must re-check for masjids: the position signature is
-  // unchanged, so without this the dedupe below would short-circuit forever.
-  if (active && !wasActiveRef.current) fetchedForRef.current = null;
-  wasActiveRef.current = active;
+  // The effect reads the CURRENT position but must not re-run when it changes —
+  // that is the whole point of the fetch discipline. A ref expresses "latest
+  // value, not a dependency" precisely; putting location in the deps would
+  // reinstate the per-movement refetch this change removed.
+  const locRef = useRef(location);
+  locRef.current = location;
+
+  // Pull-to-refresh and the in-section retry button are the only ways to force a
+  // refetch; both bump this.
+  const force = refreshNonce + retryNonce;
+  const lastForceRef = useRef(force);
 
   useEffect(() => {
     if (!active || !isGpsFix) return;
-    const sig = `${Math.round(location.lat / GRID_DEG)},${Math.round(location.lon / GRID_DEG)}`;
-    if (fetchedForRef.current === sig) return;
-    fetchedForRef.current = sig;
+
+    const forced = force !== lastForceRef.current;
+    lastForceRef.current = force;
+    if (fetchedRef.current && !forced) return;
+    fetchedRef.current = true;
+
+    const { lat, lon } = locRef.current;
+
+    // Paint whatever we already know instantly — no skeleton for a returning
+    // user — and, if it is recent and for this same cell, ask for nothing at all.
+    const cached = readMasjidCache(lat, lon);
+    if (cached && cached.masjids.length > 0) {
+      setState({
+        kind: "ready",
+        masjids: cached.masjids.slice(0, MAX_ROWS),
+        embedKey: cached.embedKey,
+      });
+      if (cached.fresh && !forced) return;
+    } else {
+      setState((s) => (s.kind === "ready" ? s : { kind: "loading" }));
+    }
 
     const abort = new AbortController();
     let retryTimer = 0;
-    // Keep any existing list on screen while refreshing — a re-entry that blanks
-    // the section then repaints it reads as a bug.
-    setState((s) => (s.kind === "ready" ? s : { kind: "loading" }));
 
     // A transient upstream hiccup gets one quiet retry before the section admits
     // an error — a single failed poll shouldn't strand the user on «تعذّر…».
     const fail = (retriesLeft: number) => {
       if (retriesLeft > 0) {
         retryTimer = window.setTimeout(() => attempt(retriesLeft - 1), RETRY_DELAY_MS);
+        return;
+      }
+      // A saved list beats an error screen: the masjids around the user are the
+      // same ones whether or not we could reach the server just now.
+      if (cached && cached.masjids.length > 0) {
+        setState({
+          kind: "ready",
+          masjids: cached.masjids.slice(0, MAX_ROWS),
+          embedKey: cached.embedKey,
+          note: navigator.onLine ? "stale" : "offline",
+        });
       } else {
         setState({ kind: "error" });
-        fetchedForRef.current = null; // retry again on the next visit too
+        fetchedRef.current = false; // let the next visit try again
       }
     };
+
     const attempt = (retriesLeft: number) => {
-      fetchNearbyMasjids(location.lat, location.lon, abort.signal)
+      fetchNearbyMasjids(lat, lon, abort.signal)
         .then((res) => {
           if (!res.enabled) {
             setState({ kind: "disabled" });
-          } else if (res.degraded) {
-            fail(retriesLeft);
-          } else {
-            setState({
-              kind: "ready",
-              masjids: res.masjids.slice(0, MAX_ROWS),
-              embedKey: res.embedKey,
-            });
+            return;
           }
+          // Degraded WITH results is the graceful path: the server couldn't
+          // spend, so it served the best free answer it had. Show it, labelled.
+          if (res.degraded && res.masjids.length === 0) {
+            fail(retriesLeft);
+            return;
+          }
+          travelAskedRef.current.clear();
+          setRealTravel({});
+          setState({
+            kind: "ready",
+            masjids: res.masjids.slice(0, MAX_ROWS),
+            embedKey: res.embedKey,
+            ...(res.degraded ? { note: "stale" as const } : {}),
+          });
+          if (!res.degraded) writeMasjidCache(lat, lon, res.masjids, res.embedKey);
         })
         .catch(() => {
           if (abort.signal.aborted) return;
@@ -186,10 +264,11 @@ export function NearestMasjids({
       abort.abort();
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [active, isGpsFix, location.lat, location.lon, refreshNonce]);
+  }, [active, isGpsFix, force]);
 
   const retry = useCallback(() => {
-    fetchedForRef.current = null;
+    fetchedRef.current = false;
+    setRetryNonce((n) => n + 1);
     if (isGpsFix) setState({ kind: "loading" });
     onUseGps();
   }, [isGpsFix, onUseGps]);
@@ -203,7 +282,57 @@ export function NearestMasjids({
     else arrowsRef.current.delete(id);
   }, []);
 
-  const masjids = state.kind === "ready" ? state.masjids : null;
+  // The server's list plus anything this device contributed. A contribution is
+  // pending review for everyone else, but its author should see it immediately —
+  // otherwise adding a masjid looks like it did nothing.
+  const masjids = useMemo(() => {
+    if (state.kind !== "ready") return null;
+    const base = state.masjids;
+    const mine = myMasjids().filter(
+      (m) => !base.some((b) => haversineKm(b.lat, b.lon, m.lat, m.lon) < 0.04),
+    );
+    if (mine.length === 0) return base;
+    return [...base, ...mine]
+      .sort(
+        (a, b) =>
+          haversineKm(location.lat, location.lon, a.lat, a.lon) -
+          haversineKm(location.lat, location.lon, b.lat, b.lon),
+      )
+      .slice(0, MAX_ROWS);
+  }, [state, location.lat, location.lon, mineNonce]);
+
+  // ── Real travel time, bought one row at a time ────────────────────────────
+  // Expanding a row is the user telling us they care about THIS masjid, and it
+  // is the only moment worth spending a Routes call on. Asked once per masjid;
+  // a failure silently leaves the estimate in place.
+  useEffect(() => {
+    if (!expandedId || !masjids) return;
+    if (travelAskedRef.current.has(expandedId)) return;
+    const m = masjids.find((x) => x.id === expandedId);
+    if (!m) return;
+    // A masjid the user just added is at their own position — buying a route to
+    // somewhere five metres away would be spending for nothing.
+    if (m.id.startsWith("usr:local-")) return;
+    travelAskedRef.current.add(expandedId);
+
+    const abort = new AbortController();
+    const { lat, lon } = locRef.current;
+    fetchMasjidTravel(lat, lon, m.lat, m.lon, abort.signal)
+      .then((res) => {
+        if (!res.enabled || res.degraded) return; // keep the estimate
+        if (res.walkMin == null && res.driveMin == null) return;
+        setRealTravel((prev) => ({
+          ...prev,
+          [m.id]: { walkMin: res.walkMin, driveMin: res.driveMin },
+        }));
+      })
+      .catch(() => {
+        // Let the user ask again by re-opening the row.
+        travelAskedRef.current.delete(m.id);
+      });
+    return () => abort.abort();
+  }, [expandedId, masjids]);
+
   useEffect(() => {
     if (!masjids || !headingLive) return;
     const bearings = new Map(
@@ -286,14 +415,44 @@ export function NearestMasjids({
             {t("masjid.retry")}
           </button>
         </div>
-      ) : state.masjids.length === 0 ? (
-        <p className="py-2 text-center text-[12px] text-ink-dim">{t("masjid.none")}</p>
+      ) : !masjids || masjids.length === 0 ? (
+        <div className="flex flex-col gap-2.5 py-1">
+          <p className="text-center text-[12px] text-ink-dim">{t("masjid.none")}</p>
+          {adding ? (
+            <AddMasjidSheet
+              lat={location.lat}
+              lon={location.lon}
+              onClose={() => setAdding(false)}
+              onAdded={() => setMineNonce((n) => n + 1)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="press hit-target mx-auto flex items-center gap-1.5 rounded-full border border-emerald/30 bg-emerald/[0.07] px-3 py-1.5 text-[12px] font-semibold text-emerald"
+            >
+              <Plus className="size-3.5" />
+              {t("masjid.addCta")}
+            </button>
+          )}
+        </div>
       ) : (
-        <ul className="flex flex-col gap-1.5">
-          {state.masjids.map((m) => {
+        <>
+          {state.note && (
+            <p className="text-center text-[11px] leading-4 text-ink-faint">
+              {t(state.note === "offline" ? "masjid.offline" : "masjid.stale")}
+            </p>
+          )}
+          <ul className="flex flex-col gap-1.5">
+          {masjids.map((m) => {
             const km = haversineKm(location.lat, location.lon, m.lat, m.lon);
             const bearing = initialBearing(location.lat, location.lon, m.lat, m.lon);
             const expanded = expandedId === m.id;
+            // A real lookup, once bought, replaces the estimate for that row.
+            const real = realTravel[m.id];
+            const walkMin = real ? real.walkMin : m.walkMin;
+            const driveMin = real ? real.driveMin : m.driveMin;
+            const approx = !real && m.estimated === true;
             return (
               <li
                 key={m.id}
@@ -315,11 +474,19 @@ export function NearestMasjids({
                     </MarqueeText>
                     <span className="tnum text-[11px] text-ink-faint">
                       {formatDistance(km)}
-                      {m.walkMin != null && (
-                        <> · {m.walkMin} {t(minuteUnitKey(m.walkMin))} {t("masjid.walk")}</>
+                      {walkMin != null && (
+                        <>
+                          {" · "}
+                          {approx && `${t("masjid.approx")} `}
+                          {walkMin} {t(minuteUnitKey(walkMin))} {t("masjid.walk")}
+                        </>
                       )}
-                      {m.driveMin != null && (
-                        <> · {m.driveMin} {t(minuteUnitKey(m.driveMin))} {t("masjid.drive")}</>
+                      {driveMin != null && (
+                        <>
+                          {" · "}
+                          {approx && `${t("masjid.approx")} `}
+                          {driveMin} {t(minuteUnitKey(driveMin))} {t("masjid.drive")}
+                        </>
                       )}
                     </span>
                   </span>
@@ -378,7 +545,32 @@ export function NearestMasjids({
               </li>
             );
           })}
-        </ul>
+          </ul>
+
+          {adding ? (
+            <AddMasjidSheet
+              lat={location.lat}
+              lon={location.lon}
+              onClose={() => setAdding(false)}
+              onAdded={() => setMineNonce((n) => n + 1)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="press hit-target mx-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold text-ink-faint transition-colors hover:text-emerald"
+            >
+              <Plus className="size-3" />
+              {t("masjid.addCta")}
+            </button>
+          )}
+
+          {/* ODbL requires attribution wherever OpenStreetMap data is shown,
+              and the resident dataset is merged into every list. */}
+          <p className="text-center text-[10px] leading-4 text-ink-faint/70">
+            {t("masjid.attribution")}
+          </p>
+        </>
       )}
     </section>
   );

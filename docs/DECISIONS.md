@@ -362,3 +362,76 @@ key here would have been the actual security regression.
 Matrix (Legacy-flagged, needs separate enablement). It bills **per element**, so the server requests
 times only for the 5 rows the client renders, caches them inside the existing 24 h / ~300 m grid
 entry, and ADR-011's breaker charges 3 units per cache miss (1 Places + 2 Routes).
+
+## ADR-014 — Quota resilience: resident data first, spend governed, travel times on demand ✅
+
+**Context (2026-07-25).** The nearest-masjid feature was heading for its free-tier ceiling, and the
+ceiling turned out to be far lower than anyone had assumed. Measuring where the money actually went:
+
+| Per cache miss (before) | Billed as | Free tier / month | Misses before exhaustion |
+|---|---|---|---|
+| 1 × `places:searchNearby` | Nearby Search **Pro** | 5,000 calls | 5,000 |
+| 2 × `computeRouteMatrix` × 5 destinations = **10 elements** | Compute Route Matrix **Essentials** | 10,000 elements | **1,000** ← binds |
+
+So the walk/drive times — an *enhancement* — were setting the ceiling for the whole feature, five
+times sooner than the masjid search itself. Two further gaps: ADR-011's breaker caps the RATE
+(30 units/min) but not the VOLUME, so a sustained sweep could still drain a month in about eight
+hours; and the cell cache lived in process memory, so every deploy re-bought every cell.
+
+**Decision.**
+
+1. **Travel times move off the eager path.** The list shows a free estimate derived from
+   straight-line distance (`places/travel-estimate.ts`, walk 5 km/h, drive 30 km/h, ×1.3 detour),
+   labelled «نحو …». A real Routes lookup is spent only when the user EXPANDS a row
+   (`GET /api/places/travel`, 2 elements, cached). Ceiling: 1,000 → 5,000 lookups/month.
+2. **A resident dataset becomes the floor.** `server/data/masjids-iq.json` is built from
+   OpenStreetMap (`npm run build:masjids`, ODbL, attribution rendered under the list) and loaded into
+   `places/resident-index.ts`. Where it is genuinely dense (≥1 masjid within 1 km AND ≥3 within 2 km)
+   it answers on its own, for free. **Users can add masjids they know** («أضف مسجداً»); approved
+   contributions join the same index, so Google's share shrinks as Iraq fills in.
+3. **A persistent spend governor** (`places/budget.ts` + `places/governor.ts`) paces the remaining
+   monthly allowance across the days left, holds 20% back for first-time clients, and divides the
+   rest across the clients actually observed. Per-client caps are clamped to 2–10; a normal user
+   generates 0–2 budget-consuming lookups a day, so the limit is invisible to them and decisive
+   against a sweeper.
+4. **Every request is recorded**, not only the ones that spend, so the governor paces on real
+   active-client counts rather than a guess.
+5. **The cell cache moved to Postgres** with a 30-day TTL and a hard DELETE prune, and the cell
+   coarsened from ~330 m to ~1.1 km with the search anchored at the CELL CENTRE.
+
+**Why the cache can coarsen without losing correctness.** A larger cell shares one call among more
+people, but could hide a nearer masjid. `cellIsUsable` refuses any entry that cannot prove it does
+not: either the search came back UNSATURATED (fewer results than the 20 requested, so it enumerated
+everything within 5 km of the centre, and the user is at most a 0.72 km half-diagonal away), or it
+saturated but its farthest result still reaches 1.5 km past the user. Anything else falls through to
+a live search — which only happens in a very dense city centre, exactly where a fresh call is
+warranted. Results are always re-ranked by distance from the user's ACTUAL position.
+
+**Why the resident dataset is OpenStreetMap and not Google.** The obvious idea — pull every masjid in
+Iraq from Google once and serve locally forever — is prohibited. Google Maps Platform ToS §3.2.3
+permits caching a `place_id` indefinitely but other Places content for at most 30 days, and forbids
+pre-fetching or mass collection to build a database. OSM's ODbL licence permits exactly this, and
+users' own contributions are our data outright. Hence the split: `places_cache` holds Google content
+under a real 30-day deletion, the resident index holds only data we may keep, and the two are merged
+at SERVE time (`places/merge.ts`) rather than being written into each other. Contributions must be
+the contributor's own knowledge — stated in the submission UI — or the dataset would be laundering
+Google content and lose the very property that makes it durable.
+
+**Why one unit cap covers two SKUs.** Spending is metered in UNITS: a live masjid search costs 1
+(= 1 Places call), an on-expand travel lookup costs 2 (= 2 Routes elements). A unit is never cheaper
+than the SKU it buys, so a single `PLACES_MONTHLY_UNIT_CAP` of 4500 bounds both free tiers at once
+(≤4500 Places calls against 5000, ≤4500 Routes elements against 10000) whatever the mix.
+
+**Relationship to earlier ADRs.** This supersedes ADR-011's rate-only breaker (kept, retuned to 1
+unit per masjid miss, now the burst half of a two-part limit) and corrects ADR-009's claim that "the
+grid cache keeps cost inside the free tier". It does NOT reverse the 2026-07-13 decision to reject
+OSM as the PRIMARY source on quality grounds: cached Google content is still served in preference to
+resident data, so quality already paid for is never discarded — resident data answers only where
+nothing is cached and the local mapping is demonstrably dense.
+
+**Also decided.** Fetch discipline on the client (user, 2026-07-25): the list is fetched once per
+mount and thereafter only on pull-to-refresh — never on tab re-entry, never as the user moves.
+Distances and bearings still track the live position; only the network call is pinned. A localStorage
+copy (`prayer.masjids.v1`, 24 h fresh / 30 d retained) paints instantly and is the offline path.
+Anonymous identity is a random `X-Client-Id` plus an IP PREFIX (/24 or /64) — enough to throttle,
+never enough to identify, and no table links a client to a coordinate.

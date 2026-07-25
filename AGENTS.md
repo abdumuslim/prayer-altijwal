@@ -62,6 +62,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | Native (Capacitor) alarm — real closed-app **offline** ringing; **Android first, iOS (AlarmKit) deferred** | `docs/NATIVE_ALARM_SPEC.md` (build) + `docs/NATIVE_ALARM_PLAN.md` (research/verdict) + `docs/NATIVE_ALARM_FIXES_SPEC.md` (emulator-verified fix round: shared rules store, hardware-back handler, AlarmActivity dark theme, brand launcher icon) |
 | **v2.0.0 redesign** — 4-tab shell, theme engine/gallery (Liquid Glass, Material, contrast, kashi exploration), monthly table, reports, a11y, widget; versioning policy | `docs/V2_REDESIGN_SPEC.md` (spec + CHECKPOINT status header: phases done, session decisions, what's next) |
 | **Qibla + nearest masjid** — accurate compass (native fused sensor + declination), Google Places proxy, Maps/Waze deep links, Times-tab restructure. **BUILT + deployed (session 4); key live** | `docs/QIBLA_MASJID_SPEC.md` |
+| **Places quota / cost** — why travel times were the ceiling, the resident OSM dataset + user contributions, the spend governor, request telemetry, the 30-day caching boundary | `docs/QIBLA_MASJID_SPEC.md` §6d + `docs/DECISIONS.md` ADR-014 |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |
 | Publishing the Android app to Google Play — **incl. the "deploy" command** (bump→signed AAB→Play closed track via the Chrome-driven Console flow); account, signing/AAB, console forms, testing tracks | `docs/PLAY_RELEASE.md` |
 | Docker, Traefik labels, VPS layout, deploy steps, DB bootstrap, VAPID | `docs/DEPLOYMENT.md` |
@@ -81,6 +82,10 @@ cd client && npm run build      # client typecheck + build — USE THIS. Bare `t
                                 # build fails on deploy. See [[build_client_typecheck_gotcha]].
 cd server && npm test           # server tests (vitest)
 cd server && npm run build:cities   # regenerate the bundled GeoNames dataset (n/a/alt/nar/etc.)
+cd server && npm run build:masjids  # regenerate the bundled OSM masjid dataset (ODbL, Iraq bbox).
+                                    # Tiled + RESUMABLE: completed tiles cache under
+                                    # data/_raw/masjid-tiles/, so rerun until it completes —
+                                    # the public Overpass instances are often congested.
 
 # Native (Capacitor Android) app — offline alarms (docs/NATIVE_ALARM_SPEC.md):
 cd client && npm run build          # NOW runs tsc -b + tsc -p tsconfig.native.json + vite build

@@ -286,12 +286,96 @@ throws):
   + warn (client shows the error string, not a crash).
 - Response mapping → `{ enabled: true, masjids: [{ id, name, lat, lon, address }] }` with
   `name = displayName.text` (Arabic when Google has it).
-- **Cache**: in-memory Map keyed by lat/lon rounded to ~300 m grid, TTL 24 h, LRU-capped ~500
-  entries — with the cap+cache this stays comfortably inside the Places free monthly tier
-  (Nearby Search is a paid SKU; verify current pricing at implementation and set a GCP quota cap
-  regardless, §8).
 - Same public-API posture as the rest of `/api/*` (Cloudflare in front); note the endpoint in
   the security review before release.
+
+> ⚠️ **Superseded in part by ADR-014 (2026-07-25).** `maxResultCount` is now **20**, the search is
+> anchored at the **cell centre** (not the caller), the cache is **Postgres-backed with a 30-day
+> TTL**, travel times are **no longer fetched for the list**, and a resident OpenStreetMap dataset
+> answers first where it is dense. See §6d below — it is authoritative where it disagrees with the
+> bullets above.
+
+### 6d. Quota architecture (ADR-014, 2026-07-25) — AUTHORITATIVE
+
+**Why it changed.** The walk/drive times, not the masjid search, were setting the ceiling: each cache
+miss cost 1 Places call (Nearby Search **Pro**, 5,000 free/month) *plus* 10 Routes elements (Compute
+Route Matrix **Essentials**, 10,000 free/month), so Routes ran out five times sooner and capped the
+feature at ~1,000 lookups/month.
+
+**Serving order** for `GET /api/places/masjids` — first hit wins:
+
+| # | Source | Cost | Module |
+|---|---|---|---|
+| 0 | client localStorage (`prayer.masjids.v1`) | no request at all | `client/src/lib/masjid-cache.ts` |
+| 1 | memory cell (1 h) → Postgres cell (≤30 d) | 0 | `places/cache.ts`, `db/repositories/places-cache.ts` |
+| 2 | resident index, **when dense here** | 0 | `places/resident-index.ts` |
+| 3 | live Google, if the governor admits | 1 unit | `places/masjid-service.ts` |
+| 4 | resident / stale cache + `degraded: true` | 0 | — |
+
+Cache **before** resident on purpose: quality already paid for is never discarded in favour of a
+free-but-thinner answer. "Dense here" = ≥1 resident masjid within 1 km AND ≥3 within 2 km.
+Google and resident results are **merged** (`places/merge.ts`), never swapped — resident names win,
+Google's `place_id` is adopted for the deep link.
+
+**Cell geometry.** `CELL_DEG = 0.01` (~1.1 km; half-diagonal ~0.72 km at Baghdad's latitude),
+`MAX_RESULTS = 20`, search anchored at the cell centre so one call serves the whole cell. A cached
+cell is served only when `cellIsUsable` proves it cannot hide a nearer masjid: unsaturated
+(`resultCount < 20` ⇒ the 5 km search was exhaustive) **or** `maxDistKm ≥ distanceFromCentre + 1.5`.
+Results are re-ranked by distance from the user's ACTUAL position.
+
+**Travel times.** The list carries a free estimate (`places/travel-estimate.ts`) labelled «نحو …».
+`GET /api/places/travel?lat&lon&dlat&dlon` buys the real figure for ONE masjid when a row is
+expanded (2 elements, cached 24 h). Failure ⇒ `degraded: true` and the client keeps its estimate.
+
+**Spend governor** (`places/budget.ts` pure math + `places/governor.ts`). Units: masjid search = 1,
+travel lookup = 2. Month boundary is **America/Los_Angeles** (Google resets midnight PT on the 1st).
+
+```
+dailyPool     = max(1, floor((cap − usedThisPtMonth) / daysLeftInPtMonth))
+reserve       = ceil(0.2 × dailyPool)          // first-time clients only
+perClientCap  = clamp(round((dailyPool − reserve) / activeClients), 2, 10)
+perIpCap      = 3 × perClientCap
+```
+
+Admission: burst breaker (ADR-011, 30 units/min) → global pool → per-client → per-IP. The per-client
+increment is guarded **inside a single SQL statement**, so concurrent requests cannot both pass a cap
+they both read as clear. A denial is not an error — it falls to step 4.
+
+**Telemetry.** EVERY request is recorded, not only paid ones, so `activeClients` is real:
+`places_usage` (per PT day × client/ip: requests + spend, written synchronously because it gates
+spending), `places_stats` (hourly outcome rollup) and `places_cell_demand` (which cells cost live
+calls → where contributed masjids would pay off), both buffered and flushed every 15 s. No table
+links a client id to a coordinate. IPs are stored only as a /24 or /64 **prefix**.
+`GET /api/places/usage?token=…` reports the live plan (404 unless `ADMIN_TOKEN` is set).
+
+**Resident dataset.** `npm run build:masjids` → `server/data/masjids-iq.json` from OpenStreetMap via
+Overpass (tiled 8×8 over an Iraq bbox, each tile cached under `data/_raw/masjid-tiles/` so a rerun
+resumes; a tile the servers refuse is automatically SPLIT into quarters, because a timeout on dense
+Baghdad/Mosul is about data volume and retrying the same query never converges).
+
+*As built (2026-07-25): **9,835 rows, 817 KiB**; 9,731 survive the venue filter at load. Measured
+coverage — Karrada 18 masjids within 5 km (nearest 413 m), Adhamiya 44 (nearest 330 m — correctly
+جامع أبو حنيفة النعمان), Mosul 117, Erbil 299, Basra 56, Karbala 61. `isDenseAt` is true for every
+major city centre and false for Najaf centre (nearest 1.5 km) and open desert, which correctly fall
+through to Google.*
+A descriptive `User-Agent` is REQUIRED — without it the instances answer 406 at the web-server layer.
+Venue exclusion (husseiniya/mawkib/mudhif) is applied at LOAD time via the shared
+`places/venue-filter.ts`, so the OSM and Google paths can never drift apart.
+**ODbL requires visible attribution** — rendered under the list as «بيانات المساجد: OpenStreetMap
+ومساهمو التطبيق».
+
+**Contributions.** `POST /api/places/masjids/contribute` `{ name, lat, lon, userLat, userLon }` →
+`masjid_contributions` as `pending`; 5/day/client; rejected beyond 50 km from the submitter (a guard
+against a mis-dropped pin, not a security control). Approved rows join the resident index within
+10 minutes (`places/community-refresh.ts`). The contributor sees their own submission immediately
+from their **own device's** copy (`client/src/lib/my-masjids.ts`), so no unreviewed text is ever
+served to anyone else. Moderation is `psql` — see `docs/OPERATIONS.md`.
+
+> **Legal boundary that shapes all of the above.** Google Maps Platform ToS §3.2.3 allows caching a
+> `place_id` indefinitely but other Places content for at most 30 days, and forbids pre-fetching or
+> mass collection to build a database. So `places_cache` is Google-only under a real DELETE at 30
+> days, the resident index holds only ODbL + our own users' data, and the two are merged at serve
+> time — never written into each other. Contributions must be the contributor's own knowledge.
 
 ### 6b. Client — `client/src/components/masjid/NearestMasjids.tsx`
 

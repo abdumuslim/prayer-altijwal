@@ -157,10 +157,33 @@ export interface Masjid {
   lat: number;
   lon: number;
   address: string | null;
-  /** Google travel time in whole minutes; null when it has no route for that
-   *  mode. Optional so an older server (no Routes API) still parses. */
+  /** Travel time in whole minutes; null when there is no route for that mode.
+   *  Optional so an older server (no Routes API) still parses. */
   walkMin?: number | null;
   driveMin?: number | null;
+  /** True ⇒ these are FREE distance-based estimates, not a Routes lookup, and
+   *  the UI labels them «نحو …». Real times arrive per-row on expand
+   *  (docs/DECISIONS.md ADR-014). Absent on an older server ⇒ treat as real. */
+  estimated?: boolean;
+}
+
+/** POST /api/places/masjids/contribute — a user-known masjid. */
+export interface MasjidContributionBody {
+  name: string;
+  lat: number;
+  lon: number;
+  /** The submitter's own position — a sanity check on the pin, not a control. */
+  userLat: number;
+  userLon: number;
+}
+
+/** Real walk/drive minutes for ONE masjid — GET /api/places/travel. */
+export interface MasjidTravelResponse {
+  enabled: boolean;
+  walkMin: number | null;
+  driveMin: number | null;
+  /** Present ⇒ nothing was spent; the caller keeps showing its estimate. */
+  degraded?: boolean;
 }
 
 export interface MasjidsResponse {
