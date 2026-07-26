@@ -170,4 +170,20 @@ describe("what gets stored", () => {
     // 20/hour cap; every request still answered 204.
     expect(written.length).toBeLessThanOrEqual(20);
   });
+
+  it("bounds a flood that FORGES a different IP on every request", async () => {
+    // clientIpOf trusts cf-connecting-ip, so the per-key cap alone bounds
+    // nothing for anyone reaching the origin directly: each forged address
+    // mints a fresh allowance. Without the global cap all 30 below would be
+    // stored, because every one of them is the first request for its key.
+    const { base, written } = await start({ limits: { perHour: 20, globalPerHour: 10 } });
+    for (let i = 0; i < 30; i++) {
+      await post(base, VALID, {
+        "cf-connecting-ip": `203.0.113.${i}`,
+        "X-Client-Id": `forged-client-${i}`,
+      });
+    }
+    await new Promise((r) => setTimeout(r, 40));
+    expect(written.length).toBe(10);
+  });
 });

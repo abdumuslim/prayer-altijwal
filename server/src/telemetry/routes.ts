@@ -14,6 +14,23 @@ const HOUR_MS = 60 * 60 * 1000;
 const MAX_TRACKED_IPS = 5000;
 
 /**
+ * Global ceiling across ALL keys, mirroring the admin login throttle's backstop.
+ *
+ * The per-IP cap alone bounds nothing: `clientIpOf` trusts cf-connecting-ip /
+ * x-forwarded-for, so anyone reaching the origin directly can rotate the key on
+ * every request and mint a fresh 20/hour allowance indefinitely — polluting the
+ * audience charts with fabricated installs. The real fix is network-level
+ * (restrict :443 to Cloudflare's ranges); this is the cheap in-app bound that
+ * does not depend on it.
+ *
+ * Sized well above plausible legitimate traffic — one ping per install per day,
+ * so 5000/hour tolerates ~120k daily actives. RAISE IT if the app ever grows
+ * past that; the warning below is what will tell you, and it surfaces on the
+ * dashboard's Logs page.
+ */
+const GLOBAL_MAX_PER_HOUR = 5000;
+
+/**
  * Strict whitelists everywhere — the endpoint is public, so nothing here is a
  * free-text field that could be turned into storage.
  */
@@ -41,6 +58,8 @@ export interface TelemetryRouterDeps {
   readonly precisionDeg: number;
   /** Runtime switch from the admin dashboard. Absent ⇒ enabled. */
   readonly isEnabled?: () => Promise<boolean>;
+  /** Overridable so the caps can be exercised in a test without 5000 requests. */
+  readonly limits?: { perHour?: number; globalPerHour?: number };
 }
 
 /**
@@ -56,8 +75,31 @@ export interface TelemetryRouterDeps {
 export function createTelemetryRouter(deps: TelemetryRouterDeps): Router {
   const r = Router();
   const seen = new Map<string, { count: number; windowStart: number }>();
+  const perHour = deps.limits?.perHour ?? MAX_PER_HOUR;
+  const globalPerHour = deps.limits?.globalPerHour ?? GLOBAL_MAX_PER_HOUR;
+  let globalCount = 0;
+  let globalWindowStart = 0;
+  let globalWarned = false;
 
   function allow(key: string, now: number): boolean {
+    // Global bound first — it is the one an attacker cannot sidestep by
+    // forging a different forwarded-IP header on every request.
+    if (now - globalWindowStart > HOUR_MS) {
+      globalCount = 0;
+      globalWindowStart = now;
+      globalWarned = false;
+    }
+    globalCount += 1;
+    if (globalCount > globalPerHour) {
+      if (!globalWarned) {
+        globalWarned = true; // once per window, not once per request
+        log.warn("telemetry global rate cap reached — pings dropped this hour", {
+          cap: globalPerHour,
+        });
+      }
+      return false;
+    }
+
     const entry = seen.get(key);
     if (!entry || now - entry.windowStart > HOUR_MS) {
       seen.set(key, { count: 1, windowStart: now });
@@ -69,7 +111,7 @@ export function createTelemetryRouter(deps: TelemetryRouterDeps): Router {
       return true;
     }
     entry.count += 1;
-    return entry.count <= MAX_PER_HOUR;
+    return entry.count <= perHour;
   }
 
   r.post("/api/telemetry/ping", async (req: Request, res: Response) => {

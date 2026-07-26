@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { childLogger } from "../logger.js";
 import {
@@ -68,6 +69,17 @@ export interface PlacesRouterDeps {
    */
   isEnabled?: (() => Promise<boolean>) | undefined;
   isTravelEnabled?: (() => Promise<boolean>) | undefined;
+}
+
+/**
+ * Constant-time token check. Compares byte length first because timingSafeEqual
+ * throws on unequal lengths — the length itself is not the secret.
+ */
+function tokenMatches(given: unknown, expected: string): boolean {
+  if (typeof given !== "string") return false;
+  const a = Buffer.from(given, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /** Map a completed lookup onto the outcome recorded for it. */
@@ -243,7 +255,10 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
   // watched without reading the database by hand. 404 (not 401) without a token
   // configured, so the endpoint's existence isn't advertised.
   r.get("/api/places/usage", async (req: Request, res: Response) => {
-    if (!deps.adminToken || req.query.token !== deps.adminToken) {
+    // Constant-time: a plain !== short-circuits on the first differing byte,
+    // which leaks the token one character at a time to a patient caller. Every
+    // other secret comparison in the codebase already uses timingSafeEqual.
+    if (!deps.adminToken || !tokenMatches(req.query.token, deps.adminToken)) {
       res.status(404).json({ error: "Not found" });
       return;
     }
