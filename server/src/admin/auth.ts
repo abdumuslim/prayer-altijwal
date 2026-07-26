@@ -23,6 +23,19 @@ export const REFRESH_WHEN_REMAINING_MS = 11 * 60 * 60 * 1000;
 /** Production scrypt cost. Travels inside the digest, so raising it later
  *  doesn't invalidate existing hashes. Must match scripts/hash-admin-password.mjs. */
 export const DEFAULT_SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 } as const;
+
+/**
+ * Field separator for the digest. NOT `$` (the conventional PHC choice):
+ * this value lives in the VPS `.env`, which Docker Compose loads via
+ * `env_file` — and Compose performs variable interpolation on those values,
+ * so `scrypt$16384$8$1$<salt>$<hash>` reaches the container with `$<salt>`
+ * and part of `$1...` replaced by empty strings. That silently truncated the
+ * digest and made every login fail with no useful error.
+ *
+ * `:` is unambiguous here because every other field is base64url (`A-Za-z0-9_-`)
+ * or a decimal integer. See the "no dollar sign" test in auth.test.ts.
+ */
+const SEP = ":";
 const KEYLEN = 64;
 const SALT_BYTES = 16;
 
@@ -59,7 +72,7 @@ export function hashPassword(password: string, params: ScryptParams = DEFAULT_SC
     params.p,
     salt.toString("base64url"),
     hash.toString("base64url"),
-  ].join("$");
+  ].join(SEP);
 }
 
 /**
@@ -208,7 +221,7 @@ interface ParsedDigest extends ScryptParams {
 
 function parseDigest(digest: string): ParsedDigest | null {
   if (typeof digest !== "string") return null;
-  const parts = digest.split("$");
+  const parts = digest.split(SEP);
   if (parts.length !== 6) return null;
   const [scheme, rawN, rawR, rawP, rawSalt, rawHash] = parts;
   if (scheme !== "scrypt") return null;

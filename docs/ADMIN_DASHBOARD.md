@@ -71,9 +71,15 @@ pinned to self plus `frame-src https://www.google.com` (the Maps Embed preview).
 
 **Stateless.** No sessions table, no revocation list.
 
-- **`ADMIN_PASSWORD_HASH`** — `scrypt$N$r$p$salt$hash`. The cost parameters travel inside the digest,
+- **`ADMIN_PASSWORD_HASH`** — `scrypt:N:r:p:salt:hash`. The cost parameters travel inside the digest,
   so they can be raised later without invalidating existing hashes. Digests with absurd parameters
   (>64 MB working set) are rejected rather than allowed to wedge the process on every login.
+
+  > ⚠️ **The separator is `:`, deliberately not the conventional PHC `$`.** This value lives in
+  > `/opt/prayer/.env`, which Docker Compose loads through `env_file` — and **Compose interpolates
+  > variables inside those values**. A `$`-separated digest arrives at the container with every
+  > `$<field>` replaced by an empty string, silently truncated, and every login fails with no useful
+  > error (hit in production 2026-07-26). Keep any new `.env` value free of `$`, or escape it as `$$`.
 - **`ADMIN_SESSION_SECRET`** — HMAC key for the cookie. Absent ⇒ a random key per boot, which logs
   the operator out on every redeploy (warned at startup).
 - **Cookie `padm`** = `base64url(payload).base64url(HMAC)` where payload is

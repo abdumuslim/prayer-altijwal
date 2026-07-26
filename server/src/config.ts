@@ -39,7 +39,8 @@ const EnvSchema = z.object({
   ADMIN_TOKEN: z.string().min(16).optional(),
   // ── Admin dashboard (/admin) ────────────────────────────────────────────
   // scrypt digest of the operator password, produced by
-  // `node scripts/hash-admin-password.mjs` (format scrypt$N$r$p$salt$hash).
+  // `node scripts/hash-admin-password.mjs` (format scrypt:N:r:p:salt:hash —
+  // ':' not '$', because Docker Compose interpolates '$' inside env_file values).
   // Absent ⇒ the whole /api/admin tree 404s and the dashboard cannot be used
   // (same "don't advertise the endpoint" posture as ADMIN_TOKEN above).
   ADMIN_PASSWORD_HASH: z.string().min(20).optional(),

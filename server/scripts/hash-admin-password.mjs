@@ -6,7 +6,13 @@
  * cost parameters — they travel with the hash and can be raised later without
  * invalidating existing ones:
  *
- *   scrypt$<N>$<r>$<p>$<saltBase64url>$<hashBase64url>
+ *   scrypt:<N>:<r>:<p>:<saltBase64url>:<hashBase64url>
+ *
+ * The separator is ':' and NOT the conventional PHC '$'. This value goes into
+ * the VPS .env, which Docker Compose reads via `env_file` — and Compose
+ * interpolates variables in those values, so a '$'-separated digest reaches the
+ * container truncated (every `$<field>` replaced by an empty string) and every
+ * login fails with no useful error. Found in production 2026-07-26.
  *
  * Usage (preferred — the password never lands in shell history):
  *   node scripts/hash-admin-password.mjs
@@ -86,7 +92,7 @@ const digest = [
   P,
   salt.toString("base64url"),
   hash.toString("base64url"),
-].join("$");
+].join(":"); // ':' not '$' — see the header comment (Docker Compose env_file)
 
 // stdout carries ONLY the pasteable line, so `... | tail -1` and copy/paste both
 // work. Everything explanatory goes to stderr.

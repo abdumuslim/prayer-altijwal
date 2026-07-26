@@ -33,11 +33,13 @@ describe("verifyPassword", () => {
     for (const bad of [
       "",
       "not-a-digest",
-      "scrypt$1024$8",
-      "scrypt$1024$8$1$onlyfoursegments",
-      "bcrypt$1024$8$1$c2FsdA$aGFzaA",
-      "scrypt$abc$8$1$c2FsdA$aGFzaA",
-      "scrypt$1024$8$1$!!!$!!!",
+      "scrypt:1024:8",
+      "scrypt:1024:8:1:onlyfoursegments",
+      "bcrypt:1024:8:1:c2FsdA:aGFzaA",
+      "scrypt:abc:8:1:c2FsdA:aGFzaA",
+      "scrypt:1024:8:1:!!!:!!!",
+      // The old PHC-style separator must no longer parse (see below).
+      "scrypt$1024$8$1$c2FsdA$aGFzaA",
     ]) {
       expect(() => verifyPassword("x", bad)).not.toThrow();
       expect(verifyPassword("x", bad)).toBe(false);
@@ -46,7 +48,19 @@ describe("verifyPassword", () => {
 
   it("refuses absurd cost parameters instead of exhausting memory", () => {
     // A hostile .env must not be able to wedge the process on every login.
-    expect(verifyPassword("x", `scrypt$${2 ** 30}$8$1$c2FsdA$aGFzaA`)).toBe(false);
+    expect(verifyPassword("x", `scrypt:${2 ** 30}:8:1:c2FsdA:aGFzaA`)).toBe(false);
+  });
+
+  it("never puts a '$' in the digest", () => {
+    // REGRESSION (2026-07-26, found in production): the digest lives in the VPS
+    // .env, which Docker Compose loads via `env_file` — and Compose interpolates
+    // variables in those values. A PHC-style `scrypt$16384$8$1$<salt>$<hash>`
+    // arrived at the container with `$<salt>` and part of `$1...` replaced by
+    // empty strings, silently truncating it so every login failed with no
+    // useful error. Keep the separator free of shell-significant characters.
+    for (let i = 0; i < 5; i++) {
+      expect(hashPassword(`sample ${i}`, FAST)).not.toContain("$");
+    }
   });
 
   it("produces a different digest for the same password each time (random salt)", () => {
@@ -57,7 +71,7 @@ describe("verifyPassword", () => {
     await expect(verifyPasswordAsync("correct horse battery", digest)).resolves.toBe(true);
     await expect(verifyPasswordAsync("wrong", digest)).resolves.toBe(false);
     await expect(verifyPasswordAsync("x", "garbage")).resolves.toBe(false);
-    await expect(verifyPasswordAsync("x", `scrypt$${2 ** 30}$8$1$c2FsdA$aGFzaA`)).resolves.toBe(
+    await expect(verifyPasswordAsync("x", `scrypt:${2 ** 30}:8:1:c2FsdA:aGFzaA`)).resolves.toBe(
       false,
     );
   });
