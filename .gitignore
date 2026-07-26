@@ -34,3 +34,6 @@ server/data/_raw/
 Thumbs.db
 .vscode/
 .idea/
+
+# Deploy tarball (built by the deploy step; 50MB, never commit)
+prayer-deploy.tar.gz
