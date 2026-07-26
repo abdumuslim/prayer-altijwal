@@ -34,6 +34,7 @@ import { PrayerScheduler } from "./push/scheduler.js";
 import { createPushRouter } from "./push/routes.js";
 import { createAdminRouter } from "./admin/index.js";
 import { createAdminAuditRepo, type AdminAuditRepo } from "./db/repositories/admin-audit.js";
+import { createPushStatsRepo, type PushStatsRepo } from "./db/repositories/push-stats.js";
 
 const log = childLogger("index");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,6 +73,8 @@ async function main(): Promise<void> {
   let contributionsRepo: MasjidContributionsRepo | undefined;
   let communityRefresh: CommunityRefreshJob | undefined;
   let auditRepo: AdminAuditRepo | undefined;
+  let subsRepo: PgSubscriptionsRepo | undefined;
+  let pushStatsRepo: PushStatsRepo | undefined;
   let getDbStatus = async (): Promise<DbStatus> => "disabled";
 
   if (config.dbEnabled && config.databaseUrl) {
@@ -80,9 +83,12 @@ async function main(): Promise<void> {
       await initDb(pool);
       getDbStatus = async () => dbHealth(pool!);
 
-      const subsRepo = new PgSubscriptionsRepo(pool);
+      subsRepo = new PgSubscriptionsRepo(pool);
       const logRepo = new PgPushLogRepo(pool);
       const alertRulesRepo = new PgAlertRulesRepo(pool);
+      // Durable delivery rollup — push_log is pruned at 48h and cannot back a
+      // history chart (docs/ADMIN_DASHBOARD.md).
+      pushStatsRepo = createPushStatsRepo(pool);
 
       // Durable 30-day masjid cell cache — survives deploys, so a redeploy no
       // longer re-buys every cell from Google (ADR-014).
@@ -118,7 +124,12 @@ async function main(): Promise<void> {
 
       if (config.pushEnabled && config.vapid) {
         setupWebPush(config.vapid);
-        scheduler = new PrayerScheduler({ subsRepo, alertRulesRepo, logRepo });
+        scheduler = new PrayerScheduler({
+          subsRepo,
+          alertRulesRepo,
+          logRepo,
+          statsRepo: pushStatsRepo,
+        });
         scheduler.start();
         log.info("Web-push scheduler started");
       } else {
@@ -160,6 +171,8 @@ async function main(): Promise<void> {
         contributions: contributionsRepo,
         // Approvals take effect immediately instead of waiting for the poll.
         refreshCommunity: communityRefresh?.refreshNow,
+        subsRepo,
+        getSchedulerStats: scheduler ? () => scheduler!.stats() : undefined,
         serverVersion: SERVER_VERSION,
         startedAt: Date.now(),
         env: config.nodeEnv,

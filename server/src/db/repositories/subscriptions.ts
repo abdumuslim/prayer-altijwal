@@ -32,6 +32,12 @@ export type SubscriptionPrefs = Partial<
 export interface SubscriptionsRepo {
   upsert(sub: Subscription): Promise<void>;
   deleteByEndpoint(endpoint: string): Promise<void>;
+  /**
+   * Delete by numeric id — the admin dashboard's handle on a subscriber, since
+   * it is never given the full endpoint (that URL is a bearer credential).
+   * Returns false when no such row existed.
+   */
+  deleteById(id: number): Promise<boolean>;
   updatePrefs(endpoint: string, prefs: SubscriptionPrefs): Promise<void>;
   listAll(): Promise<Subscription[]>;
 }
@@ -107,6 +113,12 @@ export class PgSubscriptionsRepo implements SubscriptionsRepo {
   async deleteByEndpoint(endpoint: string): Promise<void> {
     await this.pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
     log.info("Subscription deleted", { endpoint });
+  }
+
+  async deleteById(id: number): Promise<boolean> {
+    const { rowCount } = await this.pool.query("DELETE FROM push_subscriptions WHERE id = $1", [id]);
+    if (rowCount) log.info("Subscription deleted by id", { id });
+    return (rowCount ?? 0) > 0;
   }
 
   async updatePrefs(endpoint: string, prefs: SubscriptionPrefs): Promise<void> {

@@ -4,6 +4,8 @@ import { ROUTES, navigate, useRoute, type RouteId } from "./lib/route";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { Masjids } from "./pages/Masjids";
+import { Cost } from "./pages/Cost";
+import { Push } from "./pages/Push";
 import { Button, cx } from "./components/ui";
 
 type AuthState = "checking" | "out" | "in";
@@ -121,6 +123,10 @@ function Page({ route, embedKey }: { route: RouteId; embedKey: string | null }) 
       return <Overview />;
     case "masjids":
       return <Masjids embedKey={embedKey} />;
+    case "cost":
+      return <Cost />;
+    case "push":
+      return <Push />;
     default:
       return <NotBuiltYet route={route} />;
   }

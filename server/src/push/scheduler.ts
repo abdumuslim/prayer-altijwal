@@ -5,6 +5,11 @@ import { duhaWindow, nightThird } from "../prayer-engine/sunnah.js";
 import type { SubscriptionsRepo, Subscription } from "../db/repositories/subscriptions.js";
 import type { AlertRule, AlertRulesRepo, AlertKind } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
+import type {
+  PushOutcome,
+  PushStatDelta,
+  PushStatsRepo,
+} from "../db/repositories/push-stats.js";
 import { sendPush, type SendResult, type PushSendOptions } from "./webpush.js";
 import { buildPushPayload } from "./notification-text.js";
 import type { MethodName, AsrMadhab } from "../prayer-engine/index.js";
@@ -38,6 +43,19 @@ const SCHEDULABLE_SET = new Set<string>(SCHEDULABLE);
 
 /** A subscriber's schedulable anchor instants for one local civil day. */
 type PrayerTimeMap = Record<string, Date>;
+
+/**
+ * What the admin dashboard shows about delivery. Counters are per server-UTC
+ * day and reset at rollover, so "today" always means today.
+ */
+export interface SchedulerSnapshot {
+  running: boolean;
+  lastTickAt: string | null;
+  lastTickMs: number | null;
+  sentToday: number;
+  failedToday: number;
+  goneRemovedToday: number;
+}
 
 interface CachedTimes {
   dateKey: string;
@@ -78,6 +96,11 @@ export interface SchedulerDeps {
    * skipped between ticks. The DB dedup absorbs the resulting duplicate hits.
    */
   armingWindowMin?: number;
+  /**
+   * Durable delivery rollup for the admin dashboard. Optional: without it the
+   * scheduler still counts in memory, it just loses the history on restart.
+   */
+  statsRepo?: PushStatsRepo;
 }
 
 /**
@@ -177,6 +200,18 @@ export class PrayerScheduler {
   private lastPruneDateKey: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
 
+  /** Durable delivery rollup; absent ⇒ counters stay in memory only. */
+  private readonly statsRepo: PushStatsRepo | undefined;
+  /** In-memory day counters for the dashboard, reset at UTC rollover. */
+  private counterDay: string | null = null;
+  private sentToday = 0;
+  private failedToday = 0;
+  private goneRemovedToday = 0;
+  private lastTickAt: Date | null = null;
+  private lastTickMs: number | null = null;
+  /** Buffered rollup deltas, flushed once per tick (≤1 write per 30s). */
+  private pendingStats = new Map<string, PushStatDelta>();
+
   constructor(deps: SchedulerDeps) {
     this.subsRepo = deps.subsRepo;
     this.alertRulesRepo = deps.alertRulesRepo;
@@ -185,6 +220,7 @@ export class PrayerScheduler {
     this.send = deps.send ?? sendPush;
     this.tickMs = deps.tickMs ?? DEFAULT_TICK_MS;
     this.armingWindowMin = deps.armingWindowMin ?? DEFAULT_ARMING_WINDOW_MIN;
+    this.statsRepo = deps.statsRepo;
     // Bind the default clock into the default compute so callers get per-now tables.
     this.computeTimes =
       deps.computeTimes ?? ((sub: Subscription) => computeDefaultTable(sub, this.now()));
@@ -261,6 +297,9 @@ export class PrayerScheduler {
     }
 
     await this.maybePrune(now);
+    await this.flushStats();
+    this.lastTickAt = now;
+    this.lastTickMs = Date.now() - now.getTime();
   }
 
   private async processSubscription(sub: Subscription, rules: AlertRule[], now: Date): Promise<void> {
@@ -324,8 +363,54 @@ export class PrayerScheduler {
       // 404/410 → subscription is dead; delete it (cascades to its ledger rows).
       await this.subsRepo.deleteByEndpoint(sub.endpoint);
       this.cache.delete(sub.endpoint);
+      this.count(kind, "gone");
       log.info("Removed gone subscription", { endpoint: sub.endpoint });
+      return;
     }
+    this.count(kind, result.ok === false ? "failed" : "sent");
+  }
+
+  /** Bump both the in-memory day counter and the buffered durable rollup. */
+  private count(kind: string, outcome: PushOutcome): void {
+    const day = dateKey(this.now(), "UTC");
+    if (this.counterDay !== day) {
+      this.counterDay = day;
+      this.sentToday = 0;
+      this.failedToday = 0;
+      this.goneRemovedToday = 0;
+    }
+    if (outcome === "sent") this.sentToday += 1;
+    else if (outcome === "failed") this.failedToday += 1;
+    else this.goneRemovedToday += 1;
+
+    const key = `${day}|${kind}|${outcome}`;
+    const existing = this.pendingStats.get(key);
+    if (existing) existing.n += 1;
+    else this.pendingStats.set(key, { day, kind, outcome, n: 1 });
+  }
+
+  /** Flush buffered counters. One write per tick at most, never blocking a send. */
+  private async flushStats(): Promise<void> {
+    if (!this.statsRepo || this.pendingStats.size === 0) return;
+    const batch = [...this.pendingStats.values()];
+    this.pendingStats.clear();
+    await this.statsRepo.add(batch);
+  }
+
+  /** Delivery health for the admin dashboard. */
+  stats(): SchedulerSnapshot {
+    // Report zeros rather than yesterday's numbers if the day rolled over
+    // without any sends since.
+    const today = dateKey(this.now(), "UTC");
+    const fresh = this.counterDay === today;
+    return {
+      running: this.timer !== null,
+      lastTickAt: this.lastTickAt ? this.lastTickAt.toISOString() : null,
+      lastTickMs: this.lastTickMs,
+      sentToday: fresh ? this.sentToday : 0,
+      failedToday: fresh ? this.failedToday : 0,
+      goneRemovedToday: fresh ? this.goneRemovedToday : 0,
+    };
   }
 
   /** Prune the ledger at most once per (server-UTC) local day. */

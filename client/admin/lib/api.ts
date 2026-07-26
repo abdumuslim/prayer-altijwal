@@ -135,6 +135,76 @@ export interface ContributionEdit {
   lon?: number;
 }
 
+export interface OutcomeBucket {
+  key: string;
+  outcomes: Record<string, number>;
+  units: number;
+  total: number;
+}
+
+export interface PlacesStats {
+  outcomes: string[];
+  billingDay: string;
+  billingMonth: string;
+  daily: OutcomeBucket[];
+  hourlyToday: OutcomeBucket[];
+  plan: {
+    monthlyCap: number;
+    usedThisMonth: number;
+    activeClients: number;
+    dailyPool: number;
+    reserve: number;
+    perClientCap: number;
+    perIpCap: number;
+  } | null;
+}
+
+export interface TopClient {
+  scopeShort: string;
+  requests: number;
+  spend: number;
+  lastSeen: string;
+}
+
+export interface DemandCell {
+  cellKey: string;
+  lat: number;
+  lon: number;
+  n: number;
+  misses: number;
+}
+
+export interface Subscriber {
+  id: number;
+  endpointHost: string;
+  country: string | null;
+  tz: string | null;
+  lat: number | null;
+  lon: number | null;
+  lang: string | null;
+  rules: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PushSummary {
+  enabled: boolean;
+  subscriptions: {
+    total: number;
+    byCountry: { key: string; n: number }[];
+    byTz: { key: string; n: number }[];
+    newPerDay: { day: string; n: number }[];
+  };
+  rules: {
+    total: number;
+    byPrayer: { key: string; n: number }[];
+    byKind: { key: string; n: number }[];
+    byTiming: { key: string; n: number }[];
+  };
+  sends: { day: string; sent: number; failed: number; gone: number }[];
+  subscribers: Subscriber[];
+}
+
 export const api = {
   login: (password: string) =>
     request<void>("/api/admin/session", { method: "POST", body: JSON.stringify({ password }) }),
@@ -149,4 +219,14 @@ export const api = {
       `/api/admin/masjids/contributions/${id}`,
       { method: "PATCH", body: JSON.stringify(edit) },
     ),
+
+  placesStats: (days: number) => request<PlacesStats>(`/api/admin/places/stats?days=${days}`),
+  topClients: (days: number, limit = 25) =>
+    request<{ items: TopClient[] }>(`/api/admin/places/top-clients?days=${days}&limit=${limit}`),
+  demand: (days: number, limit = 500) =>
+    request<{ items: DemandCell[] }>(`/api/admin/places/demand?days=${days}&limit=${limit}`),
+
+  pushSummary: (days: number) => request<PushSummary>(`/api/admin/push/summary?days=${days}`),
+  deleteSubscription: (id: number) =>
+    request<void>(`/api/admin/push/subscriptions/${id}`, { method: "DELETE" }),
 };

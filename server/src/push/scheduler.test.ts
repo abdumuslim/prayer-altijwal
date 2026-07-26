@@ -12,6 +12,7 @@ import type {
   AlertRulesRepo,
 } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
+import type { PushStatDelta, PushStatsRepo } from "../db/repositories/push-stats.js";
 import type { SendResult, PushSendOptions } from "./webpush.js";
 
 type SendFn = (
@@ -43,6 +44,9 @@ class FakeSubscriptionsRepo implements SubscriptionsRepo {
   }
   async deleteByEndpoint(endpoint: string): Promise<void> {
     this.subs = this.subs.filter((s) => s.endpoint !== endpoint);
+  }
+  async deleteById(): Promise<boolean> {
+    return false; // admin-only path; the scheduler never deletes by id
   }
   async updatePrefs(endpoint: string, prefs: SubscriptionPrefs): Promise<void> {
     this.subs = this.subs.map((s) => (s.endpoint === endpoint ? { ...s, ...prefs } : s));
@@ -497,5 +501,82 @@ describe("PrayerScheduler", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// The dashboard's delivery numbers. push_log is pruned at 48h, so these
+// counters (in memory) and the push_stats rollup (durable) are the only record
+// of how much actually went out.
+describe("PrayerScheduler delivery counters", () => {
+  function setup(sendImpl: SendFn, now: () => Date = () => NOW) {
+    const written: PushStatDelta[][] = [];
+    const statsRepo: PushStatsRepo = {
+      async add(deltas) {
+        written.push(deltas);
+      },
+      async prune() {
+        return 0;
+      },
+    };
+    const scheduler = new PrayerScheduler({
+      subsRepo: new FakeSubscriptionsRepo([makeSub()]),
+      alertRulesRepo: new FakeAlertRulesRepo([makeRule()]),
+      logRepo: new FakePushLogRepo(),
+      now,
+      computeTimes: () => fixedTable(),
+      send: vi.fn<SendFn>(sendImpl),
+      statsRepo,
+    });
+    return { scheduler, written };
+  }
+
+  it("counts a successful send and rolls it up durably", async () => {
+    const { scheduler, written } = setup(async () => ({ ok: true, gone: false }));
+    await scheduler.tick();
+
+    const stats = scheduler.stats();
+    expect(stats.sentToday).toBe(1);
+    expect(stats.failedToday).toBe(0);
+    expect(stats.goneRemovedToday).toBe(0);
+    expect(stats.lastTickAt).toBe(NOW.toISOString());
+    expect(written).toEqual([
+      [{ day: "2026-06-19", kind: "notification", outcome: "sent", n: 1 }],
+    ]);
+  });
+
+  it("counts a failed send separately from a successful one", async () => {
+    const { scheduler } = setup(async () => ({ ok: false, gone: false }));
+    await scheduler.tick();
+    expect(scheduler.stats().failedToday).toBe(1);
+    expect(scheduler.stats().sentToday).toBe(0);
+  });
+
+  it("counts a dead endpoint as 'gone', not as a send", async () => {
+    const { scheduler, written } = setup(async () => ({ ok: false, gone: true }));
+    await scheduler.tick();
+    expect(scheduler.stats().goneRemovedToday).toBe(1);
+    expect(scheduler.stats().sentToday).toBe(0);
+    expect(written[0]?.[0]?.outcome).toBe("gone");
+  });
+
+  it("reports zeros once the UTC day has rolled over", async () => {
+    let clock = NOW;
+    const { scheduler } = setup(
+      async () => ({ ok: true, gone: false }),
+      () => clock,
+    );
+    await scheduler.tick();
+    expect(scheduler.stats().sentToday).toBe(1);
+
+    // Next day, before anything new has fired: yesterday's total must not linger.
+    clock = new Date("2026-06-20T09:00:00.000Z");
+    expect(scheduler.stats().sentToday).toBe(0);
+  });
+
+  it("does not write an empty batch when nothing fired", async () => {
+    const { scheduler, written } = setup(async () => ({ ok: true, gone: false }));
+    await scheduler.tick(); // fires dhuhr
+    await scheduler.tick(); // deduped by the ledger — nothing new
+    expect(written).toHaveLength(1);
   });
 });
