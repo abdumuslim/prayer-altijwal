@@ -3,6 +3,7 @@ import { AdminApiError, api, setUnauthorizedHandler } from "./lib/api";
 import { ROUTES, navigate, useRoute, type RouteId } from "./lib/route";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
+import { Masjids } from "./pages/Masjids";
 import { Button, cx } from "./components/ui";
 
 type AuthState = "checking" | "out" | "in";
@@ -21,6 +22,10 @@ const NAV: { id: RouteId; label: string }[] = [
 
 export function App() {
   const [auth, setAuth] = useState<AuthState>("checking");
+  // Fetched once after login so pages never hard-code the browser-visible
+  // Maps Embed key (it is Embed-API-restricted and unmetered, but it still
+  // belongs in one place: the server's config).
+  const [embedKey, setEmbedKey] = useState<string | null>(null);
   const route = useRoute();
 
   // Any 401 anywhere drops straight back to the login screen.
@@ -43,6 +48,20 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (auth !== "in") return;
+    let cancelled = false;
+    api
+      .overview()
+      .then((o) => !cancelled && setEmbedKey(o.embedKey))
+      .catch(() => {
+        /* the pages that need it degrade to a plain Maps link */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth]);
 
   const logout = useCallback(async () => {
     try {
@@ -90,16 +109,18 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-5">
-        <Page route={route} />
+        <Page route={route} embedKey={embedKey} />
       </main>
     </div>
   );
 }
 
-function Page({ route }: { route: RouteId }) {
+function Page({ route, embedKey }: { route: RouteId; embedKey: string | null }) {
   switch (route) {
     case "overview":
       return <Overview />;
+    case "masjids":
+      return <Masjids embedKey={embedKey} />;
     default:
       return <NotBuiltYet route={route} />;
   }

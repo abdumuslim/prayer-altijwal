@@ -614,6 +614,16 @@ describe("POST /api/places/masjids/contribute", () => {
       async approved() {
         return [];
       },
+      // Moderation surface — exercised by the admin tests, not this file.
+      async listByStatus() {
+        return [];
+      },
+      async counts() {
+        return { pending: 0, approved: 0, rejected: 0 };
+      },
+      async update() {
+        return null;
+      },
     };
     return { repo, received };
   }

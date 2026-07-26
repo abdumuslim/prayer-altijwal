@@ -14,11 +14,43 @@ export interface ContributionInput {
   clientId: string;
 }
 
+export type ContributionStatus = "pending" | "approved" | "rejected";
+
+export const CONTRIBUTION_STATUSES: readonly ContributionStatus[] = [
+  "pending",
+  "approved",
+  "rejected",
+];
+
+/** A moderation-queue row. `clientId` is truncated before it leaves the server. */
+export interface ContributionRow {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  clientId: string | null;
+  status: ContributionStatus;
+  createdAt: string;
+}
+
+export interface ContributionEdit {
+  name?: string;
+  lat?: number;
+  lon?: number;
+  status?: ContributionStatus;
+}
+
 export interface MasjidContributionsRepo {
   /** Store a submission as pending. False ⇒ the daily limit refused it. */
   submit(input: ContributionInput): Promise<boolean>;
   /** Approved contributions, shaped for the resident index. */
   approved(): Promise<Masjid[]>;
+  /** Moderation queue, newest first. */
+  listByStatus(status: ContributionStatus, limit: number, offset: number): Promise<ContributionRow[]>;
+  /** Row counts per status, for the queue badge. */
+  counts(): Promise<Record<ContributionStatus, number>>;
+  /** Apply a moderator's decision and/or correction. Null ⇒ no such row. */
+  update(id: number, edit: ContributionEdit): Promise<ContributionRow | null>;
 }
 
 export function createMasjidContributionsRepo(pool: pg.Pool): MasjidContributionsRepo {
@@ -37,7 +69,11 @@ export function createMasjidContributionsRepo(pool: pg.Pool): MasjidContribution
                 VALUES ($1, $2, $3, $4, 'pending')`,
           [input.name, input.lat, input.lon, input.clientId],
         );
-        log.info("masjid contribution received", { lat: input.lat, lon: input.lon });
+        // Deliberately NOT logging lat/lon: pino writes to stdout, which the
+        // container log driver retains, and user-submitted coordinates sitting
+        // in logs undercuts the Play Data Safety answer that location is
+        // processed ephemerally. The row itself is the record.
+        log.info("masjid contribution received");
         return true;
       } catch (err) {
         log.warn("contribution insert failed", err instanceof Error ? err : new Error(String(err)));
@@ -64,5 +100,88 @@ export function createMasjidContributionsRepo(pool: pg.Pool): MasjidContribution
         return [];
       }
     },
+
+    async listByStatus(status, limit, offset) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT id, name, lat, lon, client_id, status, created_at
+             FROM masjid_contributions
+            WHERE status = $1
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3`,
+          [status, clampLimit(limit), Math.max(0, Math.floor(offset))],
+        );
+        return rows.map(toRow);
+      } catch (err) {
+        log.warn("contribution list failed", err instanceof Error ? err : new Error(String(err)));
+        return [];
+      }
+    },
+
+    async counts() {
+      const zero: Record<ContributionStatus, number> = { pending: 0, approved: 0, rejected: 0 };
+      try {
+        const { rows } = await pool.query(
+          `SELECT status, COUNT(*)::int AS n FROM masjid_contributions GROUP BY status`,
+        );
+        const out = { ...zero };
+        for (const r of rows) {
+          const status = String(r.status) as ContributionStatus;
+          if (status in out) out[status] = Number(r.n ?? 0);
+        }
+        return out;
+      } catch (err) {
+        log.warn("contribution counts failed", err instanceof Error ? err : new Error(String(err)));
+        return zero;
+      }
+    },
+
+    async update(id, edit) {
+      // Built dynamically so a moderator can fix only the name, or only the
+      // coordinates, without the untouched columns being rewritten.
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      const push = (column: string, value: unknown): void => {
+        values.push(value);
+        sets.push(`${column} = $${values.length}`);
+      };
+      if (edit.name !== undefined) push("name", edit.name);
+      if (edit.lat !== undefined) push("lat", edit.lat);
+      if (edit.lon !== undefined) push("lon", edit.lon);
+      if (edit.status !== undefined) push("status", edit.status);
+      if (sets.length === 0) return null;
+
+      values.push(id);
+      try {
+        const { rows } = await pool.query(
+          `UPDATE masjid_contributions SET ${sets.join(", ")}
+            WHERE id = $${values.length}
+        RETURNING id, name, lat, lon, client_id, status, created_at`,
+          values,
+        );
+        return rows[0] ? toRow(rows[0]) : null;
+      } catch (err) {
+        log.warn("contribution update failed", err instanceof Error ? err : new Error(String(err)));
+        return null;
+      }
+    },
+  };
+}
+
+const MAX_PAGE = 200;
+
+function clampLimit(limit: number): number {
+  return Math.min(Math.max(1, Math.floor(limit)), MAX_PAGE);
+}
+
+function toRow(r: Record<string, unknown>): ContributionRow {
+  return {
+    id: Number(r.id),
+    name: String(r.name),
+    lat: Number(r.lat),
+    lon: Number(r.lon),
+    clientId: r.client_id === null || r.client_id === undefined ? null : String(r.client_id),
+    status: String(r.status) as ContributionStatus,
+    createdAt: new Date(r.created_at as string).toISOString(),
   };
 }

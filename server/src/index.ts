@@ -157,6 +157,9 @@ async function main(): Promise<void> {
           secureCookies: config.isProduction,
         },
         audit: auditRepo,
+        contributions: contributionsRepo,
+        // Approvals take effect immediately instead of waiting for the poll.
+        refreshCommunity: communityRefresh?.refreshNow,
         serverVersion: SERVER_VERSION,
         startedAt: Date.now(),
         env: config.nodeEnv,

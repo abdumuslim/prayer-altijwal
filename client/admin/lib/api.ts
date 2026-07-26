@@ -106,10 +106,47 @@ export interface Overview {
   embedKey: string | null;
 }
 
+export type ContributionStatus = "pending" | "approved" | "rejected";
+
+export interface Contribution {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  status: ContributionStatus;
+  createdAt: string;
+  /** First 8 characters of the anonymous client id — never the whole thing. */
+  clientShort: string | null;
+  nearest: { name: string; distanceM: number } | null;
+  duplicate: boolean;
+}
+
+export interface ContributionList {
+  total: number;
+  counts: Record<ContributionStatus, number>;
+  enabled: boolean;
+  items: Contribution[];
+}
+
+export interface ContributionEdit {
+  status?: ContributionStatus;
+  name?: string;
+  lat?: number;
+  lon?: number;
+}
+
 export const api = {
   login: (password: string) =>
     request<void>("/api/admin/session", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request<void>("/api/admin/session", { method: "DELETE" }),
   session: () => request<{ ok: true; expiresAt: string | null }>("/api/admin/session"),
   overview: () => request<Overview>("/api/admin/overview"),
+
+  contributions: (status: ContributionStatus) =>
+    request<ContributionList>(`/api/admin/masjids/contributions?status=${status}`),
+  moderate: (id: number, edit: ContributionEdit) =>
+    request<{ ok: true; item: Contribution; liveCount: number | null }>(
+      `/api/admin/masjids/contributions/${id}`,
+      { method: "PATCH", body: JSON.stringify(edit) },
+    ),
 };

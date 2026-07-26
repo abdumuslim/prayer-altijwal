@@ -4,10 +4,11 @@ import { childLogger } from "../logger.js";
 import { requireCsrf, type SessionConfig } from "./middleware.js";
 import { createSessionRoutes } from "./routes/session.js";
 import { createOverviewRoutes, type OverviewDeps } from "./routes/overview.js";
+import { createMasjidRoutes, type MasjidAdminDeps } from "./routes/masjids.js";
 
 const log = childLogger("admin");
 
-export interface AdminRouterDeps extends OverviewDeps {
+export interface AdminRouterDeps extends OverviewDeps, MasjidAdminDeps {
   readonly session: SessionConfig;
   readonly audit?: AdminAuditRepo;
 }
@@ -38,6 +39,7 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
 
   r.use(createSessionRoutes(deps.session, deps.audit));
   r.use(createOverviewRoutes(deps.session, deps));
+  r.use(createMasjidRoutes(deps.session, deps));
 
   // Owns the entire subtree. Without this, an unmatched /api/admin request —
   // crucially including a cross-origin OPTIONS preflight — would fall through
