@@ -256,6 +256,16 @@ logs on `/api/prayer-times` + `/api/geo/*`). If logs keep lat/lon beyond normal 
 redact them or change the wording "لا نحتفظ بها" accordingly. The Data-safety "ephemeral" answer
 (Phase 4) must match this.
 
+> **2026-07-26 — re-checked and now enforced by code, not by inspection.** There is still no
+> request-logging middleware, so query strings are never logged. Two gaps were closed: the masjid
+> contribution handler used to log the submitted lat/lon to stdout (removed), and the admin log
+> ring buffer redacts `lat`/`lon` (plus DSN passwords and every configured secret) before storing
+> a line — `server/src/log-buffer.ts`, covered by `log-buffer.test.ts`.
+>
+> **The privacy policy in this section is OUT OF DATE.** The live text was rewritten on 2026-07-26
+> for the anonymous audience ping and to correct the reminders claim; the source of truth is
+> `client/public/privacy.html`, not the draft below.
+
 ⚠ **User-visible text — review/edit before hosting** (standing rule):
 
 ```html
@@ -390,17 +400,46 @@ declarations.
 | Health | **My app does not have any health features** |
 | Account deletion | No accounts created → confirm |
 
-**Data safety form:**
-- Does your app collect or share user data? **Yes** (location is transmitted off-device).
-- Data types: **Location → Approximate location: Collected** and **Precise location: Collected**
-  (precise only if the user taps «استخدام موقعي»).
-- For both: shared? **No** · processed **ephemerally**? **Yes — if the server-log check in Phase 2
-  passed**, else No · required? **No (optional)** · purpose: **App functionality**.
-- Everything else (personal info, files, activity, device IDs…): **Not collected**. (Reminder rules,
-  worship log, settings never leave the device — that's not "collection".)
-- Security: encrypted in transit? **Yes**. Deletion request mechanism: with ephemeral/no server
-  storage the form allows declaring data isn't stored.
+**Data safety form** (rewritten 2026-07-26 for v2.3.0/vc9 — the admin dashboard added an
+anonymous audience ping AND surfaced two pre-existing declarations that were wrong):
+
+- Does your app collect or share user data? **Yes.**
+- **Location → Precise location: Collected.** Shared? No · processed **ephemerally**: **Yes** ·
+  required? No (optional) · purpose: **App functionality**. (Sent to compute prayer times when the
+  user taps «استخدام موقعي» or searches a city; not retained for that purpose.)
+- **Location → Approximate location: Collected.** Shared? No · processed ephemerally: **NO — it is
+  retained** · required? No (optional) · purposes: **App functionality + Analytics**.
+  ⚠ CHANGED: the daily ping stores an area rounded to ~1 km for up to 180 days, so the previous
+  "ephemeral" answer for approximate location is no longer true.
+- **App activity → App interactions: Collected.** Shared? No · ephemeral: No · required? Yes ·
+  purpose: **Analytics**. ⚠ NEW: the once-a-day ping (app version, platform, features enabled,
+  theme). Declared "required" because there is no in-app opt-out — see the note below.
+- **Device or other IDs: Collected.** Shared? No · ephemeral: No · required? Yes · purposes:
+  **App functionality + Fraud prevention/security**.
+  ⚠ CORRECTION, not a new behaviour: the app has sent a persistent per-install `X-Client-Id` with
+  every masjid lookup since ADR-014, and `places_usage` stores it for 90 days to enforce the spend
+  caps. The old form said no identifiers were collected, which was wrong. (The telemetry ping does
+  NOT store it — it stores a key that rotates daily.)
+- Everything else (personal info, files, messages, contacts, financial…): **Not collected.**
+  Reminder rules, worship log and settings never leave the device — that is not "collection".
+- Security: encrypted in transit? **Yes.**
+- Data deletion: **no accounts.** Turning reminders off deletes the stored subscription; usage
+  statistics are anonymous, cannot be linked to a person, and expire within 180 days.
   [Data safety help](https://support.google.com/googleplay/android-developer/answer/10787469)
+
+**Why "required" for the analytics items:** the owner chose privacy-policy-only notice with no
+in-app opt-out switch (2026-07-26). That is a defensible position for a non-identifying aggregate
+count, but it means the form cannot claim the collection is optional, and there is no mechanism to
+honour an individual opt-out request. Adding a Settings toggle later is ~20 lines plus one Arabic
+string; if it is added, flip these two to "optional".
+
+**What backs these answers** (so a future re-review does not have to re-derive them):
+- what is sent: `client/src/lib/telemetry.ts` (`buildPingBody`, `TELEMETRY_PRECISION_DEG = 0.01`);
+- what is stored: `server/src/telemetry/routes.ts` + the `usage_ping` DDL in `server/src/db/schema.ts`;
+- why cross-day linkage is impossible: `server/src/telemetry/hash.ts` (the day is inside the HMAC);
+- retention actually runs: `server/src/db/retention.ts`;
+- coordinates are no longer written to logs: `server/src/log-buffer.ts` redaction +
+  `masjid-contributions.ts` (the lat/lon log line was removed 2026-07-26).
 
 **Sensitive-permission declarations** (appear after the first AAB upload):
 - **Exact alarms (`USE_EXACT_ALARM`)** — use case: **alarm functionality is a core feature**.
