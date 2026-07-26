@@ -400,6 +400,27 @@ declarations.
 | Health | **My app does not have any health features** |
 | Account deletion | No accounts created → confirm |
 
+> ⏸ **IN PROGRESS IN THE CONSOLE (2026-07-26) — FINISH THIS BEFORE SUBMITTING vc9.**
+>
+> Release **9 (2.3.0)** is uploaded and staged in Publishing overview ("Changes not yet submitted
+> for review"). It must NOT be submitted until the form below is finished, or the app would be
+> collecting data that its declaration denies.
+>
+> Already done in the Console: step 2 verified; step 3 Data types now also has **App activity →
+> App interactions** and **Device or other IDs** ticked. Draft saved.
+>
+> Remaining — three sub-forms in **step 4 "Data usage and handling"**
+> (`.../app-content/data-privacy-security`, then Next ×3):
+>
+> | Row | What to answer |
+> |---|---|
+> | **Approximate location** (already "Completed" — must be EDITED) | processed ephemerally **Yes → No**; purposes **App functionality + Analytics** |
+> | **App activity → App interactions** (new, 0 of 1) | Collected · shared No · ephemeral No · purpose **Analytics** · required Yes |
+> | **Device or other IDs** (new, 0 of 1) | Collected · shared No · ephemeral No · purposes **App functionality + Fraud prevention and security** · required Yes |
+>
+> **Precise location stays exactly as it is** (collected, ephemeral Yes, App functionality).
+> Then step 5 Preview → **Save**, and submit both changes together from Publishing overview.
+
 **Data safety form** (rewritten 2026-07-26 for v2.3.0/vc9 — the admin dashboard added an
 anonymous audience ping AND surfaced two pre-existing declarations that were wrong):
 
