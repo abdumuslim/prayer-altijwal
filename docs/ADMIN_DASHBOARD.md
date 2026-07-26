@@ -6,9 +6,10 @@ Related: `DECISIONS.md` (ADR-015 admin surface, ADR-016 telemetry), `DEPLOYMENT.
 `OPERATIONS.md` (the actual credentials, local-only), `QIBLA_MASJID_SPEC.md` §6d (the spend data it
 displays), `PLAY_RELEASE.md` (Data Safety consequences of the telemetry).
 
-> **Status:** P0 (auth + overview) built and committed. Later phases — masjid moderation, cost &
-> push detail, logs, kill-switch, telemetry/audience, Play stats — land incrementally; each section
-> below says what exists.
+> **Status (2026-07-26): BUILT AND LIVE** at https://prayer.altijwal.com/admin — overview, masjid
+> moderation, cost, push health, audience, logs, settings/kill-switch and the audit trail. The Play
+> Console stats page is the one remaining piece; it needs a Google service account the owner has to
+> grant (§9).
 
 ---
 
@@ -137,14 +138,20 @@ All under `/api/admin`, all requiring a session except `POST /api/admin/session`
 | GET | `/api/admin/session` | session probe | P0 |
 | DELETE | `/api/admin/session` | log out | P0 |
 | GET | `/api/admin/overview` | health, counts, scheduler, spend, audience | P0 |
-| GET/PATCH | `/api/admin/masjids/*` | contribution moderation | P1 |
-| GET | `/api/admin/places/*` | outcome stats, top spenders, cell demand | P2 |
-| GET/DELETE | `/api/admin/push/*` | subscriber + delivery health | P2 |
-| GET | `/api/admin/logs` | recent warnings/errors | P3 |
-| GET/PUT | `/api/admin/settings` | kill-switch + spend cap | P3 |
-| GET | `/api/admin/audit` | audit trail | P3 |
-| GET | `/api/admin/audience` | anonymous usage breakdowns | P4 |
-| GET | `/api/admin/play/stats` | Play Console metrics | P6 |
+| GET | `/api/admin/masjids/contributions?status=` | moderation queue + counts, with duplicate flags | ✅ |
+| PATCH | `/api/admin/masjids/contributions/:id` | approve / reject / correct name+coords | ✅ |
+| GET | `/api/admin/masjids/summary` | counts by status, resident vs community | ✅ |
+| GET | `/api/admin/places/stats?days=` | daily + hourly outcome mix, governor plan | ✅ |
+| GET | `/api/admin/places/top-clients?days=` | what each anonymous client cost | ✅ |
+| GET | `/api/admin/places/demand?days=` | ~1 km demand cells | ✅ |
+| GET | `/api/admin/push/summary?days=` | subscribers, rules, delivery history | ✅ |
+| DELETE | `/api/admin/push/subscriptions/:id` | remove a subscriber (cascades) | ✅ |
+| GET | `/api/admin/logs?level=&component=` | recent warnings/errors from the ring buffer | ✅ |
+| GET/PUT | `/api/admin/settings` | kill-switch + spend cap, with per-value source | ✅ |
+| DELETE | `/api/admin/settings/:name` | drop an override, back to the env value | ✅ |
+| GET | `/api/admin/audit?limit=` | audit trail | ✅ |
+| GET | `/api/admin/audience?days=` | anonymous usage breakdowns | ✅ |
+| GET | `/api/admin/play/stats` | Play Console metrics | pending (§9) |
 
 ### Response rules (non-negotiable)
 
@@ -220,3 +227,53 @@ Full rationale in `DECISIONS.md` ADR-016. The essentials:
   labelled "avg daily actives". Never present a number as unique users.
 - Changing `TELEMETRY_PRECISION_DEG` downward, or storing the client id, is a **Play Data Safety +
   privacy-policy change**, not a config tweak.
+
+
+---
+
+## 9. Pages
+
+| Page | What it answers | Backed by |
+|---|---|---|
+| **Overview** | Is everything healthy right now? | live process + one counts query |
+| **Masjids** | What is waiting for review, and is it a duplicate? | `masjid_contributions` + `isSameMasjid` against the resident index |
+| **Cost** | What is Google costing me, who is spending it, and where? | `places_stats`, `places_usage`, `places_cell_demand` — all pre-existing |
+| **Push** | Are reminders actually being delivered? | `push_subscriptions`, `prayer_alert_rules`, `push_stats` |
+| **Audience** | How many people use the app, where, on what version? | `usage_ping` |
+| **Logs** | What just broke? | in-memory ring buffer (resets on restart) |
+| **Settings** | Turn the paid feature off / lower the cap, and see who changed what | `app_settings` + `admin_audit` |
+| **Play** | Installs, crashes, ratings | *not built — needs a service account (below)* |
+
+### Play Console stats — what is still needed
+
+Installs, uninstalls, active devices and ratings are **not** in the Play Developer Reporting API;
+they come from the **bulk report CSVs** in the Cloud Storage bucket linked to the developer account.
+Crash/ANR rates do come from the Reporting API. Both need a Google service account that only the
+account owner can authorise:
+
+1. GCP project `al-tijwal-483313` → create a service account → enable the **Play Developer
+   Reporting API** → download a JSON key.
+2. Play Console → **Users and permissions** → invite the service-account email → grant
+   **View app information (read-only)** and **View app quality information (read-only)** (the second
+   is what unlocks vitals).
+3. Put the JSON at `/opt/prayer/secrets/play-sa.json` on the VPS, bind-mount it, and set
+   `PLAY_SA_KEY_FILE` + `PLAY_REPORTS_BUCKET` (Play Console → Download reports → *Copy Cloud
+   Storage URI*).
+
+Known gotcha for whoever builds it: **the bulk CSVs are UTF-16LE encoded** — decode before parsing —
+and the monthly `installs_<pkg>_<YYYYMM>_overview.csv` is rewritten in place each day.
+
+---
+
+## 10. Operating notes
+
+- **Rotating the password** invalidates every session (§3). Rotating `TELEMETRY_SALT` makes all
+  previously stored days mutually unlinkable — harmless, and occasionally useful.
+- **The kill-switch fails open.** If Postgres is unreachable, every setting reads its env default.
+  This is deliberate: an outage must never silently disable a feature. Verified by
+  `db/repositories/app-settings.test.ts` rather than by stopping the shared Postgres, which also
+  serves the other apps on this VPS.
+- **The log page is not the log.** It is a 500-entry in-memory ring that empties on restart; stdout
+  remains the record.
+- **Don't trust an empty Audience page as "no users".** It only starts filling from the release that
+  added the ping (web: 2026-07-26; Android: 2.3.0 / versionCode 9).

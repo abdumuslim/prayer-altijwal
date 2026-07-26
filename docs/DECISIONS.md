@@ -435,3 +435,89 @@ Distances and bearings still track the live position; only the network call is p
 copy (`prayer.masjids.v1`, 24 h fresh / 30 d retained) paints instantly and is the offline path.
 Anonymous identity is a random `X-Client-Id` plus an IP PREFIX (/24 or /64) — enough to throttle,
 never enough to identify, and no table links a client to a coordinate.
+
+---
+
+## ADR-015 — The operator dashboard is a separate bundle behind a password ✅
+
+**Context (2026-07-26).** The app had no operator surface. Masjid contributions were moderated by
+SSHing to the VPS and hand-writing `UPDATE masjid_contributions SET status='approved'`; failures
+were found with `docker compose logs`; the Google spend was visible only through one token-gated
+JSON endpoint; and there was no way to turn the paid feature off without a redeploy.
+
+**Decision.** Build a dashboard at `/admin`, as a **second Vite application** (`client/admin` →
+`client/dist-admin`), not a route inside the SPA.
+
+**Why separate.** `capacitor.config.ts` sets `webDir: "dist"`, so everything in the SPA build is
+packaged into the Android APK. A route there would ship operator code inside a distributable app.
+Keeping it apart also keeps two opposite sets of conventions from bleeding: the app is Arabic, RTL
+and has a four-theme engine; the dashboard is English, LTR and has one dark theme. The admin Vite
+config deliberately omits `reusedEngineResolver()`, which makes the prayer engine *structurally*
+unreachable from the dashboard rather than forbidden by a rule someone has to remember.
+
+**Auth: stateless, one operator.** A scrypt digest in the env (`ADMIN_PASSWORD_HASH`) and an HMAC
+cookie carrying a fingerprint of that digest, so **changing the password invalidates every
+outstanding session** — the only revocation lever a single-operator tool needs, without a sessions
+table. 12 h idle / 7 d absolute.
+
+**Rejected: Traefik basic-auth.** It would have meant editing the shared proxy that also fronts the
+other apps on this VPS, for a weaker result (no lockout, no audit, no session).
+
+**Two orderings in `app.ts` are load-bearing**, and both fail silently, so `app.ts` finally has a
+test: the admin API mounts *before* `cors({origin:true})` (and owns its whole subtree including
+OPTIONS) so no cross-origin preflight can ever be approved for it; and `/admin` mounts *before* the
+SPA history fallback, which would otherwise answer every admin URL with the prayer-times shell.
+
+**Throttling has two layers**, because per-key alone bounds nothing here: `clientIpOf` trusts
+`cf-connecting-ip`/`x-forwarded-for`, which anyone reaching the origin IP directly can rotate at
+will. 5 failures/15 min locks a key; 50 failures/15 min across all keys locks logins entirely; and a
+key that has logged in successfully is trusted for 30 days and bypasses the *global* lock, so an
+attacker cannot use that backstop to keep the operator out of his own dashboard.
+
+**Consequence.** One more thing to keep secure, and a password whose loss locks the operator out
+until he edits the VPS `.env`. Accepted: everything the dashboard can do is otherwise done by hand
+over SSH, which is not safer.
+
+---
+
+## ADR-016 — Audience telemetry: coarse, aggregate, and unlinkable across days ✅
+
+**Context (2026-07-26).** The owner wanted to know how many people use the app, roughly where, and
+what each anonymous client costs in Google units. The last of those was already recorded
+(`places_usage`, ADR-014). The first two were not recorded at all: the codebase deliberately had no
+analytics, and the privacy policy said so.
+
+**Decision.** A once-a-day ping, with three properties chosen before any of the querying:
+
+1. **Coordinates are rounded to ~1.1 km ON THE DEVICE** (`TELEMETRY_PRECISION_DEG = 0.01`), and the
+   server clamps again — so a modified client cannot cause finer data to be stored than the privacy
+   policy declares.
+2. **The stored key is `HMAC(salt, day | clientId)`, with the day inside the message.** The same
+   install therefore hashes differently every day and two stored rows cannot be linked. The raw
+   client id is never written by this feature.
+3. **The endpoint always answers `204`** — disabled, malformed, rate-limited, database down. An
+   endpoint that reports server state is an endpoint that can be probed, and the client's only
+   correct reaction to any failure is "try again tomorrow".
+
+**The consequence is deliberate and binding on every reader:** cross-day uniques — real WAU/MAU —
+are *uncomputable* from `usage_ping`. The API and the dashboard report averages of daily-active
+counts, labelled "avg daily actives", and the Audience page explains why. A number that looked like
+unique users but wasn't would be worse than no number.
+
+**Rejected: precise per-user location trails.** Considered, because "see each user's points on a
+map" was the original ask. It would have required declaring location as collected-and-retained, an
+in-app prominent disclosure and consent flow under Play policy, and a real breach exposure — for
+insight that a 1 km demand map already gives. The upgrade path is written down (add a `client_id`
+column, set `loc_precision = 0`) precisely so that choosing it later is a deliberate, costed
+decision rather than a config drift.
+
+**Play/privacy consequences, shipped in the same release** (`PLAY_RELEASE.md`): approximate location
+moves from "ephemeral" to retained; App interactions is newly declared; and **Device or other IDs is
+corrected to "collected"** — the app has sent a persistent per-install `X-Client-Id` since ADR-014
+and the old form denied it. The privacy policy also stops claiming nothing is retained server-side,
+which was false for web push subscriptions.
+
+**Also decided.** Notice is **privacy-policy-only** — no in-app opt-out switch (owner, 2026-07-26).
+Defensible for a non-identifying aggregate count, but it forces the Data Safety answer to "required"
+and leaves no way to honour an individual opt-out request. Revisit if that ever matters; it is a
+~20-line change plus one Arabic string.

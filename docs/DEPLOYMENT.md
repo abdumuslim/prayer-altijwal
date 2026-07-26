@@ -39,6 +39,10 @@ Browser → Cloudflare (DNS + origin SSL) → Traefik (VPS, :80/:443) → prayer
    fails** (`Cannot find module '../../../server/...'` / `'pino'`).
 3. **production** — Node 22-slim; copy server `dist` + `node_modules` + the built client static
    files + `server/data/cities15000.json`; serve on **port 8000**.
+   - **Two client bundles** (2026-07-26): the client stage runs `npm run build` **and**
+     `npm run build:admin`, and production copies `client/dist` → `./static` (the SPA, also what
+     Capacitor packages into the APK) and `client/dist-admin` → `./static-admin` (the operator
+     dashboard at `/admin`, web-only). See `docs/ADMIN_DASHBOARD.md` §1.
    - Drop home's `bias-table.json` copy line (weather-only, not used here).
    - Express serves `/api/*` and the SPA (history-mode fallback to `index.html` for non-`/api` routes).
    - **CORS** is enabled on `/api/*` (for the native origin `https://localhost`); harmless for the SPA.
@@ -82,7 +86,18 @@ GOOGLE_MAPS_EMBED_KEY=        # optional — browser-visible Embed-only key (ADR
 # optional: PLACES_MONTHLY_UNIT_CAP=4500   # ADR-014 spend ceiling, in units
 # optional: ADMIN_TOKEN=                   # gates GET /api/places/usage (min 16 chars)
 # optional: PORT=8000
+# ── admin dashboard + telemetry (2026-07-26, docs/ADMIN_DASHBOARD.md) ──
+ADMIN_PASSWORD_HASH=      # scrypt digest; absent ⇒ the whole /api/admin tree 404s
+ADMIN_SESSION_SECRET=     # ≥32 chars; absent ⇒ random per boot ⇒ logged out on every deploy
+TELEMETRY_SALT=           # ≥16 chars; absent ⇒ the audience ping stores nothing
+# optional: TELEMETRY_RETENTION_DAYS=180 · TELEMETRY_PRECISION_DEG=0.01
+# optional (Play stats): PLAY_SA_KEY_FILE= · PLAY_PACKAGE_NAME= · PLAY_REPORTS_BUCKET=
 ```
+
+⚠ **Docker Compose interpolates `$` inside `env_file` values.** A value containing `$` reaches the
+container mangled — every `$name` replaced by an empty string, with only a warning on stderr during
+`up`. This silently broke admin login on the first deploy (2026-07-26). Keep `.env` values free of
+`$` (the password digest uses `:` separators for exactly this reason) or escape each one as `$$`.
 
 Config is **zod-validated at startup** — the process fails fast if a required secret is missing
 (coding-style: validate at boundaries, never run half-configured). Generate VAPID once with
@@ -99,7 +114,9 @@ the live picture with `GET /api/places/usage?token=$ADMIN_TOKEN` — it reports 
 day's pool, the current per-client cap and the observed active-client count.
 
 **New tables** (created by the idempotent DDL at boot, no migration step): `places_cache`,
-`places_usage`, `places_stats`, `places_cell_demand`, `masjid_contributions`.
+`places_usage`, `places_stats`, `places_cell_demand`, `masjid_contributions`, and — since
+2026-07-26 — `usage_ping`, `app_settings`, `admin_audit`, `push_stats`, `play_stats`. Retention for
+all of them is enforced by one daily sweep in `server/src/db/retention.ts`.
 
 **Bundled dataset.** `server/data/masjids-iq.json` ships in the image like `cities15000.json`.
 Regenerate with `npm --prefix server run build:masjids`. Its absence is not fatal — the feature just

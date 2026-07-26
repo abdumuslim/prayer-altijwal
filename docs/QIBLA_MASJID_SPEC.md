@@ -120,6 +120,13 @@
 > Maps/Waze chooser check on the emulator, VPS `.env` entry at deploy (+ remove the user's home
 > IP from the key allowlist after).
 
+> **Moderation moved out of psql (2026-07-26).** Contributions are approved, rejected and corrected
+> from the operator dashboard (`docs/ADMIN_DASHBOARD.md`), which also flags likely duplicates using
+> the same `isSameMasjid` the serving path uses. An approval now takes effect **immediately** —
+> `startCommunityRefresh` exposes `refreshNow()` and the route calls it — instead of waiting up to
+> ten minutes for the poll. The poll remains the safety net for direct psql edits and for re-seeding
+> after a restart. The spend data described in §6d is what the dashboard's Cost page reads.
+
 ## 1. Goal
 
 Two features, both living in the **Times tab (المواقيت)**, which the user wants repurposed

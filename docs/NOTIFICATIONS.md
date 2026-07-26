@@ -16,6 +16,12 @@ Related: `ARCHITECTURE.md` §4, `PRAYER_TIMES_API.md` (push endpoints), `DEPLOYM
 
 ---
 
+> **Delivery history (2026-07-26).** `push_log` is a dedup ledger pruned at 48 h, so it cannot
+> answer "how many reminders went out last month". The scheduler now also counts sent/failed/gone
+> per UTC day (`stats()`, shown on the dashboard) and flushes those counts into a durable
+> `push_stats(day, kind, outcome, n)` rollup once per tick. Aggregate only — no endpoint, no
+> subscriber. See `docs/ADMIN_DASHBOARD.md`.
+
 ## 1. Client: service worker + permission + subscription
 
 1. User toggles **Prayer reminders** → request `Notification.permission`.
