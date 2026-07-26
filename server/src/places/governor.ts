@@ -35,6 +35,11 @@ export interface GovernorCaps {
 
 export interface PlacesGovernor {
   open(clientId: string, ipKey: string, now?: Date): Promise<Spender>;
+  /**
+   * Change the monthly ceiling at runtime (admin dashboard kill-switch). Takes
+   * effect on the next plan, so a bill scare doesn't need a redeploy.
+   */
+  setMonthlyCap(cap: number): void;
   plan(now?: Date): Promise<BudgetPlan & { usedThisMonth: number; activeClients: number }>;
 }
 
@@ -62,13 +67,17 @@ export function createPlacesGovernor(
   usage: PlacesUsageRepo,
   caps: GovernorCaps,
 ): PlacesGovernor {
+  // Mutable so the dashboard can lower it mid-month; every read below goes
+  // through this rather than the frozen constructor argument.
+  let monthlyCap = caps.monthlyCap;
+
   async function currentPlan(now: Date) {
     const day = ptDayKey(now);
     const month = ptMonthKey(now);
     const snap = await usage.snapshot(day, month, "", "");
     return {
       ...planBudget({
-        monthlyCap: caps.monthlyCap,
+        monthlyCap,
         usedThisMonth: snap.usedThisMonth,
         daysLeft: daysLeftInBillingMonth(now),
         activeClients: snap.activeClients,
@@ -80,6 +89,10 @@ export function createPlacesGovernor(
 
   return {
     plan: (now = new Date()) => currentPlan(now),
+
+    setMonthlyCap(cap) {
+      monthlyCap = Math.max(0, Math.floor(cap));
+    },
 
     async open(clientId, ipKey, now = new Date()) {
       const day = ptDayKey(now);
@@ -102,7 +115,7 @@ export function createPlacesGovernor(
         async spend(units) {
           const snap = await usage.snapshot(day, month, clientId, ipKey);
           const budget = planBudget({
-            monthlyCap: caps.monthlyCap,
+            monthlyCap,
             usedThisMonth: snap.usedThisMonth,
             daysLeft: daysLeftInBillingMonth(now),
             activeClients: snap.activeClients,

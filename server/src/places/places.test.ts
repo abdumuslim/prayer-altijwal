@@ -442,6 +442,9 @@ function fakeGovernor(allow: boolean, reason: DenyReason = "denied_budget") {
   const opened: Array<{ clientId: string; ipKey: string }> = [];
   let spends = 0;
   const governor: PlacesGovernor = {
+    setMonthlyCap() {
+      /* the kill-switch path is covered by the settings tests */
+    },
     async open(clientId, ipKey) {
       opened.push({ clientId, ipKey });
       let denied: DenyReason | undefined;

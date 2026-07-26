@@ -7,6 +7,9 @@ import { createOverviewRoutes, type OverviewDeps } from "./routes/overview.js";
 import { createMasjidRoutes, type MasjidAdminDeps } from "./routes/masjids.js";
 import { createPlacesAdminRoutes, type PlacesAdminDeps } from "./routes/places.js";
 import { createPushAdminRoutes, type PushAdminDeps } from "./routes/push.js";
+import { createLogRoutes } from "./routes/logs.js";
+import { createSettingsRoutes, type SettingsAdminDeps } from "./routes/settings.js";
+import { createAuditRoutes } from "./routes/audit.js";
 
 const log = childLogger("admin");
 
@@ -14,7 +17,8 @@ export interface AdminRouterDeps
   extends OverviewDeps,
     MasjidAdminDeps,
     PlacesAdminDeps,
-    PushAdminDeps {
+    PushAdminDeps,
+    SettingsAdminDeps {
   readonly session: SessionConfig;
   readonly audit?: AdminAuditRepo;
 }
@@ -48,6 +52,9 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
   r.use(createMasjidRoutes(deps.session, deps));
   r.use(createPlacesAdminRoutes(deps.session, deps));
   r.use(createPushAdminRoutes(deps.session, deps));
+  r.use(createLogRoutes(deps.session));
+  r.use(createSettingsRoutes(deps.session, deps));
+  r.use(createAuditRoutes(deps.session, deps.audit));
 
   // Owns the entire subtree. Without this, an unmatched /api/admin request —
   // crucially including a cross-origin OPTIONS preflight — would fall through

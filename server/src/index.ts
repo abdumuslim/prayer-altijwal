@@ -35,6 +35,9 @@ import { createPushRouter } from "./push/routes.js";
 import { createAdminRouter } from "./admin/index.js";
 import { createAdminAuditRepo, type AdminAuditRepo } from "./db/repositories/admin-audit.js";
 import { createPushStatsRepo, type PushStatsRepo } from "./db/repositories/push-stats.js";
+import { createAppSettings, type AppSettingsRepo } from "./db/repositories/app-settings.js";
+import { SETTING_KEYS } from "./admin/routes/settings.js";
+import { registerRedactedSecrets } from "./log-buffer.js";
 
 const log = childLogger("index");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,6 +78,7 @@ async function main(): Promise<void> {
   let auditRepo: AdminAuditRepo | undefined;
   let subsRepo: PgSubscriptionsRepo | undefined;
   let pushStatsRepo: PushStatsRepo | undefined;
+  let appSettings: AppSettingsRepo | undefined;
   let getDbStatus = async (): Promise<DbStatus> => "disabled";
 
   if (config.dbEnabled && config.databaseUrl) {
@@ -112,6 +116,19 @@ async function main(): Promise<void> {
       // Audit trail for the admin dashboard. Optional like everything else here:
       // without a DB the dashboard still serves its read-only views.
       auditRepo = createAdminAuditRepo(pool);
+
+      // Runtime overrides (Places kill-switch + spend cap). Read on the request
+      // path through a 30s cache; every reader falls back to the env value.
+      appSettings = createAppSettings(pool);
+      const storedCap = await appSettings.get<number | null>(
+        SETTING_KEYS.placesMonthlyUnitCap,
+        null,
+      );
+      if (typeof storedCap === "number" && placesGovernor) {
+        // Honour a dashboard change across restarts.
+        placesGovernor.setMonthlyCap(storedCap);
+        log.info("Applied stored Places monthly cap", { cap: storedCap });
+      }
 
       featureRouters.push(
         createPushRouter({
@@ -153,6 +170,11 @@ async function main(): Promise<void> {
       stats: placesStats,
       contributions: contributionsRepo,
       adminToken: config.adminToken,
+      // Kill-switches. Both default to ON when the store is unreadable.
+      isEnabled: () =>
+        appSettings?.get(SETTING_KEYS.placesEnabled, true) ?? Promise.resolve(true),
+      isTravelEnabled: () =>
+        appSettings?.get(SETTING_KEYS.placesTravelEnabled, true) ?? Promise.resolve(true),
     }),
   );
 
@@ -173,6 +195,14 @@ async function main(): Promise<void> {
         refreshCommunity: communityRefresh?.refreshNow,
         subsRepo,
         getSchedulerStats: scheduler ? () => scheduler!.stats() : undefined,
+        settings: appSettings,
+        settingsDefaults: {
+          placesEnabled: config.placesEnabled,
+          placesTravelEnabled: true,
+          placesMonthlyUnitCap: config.placesMonthlyUnitCap,
+          telemetryEnabled: config.telemetryEnabled,
+        },
+        applyMonthlyCap: (cap) => placesGovernor?.setMonthlyCap(cap),
         serverVersion: SERVER_VERSION,
         startedAt: Date.now(),
         env: config.nodeEnv,

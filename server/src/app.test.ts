@@ -47,6 +47,12 @@ function adminRouter() {
     env: "test",
     getDbStatus: async () => "disabled",
     monthlyCap: 4500,
+    settingsDefaults: {
+      placesEnabled: false,
+      placesTravelEnabled: true,
+      placesMonthlyUnitCap: 4500,
+      telemetryEnabled: false,
+    },
     flags: { placesEnabled: false, pushEnabled: false, telemetryEnabled: false },
   });
 }

@@ -61,6 +61,13 @@ export interface PlacesRouterDeps {
   contributions?: MasjidContributionsRepo | undefined;
   /** Guards GET /api/places/usage; absent ⇒ that route 404s. */
   adminToken?: string | undefined;
+  /**
+   * Runtime kill-switches set from the admin dashboard (docs/ADMIN_DASHBOARD.md).
+   * Absent, or resolving from a settings store that cannot be read, means ON:
+   * the operator's safety valve must never fail closed by accident.
+   */
+  isEnabled?: (() => Promise<boolean>) | undefined;
+  isTravelEnabled?: (() => Promise<boolean>) | undefined;
 }
 
 /** Map a completed lookup onto the outcome recorded for it. */
@@ -126,7 +133,10 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
       return;
     }
-    if (!masjids) {
+    // Runtime kill-switch from the admin dashboard. Falls back to "on" if the
+    // settings store (or the whole database) is unavailable, so an outage can
+    // never silently disable the feature.
+    if (!masjids || !(await deps.isEnabled?.() ?? true)) {
       deps.stats?.noteOutcome(ptDayKey(), new Date().getUTCHours(), "disabled", 0);
       res.json({ enabled: false, masjids: [] });
       return;
@@ -160,7 +170,9 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
       return;
     }
-    if (!travel) {
+    // Travel lookups are the expensive half (2 units each), so they have their
+    // own switch — the masjid list can stay on while these are turned off.
+    if (!travel || !(await deps.isTravelEnabled?.() ?? true)) {
       res.json({ enabled: false, walkMin: null, driveMin: null });
       return;
     }

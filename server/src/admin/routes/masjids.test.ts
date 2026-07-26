@@ -94,6 +94,12 @@ async function start(rows: ContributionRow[], withResident = true): Promise<Harn
       env: "test",
       getDbStatus: async () => "up",
       monthlyCap: 4500,
+      settingsDefaults: {
+        placesEnabled: false,
+        placesTravelEnabled: true,
+        placesMonthlyUnitCap: 4500,
+        telemetryEnabled: false,
+      },
       flags: { placesEnabled: false, pushEnabled: false, telemetryEnabled: false },
     }),
   );

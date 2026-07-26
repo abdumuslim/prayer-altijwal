@@ -205,6 +205,38 @@ export interface PushSummary {
   subscribers: Subscriber[];
 }
 
+export interface LogEntry {
+  at: string;
+  level: "warn" | "error" | "fatal";
+  component: string;
+  msg: string;
+  err?: string;
+}
+
+export interface SettingsValues {
+  placesEnabled: boolean;
+  placesTravelEnabled: boolean;
+  placesMonthlyUnitCap: number;
+  telemetryEnabled: boolean;
+}
+
+export interface SettingsResponse {
+  values: SettingsValues;
+  /** Whether each value comes from the database override or the env default. */
+  sources: Record<keyof SettingsValues, "db" | "env">;
+  defaults: SettingsValues;
+  writable: boolean;
+}
+
+export interface AuditRow {
+  id: number;
+  at: string;
+  actorIp: string | null;
+  action: string;
+  target: string | null;
+  details: Record<string, unknown> | null;
+}
+
 export const api = {
   login: (password: string) =>
     request<void>("/api/admin/session", { method: "POST", body: JSON.stringify({ password }) }),
@@ -229,4 +261,23 @@ export const api = {
   pushSummary: (days: number) => request<PushSummary>(`/api/admin/push/summary?days=${days}`),
   deleteSubscription: (id: number) =>
     request<void>(`/api/admin/push/subscriptions/${id}`, { method: "DELETE" }),
+
+  logs: (level: "warn" | "error", component?: string) =>
+    request<{ capacity: number; components: string[]; items: LogEntry[] }>(
+      `/api/admin/logs?level=${level}${component ? `&component=${encodeURIComponent(component)}` : ""}`,
+    ),
+
+  settings: () => request<SettingsResponse>("/api/admin/settings"),
+  updateSettings: (patch: Partial<SettingsValues>) =>
+    request<{ ok: true; values: SettingsValues; sources: SettingsResponse["sources"] }>(
+      "/api/admin/settings",
+      { method: "PUT", body: JSON.stringify(patch) },
+    ),
+  resetSetting: (name: keyof SettingsValues) =>
+    request<{ ok: true; values: SettingsValues; sources: SettingsResponse["sources"] }>(
+      `/api/admin/settings/${name}`,
+      { method: "DELETE" },
+    ),
+
+  audit: (limit = 100) => request<{ items: AuditRow[] }>(`/api/admin/audit?limit=${limit}`),
 };

@@ -6,6 +6,8 @@ import { Overview } from "./pages/Overview";
 import { Masjids } from "./pages/Masjids";
 import { Cost } from "./pages/Cost";
 import { Push } from "./pages/Push";
+import { Logs } from "./pages/Logs";
+import { Settings } from "./pages/Settings";
 import { Button, cx } from "./components/ui";
 
 type AuthState = "checking" | "out" | "in";
@@ -127,6 +129,10 @@ function Page({ route, embedKey }: { route: RouteId; embedKey: string | null }) 
       return <Cost />;
     case "push":
       return <Push />;
+    case "logs":
+      return <Logs />;
+    case "settings":
+      return <Settings />;
     default:
       return <NotBuiltYet route={route} />;
   }
