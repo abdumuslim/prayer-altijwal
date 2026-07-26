@@ -3,6 +3,8 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+# Admin dashboard bundle (separate Vite app; `dist/` above doesn't match it).
+client/dist-admin/
 
 # Secrets & local-only ops (NEVER commit)
 .env
@@ -13,7 +15,14 @@ CLAUDE.md
 
 # Local SSH/debug scratch
 ssh_out.txt
+ssh_deploy*.txt
 *.log
+scratch-*.xml
+
+# Session screenshots / browser-automation artifacts at the repo ROOT only
+# (kept on disk, never committed). Nested app assets are unaffected.
+/*.png
+/.playwright-mcp/
 
 # Bundled GeoNames dataset IS committed (the Docker image copies it directly;
 # a clean clone must build without network). Regenerate with `npm run build:cities`.
