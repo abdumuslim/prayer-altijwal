@@ -1,4 +1,5 @@
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { childLogger } from "./logger.js";
@@ -31,9 +32,21 @@ import { PgAlertRulesRepo } from "./db/repositories/alert-rules.js";
 import { setupWebPush } from "./push/webpush.js";
 import { PrayerScheduler } from "./push/scheduler.js";
 import { createPushRouter } from "./push/routes.js";
+import { createAdminRouter } from "./admin/index.js";
+import { createAdminAuditRepo, type AdminAuditRepo } from "./db/repositories/admin-audit.js";
 
 const log = childLogger("index");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** Deployed server version, shown on the admin overview. */
+const SERVER_VERSION = ((): string => {
+  try {
+    const raw = readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8");
+    return (JSON.parse(raw) as { version?: string }).version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+})();
 
 type Pool = Awaited<ReturnType<typeof createPool>>;
 
@@ -58,6 +71,7 @@ async function main(): Promise<void> {
   let placesStats: PlacesStatsRecorder | undefined;
   let contributionsRepo: MasjidContributionsRepo | undefined;
   let communityRefresh: CommunityRefreshJob | undefined;
+  let auditRepo: AdminAuditRepo | undefined;
   let getDbStatus = async (): Promise<DbStatus> => "disabled";
 
   if (config.dbEnabled && config.databaseUrl) {
@@ -88,6 +102,10 @@ async function main(): Promise<void> {
       // once a moderator approves them.
       contributionsRepo = createMasjidContributionsRepo(pool);
       communityRefresh = startCommunityRefresh(contributionsRepo, residentMasjids);
+
+      // Audit trail for the admin dashboard. Optional like everything else here:
+      // without a DB the dashboard still serves its read-only views.
+      auditRepo = createAdminAuditRepo(pool);
 
       featureRouters.push(
         createPushRouter({
@@ -127,9 +145,39 @@ async function main(): Promise<void> {
     }),
   );
 
+  // Operator dashboard. Built only when a password hash is configured, so an
+  // unconfigured deploy exposes nothing (and doesn't advertise the surface).
+  const adminRouter = config.adminEnabled
+    ? createAdminRouter({
+        session: {
+          passwordHash: config.adminPasswordHash!,
+          sessionSecret: config.adminSessionSecret,
+          // Browsers refuse Secure cookies over http://localhost, which would
+          // make the dashboard impossible to log into in local development.
+          secureCookies: config.isProduction,
+        },
+        audit: auditRepo,
+        serverVersion: SERVER_VERSION,
+        startedAt: Date.now(),
+        env: config.nodeEnv,
+        getDbStatus,
+        pool,
+        governor: placesGovernor,
+        resident: residentMasjids,
+        embedKey: config.googleMapsEmbedKey,
+        monthlyCap: config.placesMonthlyUnitCap,
+        flags: {
+          placesEnabled: config.placesEnabled,
+          pushEnabled: config.pushEnabled,
+          telemetryEnabled: config.telemetryEnabled,
+        },
+      })
+    : undefined;
+
   const router = createRouter({ getDbStatus, featureRouters });
   const staticDir = path.resolve(__dirname, "..", "static");
-  const app = createApp(router, staticDir);
+  const adminDir = path.resolve(__dirname, "..", "static-admin");
+  const app = createApp({ router, staticDir, adminDir, adminRouter });
 
   const server = app.listen(config.port, () => {
     log.info(`Prayer server listening on http://localhost:${config.port} (env=${config.nodeEnv})`);

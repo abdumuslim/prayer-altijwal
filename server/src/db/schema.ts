@@ -161,10 +161,96 @@ ALTER TABLE masjid_contributions ADD CONSTRAINT masjid_contributions_status_chec
 
 CREATE INDEX IF NOT EXISTS idx_masjid_contributions_status ON masjid_contributions (status);
 CREATE INDEX IF NOT EXISTS idx_masjid_contributions_client ON masjid_contributions (client_id, created_at);
+
+-- 2026-07-26 (ADR-016): anonymous audience ping. One row per install per day.
+--
+-- dau_hash = HMAC(TELEMETRY_SALT, day || '|' || clientId). The DAY IS INSIDE THE
+-- MESSAGE, so the same install hashes differently every day and stored rows
+-- cannot be linked across days — which is exactly why this table can answer
+-- "how many people used the app today" without holding an identifier for anyone.
+-- The raw client id is never written here. The consequence is deliberate and
+-- must be respected by every reader: cross-day uniques (true WAU/MAU) are
+-- UNCOMPUTABLE from this data. Report averages of daily actives instead.
+--
+-- lat/lon are CELL CENTRES at loc_precision (0.01° ≈ 1.1 km), rounded on the
+-- device before sending and clamped again server-side. loc_source separates the
+-- Baghdad default (which every untouched install reports) from a real choice.
+CREATE TABLE IF NOT EXISTS usage_ping (
+  day            DATE NOT NULL,
+  dau_hash       TEXT NOT NULL,
+  platform       TEXT NOT NULL,
+  app_version    TEXT,
+  lat            REAL,
+  lon            REAL,
+  loc_precision  REAL NOT NULL DEFAULT 0.01,
+  loc_source     TEXT,
+  country        TEXT,
+  city           TEXT,
+  tz             TEXT,
+  features       TEXT[] NOT NULL DEFAULT '{}',
+  notif          BOOLEAN NOT NULL DEFAULT FALSE,
+  theme          TEXT,
+  display_mode   TEXT,
+  first_seen     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (day, dau_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_ping_day ON usage_ping (day);
+CREATE INDEX IF NOT EXISTS idx_usage_ping_day_country ON usage_ping (day, country);
+
+-- 2026-07-26: runtime overrides for knobs that otherwise need a redeploy — the
+-- Places kill-switch and its monthly cap. Every reader MUST fall back to the env
+-- value when the row (or the whole database) is unavailable, so a DB outage can
+-- never silently disable a feature. Applied once at boot and on each write.
+CREATE TABLE IF NOT EXISTS app_settings (
+  key         TEXT PRIMARY KEY,
+  value       JSONB NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2026-07-26: audit trail for every admin mutation, plus logins and lockouts.
+-- Failed password attempts are deliberately NOT recorded per-attempt: that would
+-- let anyone on the internet grow this table without limit.
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id       BIGSERIAL PRIMARY KEY,
+  at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actor_ip TEXT,
+  action   TEXT NOT NULL,
+  target   TEXT,
+  details  JSONB
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_at ON admin_audit (at DESC);
+
+-- 2026-07-26: durable push delivery history. push_log is a dedup ledger pruned
+-- at 48h, so it cannot answer "how many reminders went out last month" — this
+-- rollup can. Aggregate only: no endpoint, no subscriber.
+CREATE TABLE IF NOT EXISTS push_stats (
+  day      DATE NOT NULL,
+  kind     TEXT NOT NULL,
+  outcome  TEXT NOT NULL,
+  n        INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, kind, outcome)
+);
+
+-- 2026-07-26: cached Play Console metrics. Fetched on a timer so the dashboard
+-- never blocks on Google, and so a quota problem there degrades to stale numbers
+-- rather than a broken page.
+CREATE TABLE IF NOT EXISTS play_stats (
+  day         DATE NOT NULL,
+  metric      TEXT NOT NULL,
+  dimension   TEXT NOT NULL DEFAULT 'all',
+  value       DOUBLE PRECISION NOT NULL,
+  fetched_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (day, metric, dimension)
+);
 `;
 
 /** Apply the idempotent schema. Run once at startup, after createPool. */
 export async function initDb(pool: pg.Pool): Promise<void> {
   await pool.query(DDL);
-  log.info("Schema initialized (push_subscriptions, push_log, prayer_alert_rules, places_cache)");
+  log.info(
+    "Schema initialized (push, places, masjid_contributions, usage_ping, app_settings, admin_audit, push_stats, play_stats)",
+  );
 }

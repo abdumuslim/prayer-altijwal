@@ -1,5 +1,8 @@
 **/node_modules
 **/dist
+# The admin bundle is built inside the image; `**/dist` doesn't cover this name,
+# and shipping a stale local build into the context would silently deploy it.
+client/dist-admin
 .git
 .gitignore
 .claude

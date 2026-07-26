@@ -21,7 +21,10 @@ COPY client/ ./
 # resulting engine chunk (it is code-split behind isNative()). See
 # NATIVE_ALARM_SPEC.md §3b.
 COPY --from=server-build /build/server /build/server
-RUN npm run build
+# Two independent bundles: the SPA (dist, also packaged into the Android APK by
+# Capacitor) and the operator dashboard (dist-admin, web-only — see
+# client/vite.admin.config.ts for why they are kept apart).
+RUN npm run build && npm run build:admin
 
 # Stage 3: Production
 FROM node:22-slim
@@ -36,5 +39,7 @@ COPY --from=server-build /build/server/package.json ./
 COPY --from=server-build /build/server/data ./data
 # Built client served as static SPA by Express.
 COPY --from=client-build /build/client/dist ./static
+# Admin dashboard, served at /admin (server/src/app.ts resolves ../static-admin).
+COPY --from=client-build /build/client/dist-admin ./static-admin
 EXPOSE 8000
 CMD ["node", "dist/index.js"]

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && tsc -p tsconfig.native.json && vite build",
+    "dev:admin": "vite --config vite.admin.config.ts",
+    "build:admin": "tsc -p tsconfig.admin.json && vite build --config vite.admin.config.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"

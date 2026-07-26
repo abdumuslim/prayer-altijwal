@@ -1,0 +1,7 @@
+# prayer.altijwal.com
+# The prayer-times app and its privacy policy are public and indexable.
+# The operator dashboard is not.
+
+User-agent: *
+Disallow: /admin
+Disallow: /api/
