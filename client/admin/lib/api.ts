@@ -237,6 +237,24 @@ export interface AuditRow {
   details: Record<string, unknown> | null;
 }
 
+export interface AudienceReport {
+  configured: boolean;
+  precisionDeg: number;
+  retentionDays: number;
+  empty: boolean;
+  activePerDay: { day: string; n: number }[];
+  avg7d: number;
+  avg30d: number;
+  byPlatform: { key: string; n: number }[];
+  byVersion: { key: string; n: number }[];
+  byCountry: { key: string; n: number }[];
+  byLocSource: { key: string; n: number }[];
+  byArea: { city: string | null; country: string | null; n: number }[];
+  features: { key: string; n: number }[];
+  notifEnabledPct: number;
+  cells: { lat: number; lon: number; n: number }[];
+}
+
 export const api = {
   login: (password: string) =>
     request<void>("/api/admin/session", { method: "POST", body: JSON.stringify({ password }) }),
@@ -278,6 +296,8 @@ export const api = {
       `/api/admin/settings/${name}`,
       { method: "DELETE" },
     ),
+
+  audience: (days: number) => request<AudienceReport>(`/api/admin/audience?days=${days}`),
 
   audit: (limit = 100) => request<{ items: AuditRow[] }>(`/api/admin/audit?limit=${limit}`),
 };

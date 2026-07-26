@@ -6,6 +6,7 @@ import { Overview } from "./pages/Overview";
 import { Masjids } from "./pages/Masjids";
 import { Cost } from "./pages/Cost";
 import { Push } from "./pages/Push";
+import { Audience } from "./pages/Audience";
 import { Logs } from "./pages/Logs";
 import { Settings } from "./pages/Settings";
 import { Button, cx } from "./components/ui";
@@ -129,6 +130,8 @@ function Page({ route, embedKey }: { route: RouteId; embedKey: string | null }) 
       return <Cost />;
     case "push":
       return <Push />;
+    case "audience":
+      return <Audience />;
     case "logs":
       return <Logs />;
     case "settings":

@@ -36,6 +36,9 @@ import { createAdminRouter } from "./admin/index.js";
 import { createAdminAuditRepo, type AdminAuditRepo } from "./db/repositories/admin-audit.js";
 import { createPushStatsRepo, type PushStatsRepo } from "./db/repositories/push-stats.js";
 import { createAppSettings, type AppSettingsRepo } from "./db/repositories/app-settings.js";
+import { createTelemetryRepo, type TelemetryRepo } from "./db/repositories/telemetry.js";
+import { createTelemetryRouter } from "./telemetry/routes.js";
+import { startRetention, type RetentionJob } from "./db/retention.js";
 import { SETTING_KEYS } from "./admin/routes/settings.js";
 import { registerRedactedSecrets } from "./log-buffer.js";
 
@@ -79,6 +82,9 @@ async function main(): Promise<void> {
   let subsRepo: PgSubscriptionsRepo | undefined;
   let pushStatsRepo: PushStatsRepo | undefined;
   let appSettings: AppSettingsRepo | undefined;
+  let telemetryRepo: TelemetryRepo | undefined;
+  let placesUsageRepo: ReturnType<typeof createPlacesUsageRepo> | undefined;
+  let retention: RetentionJob | undefined;
   let getDbStatus = async (): Promise<DbStatus> => "disabled";
 
   if (config.dbEnabled && config.databaseUrl) {
@@ -102,6 +108,7 @@ async function main(): Promise<void> {
       // Spend governor + anonymous request telemetry. Both are DB-backed, so a
       // stateless boot simply runs without them (burst breaker only).
       const usageRepo = createPlacesUsageRepo(pool);
+      placesUsageRepo = usageRepo;
       placesGovernor = createPlacesGovernor(usageRepo, {
         monthlyCap: config.placesMonthlyUnitCap,
       });
@@ -119,6 +126,7 @@ async function main(): Promise<void> {
 
       // Runtime overrides (Places kill-switch + spend cap). Read on the request
       // path through a 30s cache; every reader falls back to the env value.
+      telemetryRepo = createTelemetryRepo(pool);
       appSettings = createAppSettings(pool);
       const storedCap = await appSettings.get<number | null>(
         SETTING_KEYS.placesMonthlyUnitCap,
@@ -178,6 +186,45 @@ async function main(): Promise<void> {
     }),
   );
 
+  // Anonymous audience ping (ADR-016). Always mounted: it answers 204
+  // regardless, so its behaviour never depends on what came up at boot.
+  featureRouters.push(
+    createTelemetryRouter({
+      repo: telemetryRepo,
+      cities: citiesIndex,
+      salt: config.telemetrySalt,
+      precisionDeg: config.telemetryPrecisionDeg,
+      isEnabled: () =>
+        appSettings?.get(SETTING_KEYS.telemetryEnabled, true) ?? Promise.resolve(true),
+    }),
+  );
+
+  // One daily sweep for every retention policy, so the privacy policy's
+  // promises are kept by code. Also finally schedules places_usage.prune(),
+  // which has existed since ADR-014 with nothing calling it.
+  if (pool) {
+    retention = startRetention({
+      telemetry: telemetryRepo,
+      telemetryRetentionDays: config.telemetryRetentionDays,
+      audit: auditRepo,
+      pushStats: pushStatsRepo,
+      placesUsage: placesUsageRepo,
+    });
+  }
+
+  // Values the log ring buffer must scrub if they ever appear in a message.
+  // Registered here because logger.ts cannot import config.ts.
+  registerRedactedSecrets([
+    config.databaseUrl,
+    config.vapid?.privateKey,
+    config.googleMapsApiKey,
+    config.googleMapsEmbedKey,
+    config.telemetrySalt,
+    config.adminSessionSecret,
+    config.adminPasswordHash,
+    config.adminToken,
+  ]);
+
   // Operator dashboard. Built only when a password hash is configured, so an
   // unconfigured deploy exposes nothing (and doesn't advertise the surface).
   const adminRouter = config.adminEnabled
@@ -203,6 +250,9 @@ async function main(): Promise<void> {
           telemetryEnabled: config.telemetryEnabled,
         },
         applyMonthlyCap: (cap) => placesGovernor?.setMonthlyCap(cap),
+        telemetryConfigured: config.telemetryEnabled,
+        precisionDeg: config.telemetryPrecisionDeg,
+        retentionDays: config.telemetryRetentionDays,
         serverVersion: SERVER_VERSION,
         startedAt: Date.now(),
         env: config.nodeEnv,
@@ -234,6 +284,7 @@ async function main(): Promise<void> {
     scheduler?.stop();
     cachePrune?.stop();
     communityRefresh?.stop();
+    retention?.stop();
     placesStats?.stop(); // flushes the buffered counters on the way out
     server.close(() => {
       const done = () => {

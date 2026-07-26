@@ -5,7 +5,7 @@
 // inside the swipeable TabPager (inactive ones translated off-screen + inert) so
 // the hero countdown interval and the breath timeline never reset on tab switches.
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useLocation } from "@/hooks/useLocation";
 import { useSettings } from "@/hooks/useSettings";
@@ -15,8 +15,9 @@ import { useLocalAlerts } from "@/hooks/useLocalAlerts";
 import { useNativeAlarmScheduler } from "@/hooks/useNativeAlarmScheduler";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useFirstRunPermissions } from "@/hooks/useFirstRunPermissions";
-import { isNative } from "@/lib/native";
-import { migrateRemoveSeededDefault } from "@/lib/local-alerts-store";
+import { isNative, nativePlatform } from "@/lib/native";
+import { maybeSendDailyPing } from "@/lib/telemetry";
+import { getLocalAlerts, migrateRemoveSeededDefault } from "@/lib/local-alerts-store";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useWorshipLog } from "@/hooks/useWorshipLog";
 import { useAlarm } from "@/hooks/useAlarm";
@@ -89,6 +90,39 @@ function App() {
       window.removeEventListener("keydown", unlock);
     };
   }, []);
+
+  // Anonymous daily audience ping (ADR-016). Fire-and-forget, at most once per
+  // local day, coordinates coarsened to ~1.1 km before they leave the device,
+  // and skipped entirely in dev. Runs once the location is resolved so the
+  // ping reports a real area rather than "unknown".
+  const pinged = useRef(false);
+  useEffect(() => {
+    if (pinged.current || !location.location) return;
+    pinged.current = true;
+    const loc = location.location;
+    maybeSendDailyPing({
+      platform: isNative() ? (nativePlatform() === "ios" ? "ios" : "android") : "web",
+      appVersion: __APP_VERSION__,
+      lat: loc.lat,
+      lon: loc.lon,
+      locSource: loc.source,
+      tz: loc.tz,
+      features: Object.entries(settings.features)
+        .filter(([, on]) => on)
+        .map(([name]) => name),
+      // "has set up reminders" — read straight from the store so this effect
+      // doesn't depend on hook ordering.
+      notif: getLocalAlerts().length > 0,
+      theme: settings.theme,
+      displayMode: isNative()
+        ? "native"
+        : window.matchMedia("(display-mode: standalone)").matches
+          ? "standalone"
+          : "browser",
+    });
+    // Location arriving is the trigger; settings are read as they stand then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.location]);
 
   const [tab, setTab] = useState<TabId>("home");
   const [searchOpen, setSearchOpen] = useState(false);

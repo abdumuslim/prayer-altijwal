@@ -100,6 +100,9 @@ async function start(rows: ContributionRow[], withResident = true): Promise<Harn
         placesMonthlyUnitCap: 4500,
         telemetryEnabled: false,
       },
+      telemetryConfigured: false,
+      precisionDeg: 0.01,
+      retentionDays: 180,
       flags: { placesEnabled: false, pushEnabled: false, telemetryEnabled: false },
     }),
   );
