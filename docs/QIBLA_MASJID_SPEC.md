@@ -1,3 +1,12 @@
+---
+type: Spec
+title: 'Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab'
+description: 'Two features, both living in the Times tab (المواقيت), which the user wants repurposed (''the times tab content is not much useful, so use it for qibla and nearest masjid''):'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
 > **Session 7 (2026-07-24, v2.1.2 / versionCode 7) — nearest-masjid "doesn't work" fix. BUILT (signed
@@ -285,6 +294,7 @@ throws):
 - No `GOOGLE_MAPS_API_KEY` in env → `200 { enabled: false, masjids: [] }` (+ one startup
   `log.warn`). Client hides the section.
 - Upstream: `POST https://places.googleapis.com/v1/places:searchNearby`, headers
+  <!-- okf-allow: `<key>` is a placeholder, not a value -->
   `X-Goog-Api-Key: <key>`,
   `X-Goog-FieldMask: places.id,places.displayName,places.location,places.shortFormattedAddress`,
   body `{ includedTypes: ["mosque"], maxResultCount: 10, rankPreference: "DISTANCE",

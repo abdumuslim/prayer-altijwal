@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Frontend'
+description: 'React 19 + Vite 7 + Tailwind 4 SPA. GPS-driven, bilingual (AR default, RTL-aware), live countdown, installable PWA (required for iOS push). Design reference — no code yet.'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Frontend
 
 React 19 + Vite 7 + Tailwind 4 SPA. GPS-driven, bilingual (AR default, RTL-aware), live countdown,

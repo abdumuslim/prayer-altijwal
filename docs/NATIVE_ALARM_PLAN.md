@@ -1,3 +1,12 @@
+---
+type: Spec
+title: 'Native Alarm — research & vehicle verdict'
+description: 'A real prayer alarm that rings the user''s chosen tone at the exact prayer time, full-screen, while the phone is locked and the app is fully closed — like the OS clock''s alarm — on Android and iOS, and fully offline…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Native Alarm — research & vehicle verdict
 
 > **Status: research complete → implementation spec is `NATIVE_ALARM_SPEC.md`.** This doc records

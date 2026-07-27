@@ -1,3 +1,12 @@
+---
+type: Playbook
+title: 'Decisions (ADR log)'
+description: 'Decision log for prayer.altijwal.com. Each entry: the decision, the context, why, and the consequences. These are the load-bearing choices the rest of the docs assume. One-line summaries of these live in AGENTS.md and…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Decisions (ADR log)
 
 Decision log for **prayer.altijwal.com**. Each entry: the decision, the context, why, and the

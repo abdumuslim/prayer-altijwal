@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'HTTP API (contract)'
+description: 'The JSON API served by the Node/Express backend. This is a reference contract for the design — no code exists yet. Generalizes home''s Baghdad-pinned /api/prayer-times to arbitrary location + timezone + method. All…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # HTTP API (contract)
 
 The JSON API served by the Node/Express backend. This is a **reference contract** for the design —

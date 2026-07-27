@@ -1,3 +1,12 @@
+---
+type: Spec
+title: 'Native Alarm Spec (Capacitor, offline-first) — Android first, iOS deferred'
+description: 'Ship a real prayer alarm that rings the user''s chosen tone at the exact prayer instant, full-screen over the lock screen, while the app is closed and the phone has no connectivity — like the OS clock app — by wrapping…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Native Alarm Spec (Capacitor, offline-first) — Android first, iOS deferred
 
 > **2026-07-22 — the alarm is dismissable ONLY by the deliberate swipe.** Testers kept killing it by

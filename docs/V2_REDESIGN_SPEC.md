@@ -1,3 +1,12 @@
+---
+type: Spec
+title: 'v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget'
+description: 'Transform the v1 single-screen web-style app into v2.0.0, a real mobile-app experience served by the same React client on web and in the Capacitor Android shell: a persistent 4-tab bottom navigation (home clock · times…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # v2.0.0 Redesign Spec — tabs, theme gallery, reports, a11y, widget
 
 > **Session 5 (2026-07-19) — v2.1.0 / versionCode 3, APK feedback round (see `CHANGELOG.md` +

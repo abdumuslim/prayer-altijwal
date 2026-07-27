@@ -1,3 +1,12 @@
+---
+type: Spec
+title: 'Native Alarm Fix-Round Spec (Android) — emulator-verified'
+description: 'Fix the three defects that make the built native Android app unusable, and give it the app''s own brand icon. (Bug 1 — alarms never fire: useLocalAlerts is per-component React state, so the reminder-rule editor in…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Native Alarm Fix-Round Spec (Android) — emulator-verified
 
 > **Status: IMPLEMENTED + emulator-verified (2026-07-11).** All three defects were reproduced on a

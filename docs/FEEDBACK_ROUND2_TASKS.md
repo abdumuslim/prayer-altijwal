@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Feedback Round 2 — task board (v2.1.0 · versionCode 4)'
+description: 'APK-feedback round, 2026-07-22, on feat/v2-redesign. Durable knowledge has been folded into the topic docs (links per phase); this file is the session tracker.'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Feedback Round 2 — task board (v2.1.0 · versionCode 4)
 
 APK-feedback round, **2026-07-22**, on `feat/v2-redesign`. Durable knowledge has been folded into

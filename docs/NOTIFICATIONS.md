@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Notifications (web-push)'
+description: 'Prayer reminders via the Web Push API: a notification fires ahead of (or at) each chosen prayer, even when the tab is closed. This ports home''s proven web-push mechanics and fixes its two structural weaknesses for a…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Notifications (web-push)
 
 > **2026-07-22 — there is NO default reminder rule any more.** Both seeds were removed (native

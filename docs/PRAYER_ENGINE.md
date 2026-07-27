@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Prayer Engine (reused from home)'
+description: 'The prayer-time calculation is not re-implemented here. It is the production-tested, location-agnostic prayer-engine from the home project, copied verbatim into server/src/prayer-engine/ and never edited. This doc…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Prayer Engine (reused from home)
 
 The prayer-time calculation is **not** re-implemented here. It is the production-tested,

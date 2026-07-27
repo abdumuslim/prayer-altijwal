@@ -1,0 +1,5 @@
+# okf_lint exclusions for the prayer docs bundle.
+# Gitignore-style patterns, relative to the REPO ROOT (not to docs/).
+
+# LOCAL-ONLY, gitignored: contains VPS credentials by design.
+docs/OPERATIONS.md

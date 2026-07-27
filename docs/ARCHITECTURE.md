@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Architecture'
+description: 'System design for prayer.altijwal.com — a public, GPS-based Islamic prayer-times webapp. Sibling of D:\dev\home, deployed on the same VPS, reusing home''s prayer-engine. This is a design document (no code exists yet);…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Architecture
 
 System design for **prayer.altijwal.com** — a public, GPS-based Islamic prayer-times webapp.

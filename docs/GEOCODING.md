@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Geocoding & location resolution'
+description: 'How the app turns a GPS fix (or a typed city) into the four things the engine + UI need: IANA timezone (anchor the civil day + format), country (pick the method), display city name, and elevation. Design reference — no…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Geocoding & location resolution
 
 How the app turns a GPS fix (or a typed city) into the four things the engine + UI need:

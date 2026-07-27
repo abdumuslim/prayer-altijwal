@@ -1,3 +1,12 @@
+---
+type: Runbook
+title: 'Play Release Assets Design'
+description: 'Complete the Google Play setup for com.altijwal.prayer using the existing app, brand artwork, and real Android UI. Do not redesign the product or introduce mock app screens.'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Play Release Assets Design
 
 ## Goal
