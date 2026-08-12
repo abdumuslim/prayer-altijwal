@@ -221,8 +221,10 @@ create databases, pre-create `prayer` and let the app run migrations only.
 #    `build:masjids` are never run on the VPS) and together they are ~90% of the bytes —
 #    android/ alone carries the built APKs/AABs plus the gradle cache. Without these two
 #    the tarball is 160 MB; with them, 35 MB.
+#    docs/refs is also excluded (2026-08-12): it now carries the full-year Waqf poster
+#    archive (~75 MB of JPGs) — reference material only, never read by the server.
 tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=dist-admin \
-  --exclude=.git --exclude=docs/OPERATIONS.md \
+  --exclude=.git --exclude=docs/OPERATIONS.md --exclude=docs/refs \
   --exclude=client/android --exclude=server/data/_raw \
   server client Dockerfile docker-compose.yml .env.example docs
 
