@@ -14,12 +14,15 @@ import {
   type ExactTable,
   type GovCalibration,
   type IraqCalibration,
+  type NoRecycleTable,
   type RawCalibration,
 } from "../../../server/src/prayer/iraq-calibration-core.js";
 import type { TimeName } from "../../../server/src/prayer-engine/index.js";
 
 const GOVS: readonly GovCalibration[] = mapRawGovs(calibrationJson as unknown as RawCalibration);
-const EXACT: ExactTable = (exactJson as unknown as { govs: ExactTable }).govs;
+const EXACT_JSON = exactJson as unknown as { govs: ExactTable; noRecycle?: NoRecycleTable };
+const EXACT: ExactTable = EXACT_JSON.govs;
+const NO_RECYCLE: NoRecycleTable = EXACT_JSON.noRecycle ?? {};
 
 export function iraqCalibration(lat: number, lon: number): IraqCalibration | null {
   return iraqCalibrationFrom(GOVS, lat, lon);
@@ -30,7 +33,7 @@ export function iraqExactTimes(
   lon: number,
   isoDate: string,
 ): Partial<Record<TimeName, string>> | null {
-  return iraqExactTimesFrom(GOVS, EXACT, lat, lon, isoDate);
+  return iraqExactTimesFrom(GOVS, EXACT, lat, lon, isoDate, NO_RECYCLE);
 }
 
 export { baghdadInstant };

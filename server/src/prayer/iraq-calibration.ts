@@ -33,6 +33,7 @@ import {
   type ExactTable,
   type GovCalibration,
   type IraqCalibration,
+  type NoRecycleTable,
   type RawCalibration,
 } from "./iraq-calibration-core.js";
 import type { TimeName } from "../prayer-engine/index.js";
@@ -48,10 +49,17 @@ function dataPath(file: string): string {
 const GOVS: readonly GovCalibration[] = mapRawGovs(
   JSON.parse(readFileSync(dataPath("iraq-waqf-calibration.json"), "utf8")) as RawCalibration,
 );
-const EXACT: ExactTable = (
-  JSON.parse(readFileSync(dataPath("waqf-exact.json"), "utf8")) as { govs: ExactTable }
-).govs;
-log.info("loaded Iraqi Waqf calibration", { govs: GOVS.length, exactGovs: Object.keys(EXACT).length });
+const EXACT_JSON = JSON.parse(readFileSync(dataPath("waqf-exact.json"), "utf8")) as {
+  govs: ExactTable;
+  noRecycle?: NoRecycleTable;
+};
+const EXACT: ExactTable = EXACT_JSON.govs;
+const NO_RECYCLE: NoRecycleTable = EXACT_JSON.noRecycle ?? {};
+log.info("loaded Iraqi Waqf calibration", {
+  govs: GOVS.length,
+  exactGovs: Object.keys(EXACT).length,
+  noRecycleGovs: Object.keys(NO_RECYCLE).length,
+});
 
 /** Per-(gov,prayer) calibrated offsets + rounding for the nearest Iraqi governorate. */
 export function iraqCalibration(lat: number, lon: number): IraqCalibration | null {
@@ -64,7 +72,7 @@ export function iraqExactTimes(
   lon: number,
   isoDate: string,
 ): Partial<Record<TimeName, string>> | null {
-  return iraqExactTimesFrom(GOVS, EXACT, lat, lon, isoDate);
+  return iraqExactTimesFrom(GOVS, EXACT, lat, lon, isoDate, NO_RECYCLE);
 }
 
 export { baghdadInstant };

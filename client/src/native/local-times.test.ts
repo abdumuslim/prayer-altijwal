@@ -43,12 +43,14 @@ interface Gov {
 }
 
 // A spread of the digitized 2026-06-19 poster: the anchor + low/high elevation +
-// north/south latitude, transcribed from the official Waqf table.
+// north/south latitude, from the official Waqf table (re-verified 2026-08-12 at
+// 6–10x zoom — Basra maghrib, Mosul fajr, Kirkuk fajr/sunrise were transcription
+// errors; matches iraq-governorates.test.ts and the adjudicated waqf-exact.json).
 const GOVS: Gov[] = [
   { name: "Baghdad", lat: 33.34058, lon: 44.40088, ele: 41, poster: ["03:10", "04:52", "12:09", "15:51", "19:18", "20:51"] },
-  { name: "Basra", lat: 30.5085, lon: 47.7804, ele: 4, poster: ["03:09", "04:46", "11:55", "15:30", "18:57", "20:25"] },
-  { name: "Mosul", lat: 36.345, lon: 43.145, ele: 228, poster: ["02:58", "04:47", "12:14", "16:03", "19:33", "21:11"] },
-  { name: "Kirkuk", lat: 35.4681, lon: 44.3922, ele: 346, poster: ["02:58", "04:46", "12:09", "15:56", "19:26", "21:02"] },
+  { name: "Basra", lat: 30.5085, lon: 47.7804, ele: 4, poster: ["03:09", "04:46", "11:55", "15:30", "18:56", "20:25"] },
+  { name: "Mosul", lat: 36.345, lon: 43.145, ele: 228, poster: ["02:59", "04:47", "12:14", "16:03", "19:33", "21:11"] },
+  { name: "Kirkuk", lat: 35.4681, lon: 44.3922, ele: 346, poster: ["02:59", "04:43", "12:09", "15:56", "19:26", "21:02"] },
 ];
 
 function loc(gov: Gov): StoredLocation {

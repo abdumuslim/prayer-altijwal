@@ -36,7 +36,7 @@
       },
       "rules": {
         "fajr": "nearest",
-        "sunrise": "down",
+        "sunrise": "nearest",
         "dhuhr": "nearest",
         "asr": "nearest",
         "maghrib": "nearest",
@@ -80,7 +80,7 @@
         "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "up",
+        "asr": "nearest",
         "maghrib": "nearest",
         "isha": "nearest"
       }
@@ -92,17 +92,17 @@
       "offsets": {
         "fajr": 0,
         "sunrise": 0,
-        "dhuhr": 6,
+        "dhuhr": 5,
         "asr": 4,
         "maghrib": 3,
         "isha": 1
       },
       "rules": {
-        "fajr": "nearest",
+        "fajr": "up",
         "sunrise": "nearest",
-        "dhuhr": "down",
+        "dhuhr": "up",
         "asr": "down",
-        "maghrib": "nearest",
+        "maghrib": "down",
         "isha": "down"
       }
     },
@@ -112,17 +112,17 @@
       "lon": 45.2944,
       "offsets": {
         "fajr": 0,
-        "sunrise": 1,
+        "sunrise": 0,
         "dhuhr": 5,
-        "asr": 4,
+        "asr": 3,
         "maghrib": 2,
         "isha": 0
       },
       "rules": {
         "fajr": "nearest",
-        "sunrise": "down",
+        "sunrise": "up",
         "dhuhr": "nearest",
-        "asr": "down",
+        "asr": "up",
         "maghrib": "nearest",
         "isha": "nearest"
       }
@@ -140,11 +140,11 @@
         "isha": 0
       },
       "rules": {
-        "fajr": "down",
+        "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
         "asr": "nearest",
-        "maghrib": "nearest",
+        "maghrib": "down",
         "isha": "nearest"
       }
     },
@@ -156,17 +156,17 @@
         "fajr": 0,
         "sunrise": 0,
         "dhuhr": 5,
-        "asr": 4,
+        "asr": 3,
         "maghrib": 2,
-        "isha": 1
+        "isha": 0
       },
       "rules": {
         "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "down",
+        "asr": "up",
         "maghrib": "nearest",
-        "isha": "down"
+        "isha": "nearest"
       }
     },
     {
@@ -198,15 +198,15 @@
         "fajr": 0,
         "sunrise": 0,
         "dhuhr": 5,
-        "asr": 4,
+        "asr": 3,
         "maghrib": 2,
         "isha": 0
       },
       "rules": {
-        "fajr": "down",
+        "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "down",
+        "asr": "nearest",
         "maghrib": "nearest",
         "isha": "nearest"
       }
@@ -219,7 +219,7 @@
         "fajr": 0,
         "sunrise": 0,
         "dhuhr": 5,
-        "asr": 4,
+        "asr": 3,
         "maghrib": 2,
         "isha": 0
       },
@@ -227,7 +227,7 @@
         "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "down",
+        "asr": "nearest",
         "maghrib": "nearest",
         "isha": "nearest"
       }
@@ -245,7 +245,7 @@
         "isha": 0
       },
       "rules": {
-        "fajr": "down",
+        "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
         "asr": "nearest",
@@ -270,7 +270,7 @@
         "sunrise": "nearest",
         "dhuhr": "nearest",
         "asr": "up",
-        "maghrib": "up",
+        "maghrib": "nearest",
         "isha": "nearest"
       }
     },
@@ -290,7 +290,7 @@
         "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "up",
+        "asr": "nearest",
         "maghrib": "nearest",
         "isha": "nearest"
       }
@@ -303,16 +303,16 @@
         "fajr": 0,
         "sunrise": 0,
         "dhuhr": 5,
-        "asr": 4,
-        "maghrib": 3,
+        "asr": 3,
+        "maghrib": 2,
         "isha": 0
       },
       "rules": {
         "fajr": "nearest",
         "sunrise": "nearest",
         "dhuhr": "nearest",
-        "asr": "down",
-        "maghrib": "down",
+        "asr": "up",
+        "maghrib": "nearest",
         "isha": "nearest"
       }
     }

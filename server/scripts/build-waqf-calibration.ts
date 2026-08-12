@@ -101,6 +101,23 @@ function toMinute(prayer: Prayer, hhmm: string): number {
   return h * 60 + m; // fajr/sunrise (am), dhuhr (~noon)
 }
 
+/**
+ * The full-year archive is already 24h "HH:MM": parse directly, no 12h heuristic.
+ * Strict — a malformed overlay correction or archive cell must fail loudly rather
+ * than become NaN and silently poison the fit.
+ */
+const HHMM24 = /^([01]\d|2[0-3]):([0-5]\d)$/;
+function parse24(hhmm: string): number {
+  const mt = HHMM24.exec(hhmm);
+  if (!mt) throw new Error(`parse24: malformed 24h HH:MM "${hhmm}"`);
+  return Number(mt[1]) * 60 + Number(mt[2]);
+}
+
+/** Minutes-of-day back to "HH:MM" (24h) for readable diagnostics. */
+function minToHHMM(mins: number): string {
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+}
+
 /** Raw seconds-of-day in Baghdad (fixed UTC+3) for an instant. */
 function secondsOfDay(instant: Date): number {
   const map: Record<string, string> = {};
@@ -136,6 +153,17 @@ function rawForGov(geo: Geo, iso: string): Raw {
   };
 }
 
+/** Cached engine RAW times per (gov,iso) — shared across the old + archive corpora. */
+function cachedRaw(cache: Map<string, Raw>, gov: string, iso: string): Raw {
+  const key = `${gov}|${iso}`;
+  let raw = cache.get(key);
+  if (!raw) {
+    raw = rawForGov(GOV[gov], iso);
+    cache.set(key, raw);
+  }
+  return raw;
+}
+
 function predictMinute(rawSec: number, offsetMin: number, rule: Rule): number {
   const minutes = rawSec / 60 + offsetMin;
   if (rule === "down") return Math.floor(minutes);
@@ -155,23 +183,25 @@ function loadWaqfFile(name: string): WaqfDay[] {
 // Official poster for 19 June 2026 (24h), transcribed from iraq-governorates.test.ts.
 const POSTER_0619: Record<string, [string, string, string, string, string, string]> = {
   Baghdad: ["03:10", "04:52", "12:09", "15:51", "19:18", "20:51"],
-  Basra: ["03:09", "04:46", "11:55", "15:30", "18:57", "20:25"],
+  Basra: ["03:09", "04:46", "11:55", "15:30", "18:56", "20:25"],
   Hillah: ["03:14", "04:54", "12:09", "15:48", "19:15", "20:47"],
   Diwaniyah: ["03:14", "04:54", "12:07", "15:45", "19:12", "20:43"],
-  Ramadi: ["03:14", "04:56", "12:14", "15:55", "19:23", "20:56"],
-  Samawah: ["03:17", "04:54", "12:05", "15:42", "19:08", "20:39"],
+  Ramadi: ["03:14", "04:56", "12:14", "15:56", "19:23", "20:56"],
+  Samawah: ["03:16", "04:54", "12:05", "15:42", "19:08", "20:39"],
   Amarah: ["03:06", "04:45", "11:58", "15:36", "19:02", "20:33"],
   Fallujah: ["03:12", "04:54", "12:11", "15:53", "19:20", "20:54"],
   Kut: ["03:08", "04:49", "12:03", "15:43", "19:10", "20:42"],
-  Mosul: ["02:58", "04:47", "12:14", "16:03", "19:33", "21:11"],
-  Nasiriyah: ["03:12", "04:50", "12:01", "15:38", "19:04", "20:34"],
-  Baqubah: ["03:07", "04:50", "12:08", "15:50", "19:18", "20:52"],
-  Tikrit: ["03:06", "04:51", "12:12", "15:57", "19:25", "21:00"],
-  Samarra: ["03:08", "04:52", "12:11", "15:55", "19:23", "20:57"],
-  Kirkuk: ["02:58", "04:46", "12:09", "15:56", "19:26", "21:02"],
+  Mosul: ["02:59", "04:47", "12:14", "16:03", "19:33", "21:11"],
+  Nasiriyah: ["03:13", "04:51", "12:01", "15:38", "19:04", "20:34"],
+  Baqubah: ["03:07", "04:50", "12:08", "15:51", "19:18", "20:52"],
+  Tikrit: ["03:06", "04:50", "12:12", "15:57", "19:25", "21:00"],
+  Samarra: ["03:08", "04:51", "12:11", "15:55", "19:23", "20:57"],
+  Kirkuk: ["02:59", "04:43", "12:09", "15:56", "19:26", "21:02"],
 };
+const POSTER_0619_ISO = "2026-06-19"; // the poster above is fixed at source, not via oldCorpusCorrections
 
-function buildRows(): Row[] {
+/** The original hand-transcribed corpus (12h _waqf_*.json + the 19-June poster). */
+function buildOldRows(cache: Map<string, Raw>): Row[] {
   const days: WaqfDay[] = [
     ...loadWaqfFile("_waqf_dec.json"),
     ...loadWaqfFile("_waqf_jan.json"),
@@ -190,15 +220,12 @@ function buildRows(): Row[] {
   ];
 
   const rows: Row[] = [];
-  const rawCache = new Map<string, Raw>();
   for (const day of days) {
     const iso = gregToIso(day.gregorian_date);
     for (const [rawName, times] of Object.entries(day.locations)) {
       const gov = canonGov(rawName);
       if (!gov) continue;
-      const key = `${gov}|${iso}`;
-      let raw = rawCache.get(key);
-      if (!raw) { raw = rawForGov(GOV[gov], iso); rawCache.set(key, raw); }
+      const raw = cachedRaw(cache, gov, iso);
       for (const prayer of PRAYERS) {
         const cap = (prayer[0].toUpperCase() + prayer.slice(1)) as keyof typeof times;
         const v = times[cap as string];
@@ -208,6 +235,193 @@ function buildRows(): Row[] {
     }
   }
   return rows;
+}
+
+// ---- full-year OCR archive + adjudications overlay ---------------------
+// A 366-day OCR archive (waqf-times-*.json) with per-date provenance. We ingest
+// only the two GENUINELY-OFFICIAL provenances (facebook_current_period keyed at
+// the date itself; facebook_previous_year keyed at the year it was actually
+// printed for) — the generated_* rows are formula output and would be circular as
+// ground truth, so they are skipped. An image-verified adjudications overlay
+// (waqf-archive-adjudications.json) drops whole misprinted dates and corrects
+// single OCR cells before ingestion.
+
+const ARCHIVE_FILE = "waqf-times-2025-08-11-to-2026-08-11.json";
+const ADJUDICATIONS_FILE = "waqf-archive-adjudications.json";
+
+interface ArchiveSource {
+  source_type:
+    | "facebook_current_period"
+    | "facebook_previous_year"
+    | "generated_calibrated_formula"
+    | "generated_official_exact";
+  /** The Gregorian date the poster was actually printed for (== date for offset 0). */
+  source_card_date: string;
+  source_year_offset: number;
+}
+interface Archive {
+  /** gov → ISO date → prayer → "HH:MM" (24h). */
+  govs: Record<string, Record<string, Record<string, string>>>;
+  /** ISO date → provenance. */
+  sources: Record<string, ArchiveSource>;
+}
+interface Adjudications {
+  excludedDates: Array<{ date: string; reason: string }>;
+  corrections: Array<{ date: string; gov: string; prayer: string; value: string; basis: string }>;
+  /** Single poster-misprinted cells with no trustworthy value: drop them so the
+   *  calibrated formula (not a verbatim/corrected value) serves that cell. */
+  excludedCells: Array<{ date: string; gov: string; prayer: string; reason: string }>;
+  /** Re-verified 24h values that replace a transcription error in the OLD
+   *  _waqf_*.json corpus (the 19-June poster is fixed in POSTER_0619 instead). */
+  oldCorpusCorrections: Array<{ date: string; gov: string; prayer: string; value: string; basis: string }>;
+}
+
+interface OverlayCounts {
+  excludedDates: Set<string>;
+  /** Canonicalized `${gov}|${date}|${prayer}` for every excluded cell. */
+  excludedCellKeys: Set<string>;
+  corrections: number;
+  excludedCells: number;
+}
+
+function loadJson<T>(name: string): T {
+  return JSON.parse(readFileSync(resolve(HERE, "../data", name), "utf8")) as T;
+}
+
+const PRAYER_SET = new Set<string>(PRAYERS);
+/** Fail closed on a typo'd prayer field in the overlay. */
+function assertPrayer(prayer: string, ctx: string): void {
+  if (!PRAYER_SET.has(prayer)) {
+    throw new Error(`adjudications: invalid prayer "${prayer}" in ${ctx} (expected one of ${PRAYERS.join(", ")})`);
+  }
+}
+
+/**
+ * Apply the adjudications overlay to the archive in place: collect the excluded
+ * dates, patch corrected cells, then drop excluded cells (so they contribute
+ * neither to the fit nor to waqf-exact.json → the formula serves them). Config
+ * errors throw: a correction/excluded-cell for an excluded date, an unknown gov,
+ * a non-archive date, or the same (date,gov,prayer) both corrected and excluded.
+ */
+function applyOverlay(archive: Archive, adj: Adjudications): OverlayCounts {
+  const excludedDates = new Set(adj.excludedDates.map((e) => e.date));
+  const correctedKeys = new Set<string>();
+  for (const c of adj.corrections) {
+    assertPrayer(c.prayer, `correction ${c.date} ${c.gov}`);
+    const gov = canonGov(c.gov);
+    if (!gov) throw new Error(`adjudications: unknown gov "${c.gov}" in correction ${c.date}`);
+    const key = `${gov}|${c.date}|${c.prayer}`;
+    if (correctedKeys.has(key)) throw new Error(`adjudications: duplicate correction ${c.date} ${gov} ${c.prayer} — config error`);
+    if (excludedDates.has(c.date)) {
+      throw new Error(`adjudications: correction for excluded date ${c.date} (${gov} ${c.prayer}) — config error`);
+    }
+    const cell = archive.govs[gov]?.[c.date];
+    if (!cell) throw new Error(`adjudications: correction date ${c.date} not in archive for ${gov}`);
+    cell[c.prayer] = c.value;
+    correctedKeys.add(key);
+  }
+  const excludedCellKeys = new Set<string>();
+  for (const ec of adj.excludedCells) {
+    assertPrayer(ec.prayer, `excluded cell ${ec.date} ${ec.gov}`);
+    const gov = canonGov(ec.gov);
+    if (!gov) throw new Error(`adjudications: unknown gov "${ec.gov}" in excluded cell ${ec.date}`);
+    const key = `${gov}|${ec.date}|${ec.prayer}`;
+    if (excludedCellKeys.has(key)) throw new Error(`adjudications: duplicate excluded cell ${ec.date} ${gov} ${ec.prayer} — config error`);
+    if (excludedDates.has(ec.date)) {
+      throw new Error(`adjudications: excluded cell for already-excluded date ${ec.date} (${gov} ${ec.prayer}) — redundant, config error`);
+    }
+    if (correctedKeys.has(key)) {
+      throw new Error(`adjudications: ${ec.date} ${gov} ${ec.prayer} is both corrected and cell-excluded — config error`);
+    }
+    const cell = archive.govs[gov]?.[ec.date];
+    if (!cell) throw new Error(`adjudications: excluded-cell date ${ec.date} not in archive for ${gov}`);
+    if (!(ec.prayer in cell)) {
+      throw new Error(`adjudications: excluded cell ${ec.date} ${gov} ${ec.prayer} removes nothing (prayer absent) — config error`);
+    }
+    delete cell[ec.prayer];
+    excludedCellKeys.add(key);
+  }
+  return { excludedDates, excludedCellKeys, corrections: adj.corrections.length, excludedCells: adj.excludedCells.length };
+}
+
+/**
+ * Apply re-verified old-corpus corrections to the assembled OLD rows in place,
+ * matching by (gov, iso, prayer) and replacing `official` with the strict-parsed
+ * 24h value. Config errors throw: an invalid prayer, a duplicate (date,gov,prayer),
+ * a 2026-06-19 target (fix POSTER_0619 instead), an unknown gov, a (date,gov,prayer)
+ * that is also excluded (date or cell), or one that matches no old-corpus row.
+ */
+function applyOldCorpusCorrections(oldRows: Row[], adj: Adjudications, overlay: OverlayCounts): number {
+  const seen = new Set<string>();
+  for (const oc of adj.oldCorpusCorrections) {
+    assertPrayer(oc.prayer, `oldCorpusCorrection ${oc.date} ${oc.gov}`);
+    if (oc.date === POSTER_0619_ISO) {
+      throw new Error(`oldCorpusCorrections: ${oc.date} is the 19-June poster — fix POSTER_0619 at source, not here`);
+    }
+    const gov = canonGov(oc.gov);
+    if (!gov) throw new Error(`oldCorpusCorrections: unknown gov "${oc.gov}" in ${oc.date}`);
+    const key = `${gov}|${oc.date}|${oc.prayer}`;
+    if (seen.has(key)) throw new Error(`oldCorpusCorrections: duplicate ${oc.date} ${gov} ${oc.prayer} — config error`);
+    seen.add(key);
+    if (overlay.excludedDates.has(oc.date)) {
+      throw new Error(`oldCorpusCorrections: ${oc.date} is an excluded date — cannot also correct it (config error)`);
+    }
+    if (overlay.excludedCellKeys.has(key)) {
+      throw new Error(`oldCorpusCorrections: ${oc.date} ${gov} ${oc.prayer} is also a cell-exclusion — config error`);
+    }
+    const row = oldRows.find((r) => r.gov === gov && r.iso === oc.date && r.prayer === oc.prayer);
+    if (!row) throw new Error(`oldCorpusCorrections: ${oc.date} ${gov} ${oc.prayer} matches no old-corpus row`);
+    row.official = parse24(oc.value);
+  }
+  return adj.oldCorpusCorrections.length;
+}
+
+/** Archive rows for the two official provenances; generated_* rows are skipped. */
+function buildArchiveRows(cache: Map<string, Raw>, archive: Archive, excluded: Set<string>): Row[] {
+  const rows: Row[] = [];
+  for (const [date, meta] of Object.entries(archive.sources)) {
+    if (excluded.has(date)) continue;
+    let iso: string;
+    if (meta.source_type === "facebook_current_period") iso = date;
+    else if (meta.source_type === "facebook_previous_year") iso = meta.source_card_date;
+    else continue; // generated_* → formula output; circular as ground truth
+    for (const gov of GOV_NAMES) {
+      const times = archive.govs[gov]?.[date];
+      if (!times) continue;
+      const raw = cachedRaw(cache, gov, iso);
+      for (const prayer of PRAYERS) {
+        const v = times[prayer];
+        if (!v) continue;
+        rows.push({ gov, iso, prayer, official: parse24(v), rawSec: raw.sec[prayer], dec: raw.dec });
+      }
+    }
+  }
+  return rows;
+}
+
+interface Conflict { iso: string; gov: string; prayer: Prayer; old: number; archive: number }
+
+/**
+ * Merge the old corpus with the archive, deduped by (gov, iso, prayer). The
+ * archive value wins (native-resolution verified); a differing old-corpus value
+ * that gets dropped is recorded as a conflict so it is never silently hidden.
+ */
+function mergeCorpus(oldRows: Row[], archiveRows: Row[]): { rows: Row[]; conflicts: Conflict[] } {
+  const byKey = new Map<string, Row>();
+  for (const r of archiveRows) byKey.set(`${r.gov}|${r.iso}|${r.prayer}`, r);
+  const conflicts: Conflict[] = [];
+  for (const r of oldRows) {
+    const key = `${r.gov}|${r.iso}|${r.prayer}`;
+    const winner = byKey.get(key);
+    if (winner) {
+      if (winner.official !== r.official) {
+        conflicts.push({ iso: r.iso, gov: r.gov, prayer: r.prayer, old: r.official, archive: winner.official });
+      }
+    } else {
+      byKey.set(key, r);
+    }
+  }
+  return { rows: [...byKey.values()], conflicts };
 }
 
 // ---- fitting ------------------------------------------------------------
@@ -241,10 +455,62 @@ function pct(n: number, d: number): string {
 }
 
 function main(): void {
-  const rows = buildRows();
+  const rawCache = new Map<string, Raw>();
+  const archive = loadJson<Archive>(ARCHIVE_FILE);
+  const adj = loadJson<Adjudications>(ADJUDICATIONS_FILE);
+  const overlay = applyOverlay(archive, adj);
+
+  const oldRows = buildOldRows(rawCache);
+  const oldCorrections = applyOldCorpusCorrections(oldRows, adj, overlay);
+  const archiveRows = buildArchiveRows(rawCache, archive, overlay.excludedDates);
+  const { rows: mergedRows, conflicts } = mergeCorpus(oldRows, archiveRows);
+
+  // Exclusion safety net over BOTH corpora: the archive-side deletion (applyOverlay)
+  // already drops archive rows, but an OLD-corpus row keyed at the same true date
+  // would refill that hole after mergeCorpus (e.g. the June _waqf_gap transcription
+  // of a defective poster). Old rows are keyed at their real date — exactly how the
+  // overlay references them. Enforced invariant (Codex #3): a prev-year archive row
+  // is re-keyed to its `source_card_date`, so an excluded prev-year date/cell is ALSO
+  // mirrored to that source date here, in case the old corpus holds a row at it.
+  // Expect 0 dropped until the overlay lists an old-corpus date/cell.
+  const srcCardOf = (date: string): string | undefined => {
+    const m = archive.sources[date];
+    return m?.source_type === "facebook_previous_year" ? m.source_card_date : undefined;
+  };
+  const excludedDateFilter = new Set(overlay.excludedDates);
+  for (const d of overlay.excludedDates) { const s = srcCardOf(d); if (s) excludedDateFilter.add(s); }
+  const excludedCellFilter = new Set(overlay.excludedCellKeys);
+  for (const ec of adj.excludedCells) {
+    const s = srcCardOf(ec.date);
+    if (s) excludedCellFilter.add(`${canonGov(ec.gov)}|${s}|${ec.prayer}`);
+  }
+  const rows = mergedRows.filter(
+    (r) => !excludedDateFilter.has(r.iso) && !excludedCellFilter.has(`${r.gov}|${r.iso}|${r.prayer}`),
+  );
+  const droppedByFilter = mergedRows.length - rows.length;
   const dates = [...new Set(rows.map((r) => r.iso))].sort();
-  console.log(`Loaded ${rows.length} (gov,date,prayer) rows · ${dates.length} dates · ${GOV_NAMES.length} govs`);
+
+  const provCount = { current: 0, prevYear: 0, generated: 0 };
+  for (const meta of Object.values(archive.sources)) {
+    if (meta.source_type === "facebook_current_period") provCount.current++;
+    else if (meta.source_type === "facebook_previous_year") provCount.prevYear++;
+    else provCount.generated++;
+  }
+  console.log(`Archive: current-period ${provCount.current} · prev-year ${provCount.prevYear} (re-keyed to print year) · generated ${provCount.generated} skipped`);
+  console.log(`overlay: ${overlay.excludedDates.size} dates excluded, ${overlay.corrections} cells corrected, ${overlay.excludedCells} cells excluded, ${oldCorrections} old-corpus cells corrected`);
+  console.log(`Corpus: ${oldRows.length} old-corpus rows + ${archiveRows.length} archive rows → ${mergedRows.length} merged (− ${droppedByFilter} excluded both-corpora → ${rows.length}) · ${dates.length} dates · ${GOV_NAMES.length} govs`);
   console.log(`Dates: ${dates.join(", ")}\n`);
+
+  console.log(`=== old-vs-archive conflicts (${conflicts.length}) — archive (native-res) wins ===`);
+  const sortedConflicts = [...conflicts].sort(
+    (a, b) => a.iso.localeCompare(b.iso) || a.gov.localeCompare(b.gov) || PRAYERS.indexOf(a.prayer) - PRAYERS.indexOf(b.prayer),
+  );
+  console.log(
+    sortedConflicts.length
+      ? sortedConflicts.map((c) => `  ${c.iso} ${c.gov.padEnd(10)} ${c.prayer.padEnd(8)} old=${minToHHMM(c.old)} archive=${minToHHMM(c.archive)}`).join("\n")
+      : "  none",
+  );
+  console.log("");
 
   // ---- (1) baseline: current flat offsets ------------------------------
   const baseOff: Record<Prayer, number> = { fajr: 0, sunrise: 0, dhuhr: 5, asr: 3, maghrib: 2, isha: 0 };
@@ -333,6 +599,30 @@ function main(): void {
   }
   console.log(out.length ? out.join("\n") : "  none");
 
+  // (2d) post-fit anomalies under the FINAL full fit (the deployed per-gov
+  // table): every row with |official − prediction| ≥ 3 — likely poster typos or
+  // missed OCR errors. Report-only; NOT auto-dropped (the adjudications overlay
+  // is the human-verified place to exclude/correct these).
+  // The same set becomes the `noRecycle` map in waqf-exact.json: these ≥3-min
+  // cells are served verbatim on their own date but skipped by the recycle fallback.
+  console.log("\n=== (2d) post-fit anomalies (|official − prediction| ≥ 3, final full fit) — report-only + noRecycle ===");
+  const anomalies: string[] = [];
+  const noRecycle: Record<string, Record<string, string[]>> = {};
+  for (const [k, gr] of byGP) {
+    const [gov, prayer] = k.split("|") as [string, Prayer];
+    const fit = bestConstant(gr);
+    for (const r of gr) {
+      const pred = predictMinute(r.rawSec, fit.offset, fit.rule);
+      const d = pred - r.official;
+      if (Math.abs(d) >= 3) {
+        anomalies.push(`  ${r.iso} ${gov.padEnd(10)} ${prayer.padEnd(8)} official=${minToHHMM(r.official)} pred=${minToHHMM(pred)} (${d > 0 ? "+" : ""}${d})`);
+        ((noRecycle[gov] ??= {})[r.iso] ??= []).push(prayer);
+      }
+    }
+  }
+  console.log(anomalies.length ? anomalies.join("\n") : "  none");
+  console.log(`${anomalies.length} anomalies ≥3 min (not auto-dropped) → noRecycle`);
+
   // ---- (3) seasonal diagnostics: residual vs declination ---------------
   // For each (gov,prayer): residual = official - rawMin. Fit a+b*dec by least
   // squares; report |b| (min per degree) and how much the constant misses.
@@ -357,6 +647,20 @@ function main(): void {
   console.log("largest |slope| (min/°) — drift across full span shown in [] :");
   for (const s of slopes.slice(0, 10)) {
     console.log(`  ${s.gp.padEnd(20)} b=${s.b.toFixed(3)} min/°  [${(s.b * declSpan).toFixed(1)} min across span]  resid-σ=${s.spread.toFixed(2)}`);
+  }
+  // Explicit per-prayer verdict for maghrib + isha: worst declination-driven
+  // drift over the sampled span. With the full-year corpus this is the number
+  // that decides whether a constant offset stays the right model for these two.
+  console.log("per-prayer verdict (worst gov drift across the full span):");
+  for (const prayer of ["maghrib", "isha"] as Prayer[]) {
+    let worst = { gov: "", drift: 0, b: 0 };
+    for (const s of slopes) {
+      if (s.gp.split("|")[1] !== prayer) continue;
+      const drift = Math.abs(s.b * declSpan);
+      if (drift > worst.drift) worst = { gov: s.gp.split("|")[0], drift, b: s.b };
+    }
+    const verdict = worst.drift < 1 ? "constant OK" : worst.drift < 2 ? "marginal" : "declination term worth it";
+    console.log(`  ${prayer.padEnd(8)} max |drift| ${worst.drift.toFixed(2)} min across ${declSpan.toFixed(1)}° (worst ${worst.gov}, slope ${worst.b.toFixed(3)} min/°) → ${verdict}`);
   }
 
   // ---- EMIT committed artifacts ---------------------------------------
@@ -387,11 +691,24 @@ function main(): void {
     (exact[r.gov] ??= {})[r.iso] ??= {};
     exact[r.gov][r.iso][r.prayer] = `${String(Math.floor(r.official / 60)).padStart(2, "0")}:${String(r.official % 60).padStart(2, "0")}`;
   }
+  // Stable, sorted noRecycle map (gov → date → prayers, in canonical order).
+  const noRecycleSorted: Record<string, Record<string, string[]>> = {};
+  for (const gov of Object.keys(noRecycle).sort()) {
+    const byd: Record<string, string[]> = {};
+    for (const iso of Object.keys(noRecycle[gov]).sort()) {
+      byd[iso] = [...noRecycle[gov][iso]].sort((a, b) => PRAYERS.indexOf(a as Prayer) - PRAYERS.indexOf(b as Prayer));
+    }
+    noRecycleSorted[gov] = byd;
+  }
   writeFileSync(
     resolve(HERE, "../data/waqf-exact.json"),
-    JSON.stringify({ note: "Official ديوان الوقف السني poster numbers (24h Asia/Baghdad), served verbatim for an exact (0-min) match on digitized dates. Generated by scripts/build-waqf-calibration.ts.", govs: exact }, null, 2) + "\n",
+    JSON.stringify({
+      note: "Official ديوان الوقف السني poster numbers (24h Asia/Baghdad), served verbatim for an exact (0-min) match on digitized dates. Generated by scripts/build-waqf-calibration.ts. `noRecycle` lists (gov → date → prayers) whose printed value deviated ≥3 min from the calibrated model on THAT date (one-day print oddities): served verbatim on their own date, but skipped by the year-recycle fallback so they never propagate to future same-days.",
+      govs: exact,
+      noRecycle: noRecycleSorted,
+    }, null, 2) + "\n",
   );
-  console.log(`\nwrote data/iraq-waqf-calibration.json (${table.length} govs) + data/waqf-exact.json (${Object.keys(exact).length} govs, ${dates.length} dates)`);
+  console.log(`\nwrote data/iraq-waqf-calibration.json (${table.length} govs) + data/waqf-exact.json (${Object.keys(exact).length} govs, ${dates.length} dates, ${anomalies.length} noRecycle cells)`);
 }
 
 main();

@@ -31,6 +31,15 @@ export interface GovCalibration {
 /** gov → ISO date → prayer → "HH:MM" (24-hour Asia/Baghdad). */
 export type ExactTable = Record<string, Record<string, Record<string, string>>>;
 
+/**
+ * gov → ISO date → prayers whose printed value deviated ≥3 min from the calibrated
+ * model on THAT date (one-day print oddities kept verbatim per the ±5 policy). Such
+ * a cell is served verbatim on its OWN date but must never be propagated by the
+ * year-recycle fallback — the next year's poster prints the model-consistent value.
+ * Optional: an absent/empty map behaves exactly as before (no filtering).
+ */
+export type NoRecycleTable = Record<string, Record<string, readonly string[]>>;
+
 /** Raw on-disk shape of iraq-waqf-calibration.json (`rules` → `rounding`). */
 export interface RawCalibration {
   govs: Array<{
@@ -96,10 +105,65 @@ export function iraqCalibrationFrom(
   return { gov: near.gov.name, km: near.km, adjustments: near.gov.offsets, rounding: near.gov.rounding };
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Drop the noRecycle-flagged prayers from a (copied) cell, per source date. */
+function filterNoRecycle(
+  cell: Record<string, string>,
+  skip: readonly string[] | undefined,
+): Record<string, string> {
+  if (!skip || skip.length === 0) return cell;
+  const skipSet = new Set(skip);
+  const out: Record<string, string> = {};
+  for (const p in cell) if (!skipSet.has(p)) out[p] = cell[p];
+  return out;
+}
+
+/**
+ * Resolve a gov's exact cell for `isoDate`, recycling an earlier year's poster
+ * when the exact date is missing. The Waqf treats its table as annual — it
+ * reposted previous-year cards 41 times in the archived year — and same-Gregorian
+ * -date astronomical drift is ≤0.42 min at these latitudes, so a recycled poster
+ * value is within ±1 min of what the next year's poster prints. The exact date
+ * always wins (and is NEVER filtered); we recycle at most 3 years back so a
+ * possible method change ages out. A Feb-29 target also falls back to Feb 28 of
+ * each earlier year. A recycled hit has its source date's noRecycle prayers dropped
+ * per-prayer; if every prayer of a candidate is filtered, we keep probing earlier
+ * years. Pure/browser-safe (string math only, no Date parsing).
+ */
+function recycledCell(
+  byDate: Record<string, Record<string, string>>,
+  isoDate: string,
+  noRecycleByDate?: Record<string, readonly string[]>,
+): Record<string, string> | undefined {
+  const exactHit = byDate[isoDate];
+  if (exactHit) return exactHit; // exact-date hit: served verbatim, never filtered
+  if (!ISO_DATE.test(isoDate)) return undefined;
+  const [yStr, mm, dd] = isoDate.split("-");
+  const year = Number(yStr);
+  const isLeapDay = mm === "02" && dd === "29";
+  const candidates: string[] = [];
+  for (let back = 1; back <= 3; back++) {
+    const y = year - back;
+    candidates.push(`${y}-${mm}-${dd}`);
+    if (isLeapDay) candidates.push(`${y}-02-28`);
+  }
+  for (const cand of candidates) {
+    const raw = byDate[cand];
+    if (!raw) continue;
+    const filtered = filterNoRecycle(raw, noRecycleByDate?.[cand]);
+    if (Object.keys(filtered).length > 0) return filtered;
+    // every prayer of this candidate is noRecycle-flagged → probe an earlier year
+  }
+  return undefined;
+}
+
 /**
  * Official poster times (HH:MM, 24-hour Asia/Baghdad) for a LITERAL 0-min match,
  * when the location is at/near a governorate capital and that (gov, date) has
- * been digitized. Returns null otherwise (→ caller uses the calibrated formula).
+ * been digitized. Falls back to the same Gregorian date up to 3 years earlier
+ * (see recycledCell), filtering that source date's noRecycle prayers per-prayer.
+ * Returns null otherwise (→ caller uses the calibrated formula).
  */
 export function iraqExactTimesFrom(
   govs: readonly GovCalibration[],
@@ -107,10 +171,13 @@ export function iraqExactTimesFrom(
   lat: number,
   lon: number,
   isoDate: string,
+  noRecycle?: NoRecycleTable,
 ): Partial<Record<TimeName, string>> | null {
   const near = nearestGov(govs, lat, lon);
   if (!near || near.km > EXACT_OVERRIDE_KM) return null;
-  const cell = exact[near.gov.name]?.[isoDate];
+  const byDate = exact[near.gov.name];
+  if (!byDate) return null;
+  const cell = recycledCell(byDate, isoDate, noRecycle?.[near.gov.name]);
   if (!cell) return null;
   const out: Partial<Record<TimeName, string>> = {};
   for (const p of PRAYERS) if (cell[p]) out[p] = cell[p];

@@ -117,10 +117,12 @@ Deployment: tarball → scp → `docker compose up -d --build` on the VPS — ex
    This is the central correctness rule (`docs/ARCHITECTURE.md` §3).
 5. **The Iraqi `BaghdadYMA` profile applies to all of Iraq** (cc=IQ), not just Baghdad, with a
    **per-governorate calibration** (`prayer/iraq-calibration.ts` overrides the engine's flat
-   `+5/+3/+2` via `config`) fit to the official ديوان الوقف السني table — ~83% exact, 99.4% within ±1
-   — plus an **exact-data override** (`waqf-exact.json`) that serves digitized poster dates verbatim
-   (literal 0-min). Calibration data is **generated** by `scripts/build-waqf-calibration.ts`, never
-   hand-edited (`docs/DECISIONS.md` ADR-002, reversed; regression in `iraq-governorates.test.ts`).
+   `+5/+3/+2` via `config`) fit to the **adjudicated full-year** official ديوان الوقف السني archive
+   (overlay `waqf-archive-adjudications.json`) — **85.8% exact, 99.8% within ±1** (leave-one-out) —
+   plus an **exact-data override** (`waqf-exact.json`, 321 dates) serving digitized poster dates
+   verbatim (literal 0-min), with a **≤3-year same-date recycle** fallback for uncovered dates.
+   Calibration data is **generated** by `scripts/build-waqf-calibration.ts`, never hand-edited
+   (`docs/DECISIONS.md` ADR-002 reversed + ADR-017; regression in `iraq-governorates.test.ts`).
 6. **Traefik router names must be `prayer.*`** (never `home.*`) — a duplicate name on the shared
    Traefik silently breaks routing (`docs/DEPLOYMENT.md`).
 7. **VPS clock is UTC** — never use server-local wall-clock for prayer logic; always pass an explicit

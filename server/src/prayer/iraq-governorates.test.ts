@@ -27,7 +27,8 @@ const ORDER: TimeName[] = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"]
 // Waqf table's own rounding jitter (its sources disagree by ±1).
 const TOL: Record<TimeName, number> = {
   fajr: 2,
-  sunrise: 3, // Kirkuk (346 m): the Waqf almanac handles horizon dip slightly differently
+  sunrise: 3, // kept for now; the old "Kirkuk horizon-dip differs" rationale is obsolete
+              // (re-verified Kirkuk sunrise 04:43 matches the engine exactly — see below)
   dhuhr: 1,
   asr: 2,
   maghrib: 2,
@@ -66,7 +67,14 @@ interface Gov {
 }
 
 // Coordinates are the governorate capitals; poster values transcribed from the
-// official 19-June-2026 Waqf table.
+// official poster photo, re-verified 2026-08-12 at 6–10x zoom against the
+// byte-identical Facebook original (fb_1361459246086147.jpg, SHA-256-equal to the
+// June source photo) after eleven 1-minute transcription errors were found — incl.
+// a swapped Nasiriyah/Tikrit sunrise pair and Kirkuk sunrise 04:46→04:43. Baghdad
+// (the hero anchor) and all other cells are confirmed correct. Kirkuk's true
+// sunrise (04:43) matches the engine EXACTLY, so the old "the Waqf almanac treats
+// high-elevation horizon dip differently" rationale for the ≤3-min sunrise
+// tolerance is obsolete (the tolerance itself is kept unchanged for now).
 const BAGHDAD: Gov = {
   name: "Baghdad",
   lat: 33.34058,
@@ -76,20 +84,20 @@ const BAGHDAD: Gov = {
 };
 
 const GOVERNORATES: Gov[] = [
-  { name: "Basra", lat: 30.5085, lon: 47.7804, ele: 4, poster: ["03:09", "04:46", "11:55", "15:30", "18:57", "20:25"] },
+  { name: "Basra", lat: 30.5085, lon: 47.7804, ele: 4, poster: ["03:09", "04:46", "11:55", "15:30", "18:56", "20:25"] },
   { name: "Hilla", lat: 32.4637, lon: 44.4197, ele: 33, poster: ["03:14", "04:54", "12:09", "15:48", "19:15", "20:47"] },
   { name: "Diwaniyah", lat: 31.9928, lon: 44.9247, ele: 25, poster: ["03:14", "04:54", "12:07", "15:45", "19:12", "20:43"] },
-  { name: "Ramadi", lat: 33.4258, lon: 43.3089, ele: 53, poster: ["03:14", "04:56", "12:14", "15:55", "19:23", "20:56"] },
-  { name: "Samawah", lat: 31.3093, lon: 45.281, ele: 15, poster: ["03:17", "04:54", "12:05", "15:42", "19:08", "20:39"] },
+  { name: "Ramadi", lat: 33.4258, lon: 43.3089, ele: 53, poster: ["03:14", "04:56", "12:14", "15:56", "19:23", "20:56"] },
+  { name: "Samawah", lat: 31.3093, lon: 45.281, ele: 15, poster: ["03:16", "04:54", "12:05", "15:42", "19:08", "20:39"] },
   { name: "Amarah", lat: 31.8356, lon: 47.1446, ele: 10, poster: ["03:06", "04:45", "11:58", "15:36", "19:02", "20:33"] },
   { name: "Fallujah", lat: 33.35, lon: 43.7858, ele: 45, poster: ["03:12", "04:54", "12:11", "15:53", "19:20", "20:54"] },
   { name: "Kut", lat: 32.5126, lon: 45.8181, ele: 22, poster: ["03:08", "04:49", "12:03", "15:43", "19:10", "20:42"] },
-  { name: "Mosul", lat: 36.345, lon: 43.145, ele: 228, poster: ["02:58", "04:47", "12:14", "16:03", "19:33", "21:11"] },
-  { name: "Nasiriyah", lat: 31.054, lon: 46.257, ele: 7, poster: ["03:12", "04:50", "12:01", "15:38", "19:04", "20:34"] },
-  { name: "Baqubah", lat: 33.7506, lon: 44.6447, ele: 48, poster: ["03:07", "04:50", "12:08", "15:50", "19:18", "20:52"] },
-  { name: "Tikrit", lat: 34.61, lon: 43.68, ele: 112, poster: ["03:06", "04:51", "12:12", "15:57", "19:25", "21:00"] },
-  { name: "Samarra", lat: 34.1983, lon: 43.8742, ele: 80, poster: ["03:08", "04:52", "12:11", "15:55", "19:23", "20:57"] },
-  { name: "Kirkuk", lat: 35.4681, lon: 44.3922, ele: 346, poster: ["02:58", "04:46", "12:09", "15:56", "19:26", "21:02"] },
+  { name: "Mosul", lat: 36.345, lon: 43.145, ele: 228, poster: ["02:59", "04:47", "12:14", "16:03", "19:33", "21:11"] },
+  { name: "Nasiriyah", lat: 31.054, lon: 46.257, ele: 7, poster: ["03:13", "04:51", "12:01", "15:38", "19:04", "20:34"] },
+  { name: "Baqubah", lat: 33.7506, lon: 44.6447, ele: 48, poster: ["03:07", "04:50", "12:08", "15:51", "19:18", "20:52"] },
+  { name: "Tikrit", lat: 34.61, lon: 43.68, ele: 112, poster: ["03:06", "04:50", "12:12", "15:57", "19:25", "21:00"] },
+  { name: "Samarra", lat: 34.1983, lon: 43.8742, ele: 80, poster: ["03:08", "04:51", "12:11", "15:55", "19:23", "20:57"] },
+  { name: "Kirkuk", lat: 35.4681, lon: 44.3922, ele: 346, poster: ["02:59", "04:43", "12:09", "15:56", "19:26", "21:02"] },
 ];
 
 describe("Iraqi method is applied country-wide (ADR-002 reversed)", () => {
@@ -126,8 +134,20 @@ describe("Exact-data override reproduces the poster verbatim (literal 0-min)", (
     });
   });
 
-  it("returns null for a non-digitized date (→ calibrated formula)", () => {
-    expect(iraqExactTimes(BAGHDAD.lat, BAGHDAD.lon, "2026-06-20")).toBeNull();
+  it("returns null for a date beyond the recycled window (→ calibrated formula)", () => {
+    // The archive ends in 2026; recycle only probes 3 years back (2030/2029/2028),
+    // so a 2031 date has no exact or recycled poster → the formula path.
+    expect(iraqExactTimes(BAGHDAD.lat, BAGHDAD.lon, "2031-06-20")).toBeNull();
+  });
+
+  it("recycles the previous year's poster when the exact date is missing", () => {
+    // 2027-06-19 is not digitized; the fallback serves the 2026-06-19 poster verbatim
+    // (year-recycle end-to-end — this is how dates after the archive ends resolve).
+    const recycled = iraqExactTimes(BAGHDAD.lat, BAGHDAD.lon, "2027-06-19");
+    expect(recycled).not.toBeNull();
+    ORDER.forEach((name, i) => {
+      expect(recycled?.[name], `Baghdad ${name}`).toBe(BAGHDAD.poster[i]);
+    });
   });
 
   it.each([BAGHDAD, ...GOVERNORATES])("$name payload equals the poster exactly on the digitized date", (gov) => {

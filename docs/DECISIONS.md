@@ -530,3 +530,62 @@ which was false for web push subscriptions.
 Defensible for a non-identifying aggregate count, but it forces the Data Safety answer to "required"
 and leaves no way to honour an individual opt-out request. Revisit if that ever matters; it is a
 ~20-line change plus one Arabic string.
+
+---
+
+## ADR-017 — Full-year Waqf corpus, image-verified adjudication overlay, and year-recycle exact fallback ✅
+
+**Context (2026-08-12).** The Iraqi calibration was fit against a **35-date** exact table, and on
+dates that table missed, maghrib/isha still ran **±1–2 min** off the printed poster. The user supplied
+a **366-day OCR archive** of the official cards (`server/data/waqf-times-2025-08-11-to-2026-08-11.json`)
+plus the source poster JPGs, which makes a full-year fit and a genuine verbatim override possible —
+but only if the OCR noise and the Waqf's own print defects are handled honestly, and only if dates
+*after* the archive ends can still serve official numbers.
+
+**Decision.**
+
+1. **Provenance-filtered ingestion.** Each archive date carries a provenance. Only genuinely-official
+   rows count as ground truth: **current-period** cards (keyed at the date) and **previous-year** cards
+   (re-keyed to the date they were actually printed for). The **62 generated fill-in** rows are
+   **skipped** — using formula output as ground truth would be circular. Merged with the original
+   `_waqf_*.json` corpus + the 19-June poster → **321 verified dates × 15 govs**.
+2. **A single audited adjudication overlay** (`server/data/waqf-archive-adjudications.json`), applied
+   identically by the calibrator and the integrity-sweep `scripts/analyze-waqf-archive.ts`. The raw
+   archive and `_waqf_*.json` files **stay pristine**; the overlay is the one record of what changed —
+   **1199 archive + 23 old-corpus corrections** (three rounds of independent vision re-reads fixed the
+   OCR pass's systematic +10-minute whole-row errors) and **2 excluded dates + 117 excluded cells**.
+   Four lists (`excludedDates`, `corrections`, `excludedCells`, `oldCorpusCorrections`); exclusions are
+   suppressed from **both** corpora so a defective value cannot re-enter via the old-corpus
+   transcription of the same poster.
+3. **Serve-verbatim-within-±5 / exclude-beyond policy for print defects.** A printed value within
+   **±5 min** of the calibrated model is the official announcement and is served verbatim; **beyond
+   ±5 min** it is a Waqf print defect (wrong-day cards, out-of-season/duplicated columns, two Baghdad
+   hero misprints, truncations) and is **excluded** so the formula serves that cell.
+4. **Year-recycle exact fallback** (`iraq-calibration-core.ts`). When `waqf-exact.json` has no entry
+   for a date, the **same month-day up to 3 years back** is served verbatim (Feb-29 → Feb-28).
+   Justified because the Waqf treats its table as **annual** (it reposted previous-year cards **41
+   times** in the archived year) and same-Gregorian-date drift is **≤0.42 min**, so the recycled value
+   is within ±1 min of the next poster; a **3-year cap** ages out a possible method change. Recycled
+   values additionally skip, per-prayer, any cell whose printed value deviated ≥3 min from the model on
+   the source date (the `noRecycle` map) — a one-day print oddity is served on its own date but never
+   propagated to future years.
+
+**Why.** A full year of genuine official data lets a per-gov **constant** be validated properly rather
+than assumed; keeping the raw inputs pristine behind an audited overlay means the corrections are
+reviewable and reversible; the ±5-min policy draws a principled line between "official rounding we must
+honour" and "misprint we must not serve"; and the recycle fallback extends official coverage past the
+archive without pretending to compute new posters.
+
+**Consequences.**
+- Validated (leave-one-**date**-out over the merged corpus): **85.8 % exact, 99.8 % within ±1 min**,
+  worst per-gov ≤5 min (Baghdad ≤2); seasonal drift **0.26 min across the 46.9° span** confirms the
+  per-gov constant is the right model with full-year data.
+- Every covered date at a governorate capital serves poster numbers **verbatim**; dates within 3 years
+  of a covered same-day serve **recycled** official numbers; everything else uses the formula.
+- `waqf-exact.json` grew to **~900 KB** (321 dates × 15 govs) and is bundled into the native offline
+  chunk; the recycle function is pure/browser-safe so the native app recycles offline too.
+- The POSTER_0619 test anchor was corrected — **11** 1-minute transcription errors (re-verified at
+  6–10× zoom against the byte-identical original photo), and the two long-documented "poster typos"
+  (Basra maghrib, Amarah) were reattributed to **transcription**, not the poster.
+
+See `PRAYER_ENGINE.md` §4 for the runtime detail and the poster-regression tolerances.
