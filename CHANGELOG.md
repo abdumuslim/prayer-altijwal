@@ -5,6 +5,32 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.4.0] — 2026-08-12 (versionCode 10)
+
+### Changed
+- **Prayer times at every Iraqi governorate capital now match the official ديوان الوقف السني poster to
+  the minute across the whole year.** The app ships the full 2025-08→2026-08 official table (every cell
+  image-verified against the year's poster photos), and dates beyond it reuse the same calendar day from
+  the most recent covered year — which is the Waqf's own practice when it misses a day. This removes the
+  ±1–2-minute maghrib/isha drift on dates the old 35-date table didn't cover. Genuine misprints found in
+  ~30 official cards (wrong-day tables, shifted/duplicated columns, two Baghdad hero typos) are detected
+  and never served; eleven 1-minute transcription errors in the app's 19-June-2026 reference poster were
+  also found and fixed. Full audit trail: `server/data/waqf-archive-adjudications.json`,
+  `docs/DECISIONS.md` ADR-017.
+
+### Fixed
+- **The nearest-masjid card no longer shows a raw Google error** when opening the directions preview for
+  a masjid whose Google listing changed — the preview now always targets the masjid's coordinates.
+
+## [2.3.0] — 2026-07-26 (versionCode 9)
+
+_Retroactive entry — this release shipped without a changelog entry._
+
+### Added
+- **Anonymous daily usage ping** (rotating daily key, no identifiers or account) that powers the
+  operator dashboard's audience view, and support for a remote kill-switch so a defective release can be
+  asked to update. Detail: `docs/ADMIN_DASHBOARD.md`.
+
 ## [2.2.0] — 2026-07-25 (versionCode 8)
 
 ### Added

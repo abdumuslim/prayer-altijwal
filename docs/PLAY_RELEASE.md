@@ -38,26 +38,29 @@ timestamp: 2026-07-27
 > something structural changes. To push an update you do just this section. Everything the Console
 > asks that isn't covered here keeps its Phase-4 answer.
 
-### ⓪ What's ready for THIS release (v2.1.2)
+### ⓪ What's ready for THIS release (v2.4.0)
 
-- **Signed bundle:** `D:\keys\releases\prayer-v2.1.2-vc7.aab` — versionName **2.1.2**, versionCode
-  **7**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-07-24
+- **Signed bundle:** `D:\keys\releases\prayer-v2.4.0-vc10.aab` — versionName **2.4.0**, versionCode
+  **10**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-08-12
   (`META-INF/UPLOAD.RSA` present in the AAB); upload this file as-is.
-- **What changed:** the **«أقرب المساجد» section no longer errors on the first visit.** It waits for a
-  real GPS fix, and on a cold device (no recent fix, GNSS cold/indoors) both staged location attempts
-  could time out before one landed → a location error instead of the mosques, self-healing once any
-  fix arrived. Now it paints from the **last known position first**, falls back to a **patient coarse
-  attempt** on a cold device, and **refines silently** in the background; the mosque fetch **retries
-  once** on a transient hiccup. Diagnosed live on a tester's Samsung — **Samsung Auto Blocker was
-  investigated and ruled out** (the feature works with it ON; it only blocks wireless adb). Full
-  detail: `CHANGELOG.md` §2.1.2, `docs/QIBLA_MASJID_SPEC.md` Session 7. ⚠ **Shared client code**
-  (`lib/gps-staging.ts`, `useLocation.ts`, `NearestMasjids.tsx`) — a web redeploy (`docs/DEPLOYMENT.md`)
-  would ship the same reliability to the live site's masjid section, but it's **optional**; this Play
-  update is what fixes it for the app testers.
-- versionCode 7 > every previously uploaded code (1–6) → Play accepts it.
-- Gate before upload (all green 2026-07-24): `npm run build` · **148** client tests · **175** server
-  tests · code-review HIGH resolved + regression-tested ·
-  `findstr /m astronomy client\dist\assets\*.js` → only `api-*.js` · `META-INF/UPLOAD.RSA` in the AAB.
+- **What changed:**
+  - **Prayer times at every Iraqi governorate capital now match the official ديوان الوقف السني poster
+    to the minute across the whole year.** The app ships the full 2025-08→2026-08 official table (every
+    cell image-verified against the year's poster photos), and dates beyond it reuse the same calendar
+    day from the most recent covered year (the Waqf's own practice when it misses a day) — removing the
+    ±1–2-minute maghrib/isha drift on dates the old 35-date table didn't cover. Genuine misprints in
+    ~30 official cards (wrong-day tables, shifted/duplicated columns, two Baghdad hero typos) are
+    detected and never served; eleven 1-minute transcription errors in the 19-June-2026 reference
+    poster were also found and fixed. Audit trail: `server/data/waqf-archive-adjudications.json`,
+    `docs/DECISIONS.md` ADR-017, `CHANGELOG.md` §2.4.0.
+  - **The «أقرب المساجد» directions preview no longer shows a raw Google error** for a masjid whose
+    Google listing changed — the preview now always targets the masjid's coordinates.
+- **The web half is already deployed to prod (2026-08-12)** — this Play update ships the same fixes to
+  the app testers.
+- versionCode 10 > every previously uploaded code (1–9) → Play accepts it.
+- Gate before upload (all green 2026-08-12): `npm run build` · **177** client tests · **414** server
+  tests · `findstr /m astronomy client\dist\assets\*.js` → only `api-*.js` · `META-INF/UPLOAD.RSA` in
+  the AAB.
 
 ### ① Upload to the closed track (Play Console — your login)
 
