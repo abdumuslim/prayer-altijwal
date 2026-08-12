@@ -111,6 +111,14 @@ export function createApp(opts: CreateAppOptions): Express {
  * The dashboard is a private operator tool: deny framing, pin the CSP to
  * self-hosted assets, and send no referrer. `frame-src` allows the Google Maps
  * Embed iframe used to preview a contributed masjid's location.
+ *
+ * `img-src` additionally names **tile.openstreetmap.org** (2026-07-26): the
+ * Cost and Audience demand maps render a real Leaflet basemap
+ * (`client/admin/components/TileMap.tsx`). Tiles are plain <img> loads, which is
+ * why this is an `img-src` entry and **`connect-src` stays `'self'`** — the
+ * dashboard still cannot talk to any third-party origin. Leaflet itself is
+ * bundled, not CDN-loaded, so `script-src` stays `'self'` too. `*.tile.` covers
+ * OSM's legacy a/b/c subdomains in case the URL template is ever changed back.
  */
 function adminSecurityHeaders(_req: Request, res: Response, next: NextFunction): void {
   res.set({
@@ -119,7 +127,8 @@ function adminSecurityHeaders(_req: Request, res: Response, next: NextFunction):
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy":
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com; " +
+      "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com " +
+      "https://tile.openstreetmap.org https://*.tile.openstreetmap.org; " +
       "frame-src https://www.google.com; connect-src 'self'; base-uri 'none'; form-action 'none'",
   });
   next();

@@ -3,7 +3,8 @@ import { api } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { num, pct } from "../lib/format";
 import { Card, ErrorNote, Spinner, StatTile, cx } from "../components/ui";
-import { CategoryBars, LineSeries, ScatterMap } from "../components/charts";
+import { CategoryBars, LineSeries } from "../components/charts";
+import { TileMap } from "../components/TileMap";
 
 const RANGES = [7, 30, 90];
 
@@ -120,7 +121,7 @@ export function Audience() {
             title="Where the app is used"
             subtitle={`Each point is a ~${precisionKm} km cell, rounded on the device before it is sent. Stored ${data.retentionDays} days.`}
           >
-            <ScatterMap
+            <TileMap
               points={data.cells}
               unitLabel="install-days per cell"
               emptyLabel="No locations recorded yet."

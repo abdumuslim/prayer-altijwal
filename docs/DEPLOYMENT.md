@@ -1,3 +1,12 @@
+---
+type: Runbook
+title: 'Deployment'
+description: 'How prayer.altijwal.com is built and shipped. It deploys as a sibling of the home dashboard on the same VPS: one Docker container behind Traefik. Non-secret details only — VPS IP, SSH key, and secrets live in…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Deployment
 
 How prayer.altijwal.com is built and shipped. It deploys as a **sibling of the home dashboard** on
@@ -70,6 +79,69 @@ networks:
     external: true
 ```
 
+### Origin lockdown — Cloudflare-only access to the `prayer` router
+
+**Status: APPLIED AND VERIFIED 2026-07-26** (owner-approved).
+
+**Why.** `clientIpOf` trusts `cf-connecting-ip` / `x-forwarded-for` to identify a client, and two
+defences key off it: the admin login throttle (`ADMIN_DASHBOARD.md` §3) and the Places per-client
+quotas (ADR-014). Anyone reaching the origin IP **directly** can rotate those headers at will and
+dodge both. In-app backstops exist (global login lockout, 5000/hour telemetry cap), so this is
+defence in depth, not a hole — but the origin should not be directly reachable at all: it already
+serves only **Cloudflare origin certs**, which are invalid for any non-Cloudflare client, so
+direct access was never a supported path.
+
+**Design — scoped to the router, deliberately NOT the entrypoint.** The same Traefik
+(`/opt/rag/`) fronts **n8n and the home dashboard**. An `ipAllowList` on the shared `websecure`
+entrypoint would silently cover those too. So the middleware is declared and attached **in this
+app's own compose labels**, touching nothing outside `/opt/prayer/`:
+
+```yaml
+- traefik.http.middlewares.prayer-cfonly.ipallowlist.sourcerange=<CF v4 + v6 ranges, comma-separated>
+- traefik.http.routers.prayer.middlewares=prayer-cfonly
+```
+
+**Why this matches the real client IP.** Verified on the running proxy: **Traefik v3.6.7**, with
+**no `forwardedHeaders.trustedIPs` and no proxyProtocol** in the static config. `ipAllowList`
+therefore matches the actual TCP peer — the Cloudflare edge — and cannot itself be spoofed by a
+header. (v3 spelling is `ipallowlist`; v2's `ipwhitelist` is gone.)
+
+**Pre-flight already confirmed:** `prayer.altijwal.com` resolves to Cloudflare IPs
+(`172.67.195.226`, `104.21.60.108`, plus IPv6) and responses carry `Server: cloudflare` + `CF-RAY`,
+i.e. the record is proxied. **If it were ever set to DNS-only (grey cloud), these labels would
+black-hole the site** — re-check before applying.
+
+Ranges come from `cloudflare.com/ips-v4` + `ips-v6` (22 ranges, fetched 2026-07-26). Both families
+are listed even though Cloudflare currently reaches this IPv4-only origin over v4.
+
+**How to verify — ⚠️ do NOT test direct-to-origin from a workstation.** Connecting to
+`31.97.76.221:443` from outside is reset for **every** app on this box (`home.altijwal.com` behaves
+identically and has no allowlist), so that test returns "blocked" whether or not the middleware
+exists — it proves nothing and will fool you. Test **from the VPS**, where the source IP
+(`127.0.0.1`) is genuinely outside Cloudflare's ranges, and always compare against a
+neighbouring router as the control:
+
+```bash
+# on the VPS
+curl -sk -o /dev/null -w '%{http_code}\n' --resolve prayer.altijwal.com:443:127.0.0.1 \
+     https://prayer.altijwal.com/api/health     # expect 403  ← allowlist working
+curl -sk -o /dev/null -w '%{http_code}\n' --resolve home.altijwal.com:443:127.0.0.1 \
+     https://home.altijwal.com/                 # expect 200  ← control: neighbour untouched
+# from anywhere
+curl -fsS -o /dev/null -w '%{http_code}\n' https://prayer.altijwal.com/api/health   # expect 200
+```
+
+Recorded result 2026-07-26: prayer **403** / home **200** from the VPS; prayer **200** and home
+**200** through Cloudflare; `prayer` is the only router carrying `middlewares`, `home` has none and
+`n8n` keeps its own pre-existing `n8n@docker`.
+
+**Rollback:** `cp /opt/prayer/docker-compose.yml.bak-20260726-cfonly \
+/opt/prayer/docker-compose.yml && cd /opt/prayer && docker compose up -d` (backup taken 2026-07-26).
+
+**Two consequences to remember:** debugging by curling the origin IP directly with a `Host:` header
+stops working (use Cloudflare, or temporarily roll back); and if Cloudflare ever publishes new
+ranges, a site-wide 403 is the symptom — re-fetch the two lists first.
+
 ---
 
 ## 3. Environment (`.env` on the VPS only)
@@ -135,12 +207,27 @@ create databases, pre-create `prayer` and let the app run migrations only.
 
 ## 5. Deploy sequence (same as home)
 
+> ⚠️ **`docker-compose.yml` is in the tarball, and step 3 overwrites the VPS copy.** So any label
+> added on the server by hand is silently reverted by the next deploy. Change it **in the repo** and
+> let it ship — that is how the Cloudflare `ipAllowList` above survives redeploys. (Caught 2026-07-26
+> one command before it would have undone the origin lockdown.)
+
 ```bash
 # 1. tarball (exclude node_modules, dist, .git, and the gitignored sensitive ops doc —
 #    `docs/OPERATIONS.md` must never land on the VPS)
-tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=.git \
-  --exclude=docs/OPERATIONS.md \
+#
+#    ALSO exclude client/android and server/data/_raw. Neither is used by the Docker build
+#    (verified: the Dockerfile mentions android only in a comment, and `npm run build:cities` /
+#    `build:masjids` are never run on the VPS) and together they are ~90% of the bytes —
+#    android/ alone carries the built APKs/AABs plus the gradle cache. Without these two
+#    the tarball is 160 MB; with them, 35 MB.
+tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=dist-admin \
+  --exclude=.git --exclude=docs/OPERATIONS.md \
+  --exclude=client/android --exclude=server/data/_raw \
   server client Dockerfile docker-compose.yml .env.example docs
+
+# 1b. always confirm the ops doc did not slip in
+tar tzf /tmp/prayer-deploy.tar.gz | grep -i OPERATIONS.md && echo "LEAK — stop" || echo "clean"
 
 # 2. upload  (SSH/SCP specifics — host, key — in OPERATIONS.md)
 scp /tmp/prayer-deploy.tar.gz <vps>:/tmp/

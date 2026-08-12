@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { cx } from "./ui";
 
 /**
  * Hand-rolled SVG charts — no charting dependency (see vite.admin.config.ts).
@@ -245,82 +244,6 @@ export function CategoryBars({
       </ul>
       <p className="mt-2 text-[11px] text-muted">{unitLabel}</p>
     </div>
-  );
-}
-
-export interface ScatterPoint {
-  lat: number;
-  lon: number;
-  n: number;
-  label?: string;
-}
-
-/**
- * Geographic scatter with no map tiles — deliberately. The question this
- * answers is "where is demand concentrated", which relative position already
- * answers, and pulling tiles would add a third-party request to an operator
- * page whose CSP is otherwise pinned to self.
- */
-export function ScatterMap({
-  points,
-  unitLabel,
-  height = 320,
-  emptyLabel = "No demand recorded yet.",
-}: {
-  points: ScatterPoint[];
-  unitLabel: string;
-  height?: number;
-  emptyLabel?: string;
-}) {
-  if (points.length === 0)
-    return <p className="py-8 text-center text-sm text-muted">{emptyLabel}</p>;
-
-  const lats = points.map((p) => p.lat);
-  const lons = points.map((p) => p.lon);
-  // A single point (or a perfectly aligned row) would divide by zero.
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
-  const spanLat = Math.max(maxLat - minLat, 0.02);
-  const spanLon = Math.max(maxLon - minLon, 0.02);
-  const maxN = Math.max(...points.map((p) => p.n), 1);
-
-  const pad = 16;
-  const x = (lon: number) => pad + ((lon - minLon) / spanLon) * (W - pad * 2);
-  // Latitude increases northward; SVG y increases downward.
-  const y = (lat: number) => pad + (1 - (lat - minLat) / spanLat) * (height - pad * 2);
-
-  return (
-    <figure className="m-0">
-      <div className="scroll-x">
-        <svg
-          viewBox={`0 0 ${W} ${height}`}
-          className={cx("w-full rounded-lg border border-line bg-bg")}
-          role="img"
-          aria-label={unitLabel}
-        >
-          {points.map((p) => (
-            <circle
-              key={p.label ?? `${p.lat},${p.lon}`}
-              cx={x(p.lon)}
-              cy={y(p.lat)}
-              r={3 + 9 * Math.sqrt(p.n / maxN)}
-              fill="var(--color-series-1)"
-              fillOpacity={0.35}
-              stroke="var(--color-series-1)"
-              strokeOpacity={0.8}
-            >
-              <title>{`${p.label ?? ""} ${p.lat.toFixed(2)}, ${p.lon.toFixed(2)} — ${p.n}`}</title>
-            </circle>
-          ))}
-        </svg>
-      </div>
-      <figcaption className="mt-1 text-[11px] text-muted">
-        {unitLabel} · {minLat.toFixed(2)}–{maxLat.toFixed(2)}°N, {minLon.toFixed(2)}–
-        {maxLon.toFixed(2)}°E · circle area ∝ requests
-      </figcaption>
-    </figure>
   );
 }
 

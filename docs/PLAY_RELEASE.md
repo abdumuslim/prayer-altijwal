@@ -1,3 +1,12 @@
+---
+type: Runbook
+title: 'Play Store Release Runbook — مواقيت الصلاة (com.altijwal.prayer)'
+description: '1. play.google.com/console → pick مواقيت الصلاة. 2. Left nav: Test and release → Testing → Closed testing → open your existing track (the one your 12 testers are already on) → Create new release. 3. Under App bundles,…'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Play Store Release Runbook — مواقيت الصلاة (`com.altijwal.prayer`)
 
 > **Self-sufficient publishing guide** (researched against Google's requirements as of 2026-07-11 —
@@ -400,26 +409,40 @@ declarations.
 | Health | **My app does not have any health features** |
 | Account deletion | No accounts created → confirm |
 
-> ⏸ **IN PROGRESS IN THE CONSOLE (2026-07-26) — FINISH THIS BEFORE SUBMITTING vc9.**
+> ✅ **DONE AND PUBLISHED (2026-07-26).** The form below was fully entered, saved, and sent for
+> review **together with release `9 (2.3.0)`** (`Closed testing – Alpha → Start full rollout` +
+> `App content → Data safety`). Ordering was deliberate: the questionnaire was completed *first* so
+> the release never went out behind a declaration that denied its own collection.
 >
-> Release **9 (2.3.0)** is uploaded and staged in Publishing overview ("Changes not yet submitted
-> for review"). It must NOT be submitted until the form below is finished, or the app would be
-> collecting data that its declaration denies.
+> **Review cleared the same day.** Publishing overview went from "Changes in review" to empty,
+> "Last published" moved from 25 → **26 July 2026**, and the Console raised *"App update published.
+> Users should see changes immediately."* (Those three signals are the evidence; the per-track
+> version number could not be read back because the Console was throwing `71556E12` /
+> `56B6DD63` on the track pages at the time. Confirm on the track when it is healthy.)
 >
-> Already done in the Console: step 2 verified; step 3 Data types now also has **App activity →
-> App interactions** and **Device or other IDs** ticked. Draft saved.
+> What was entered in **step 4 "Data usage and handling"**
+> (`.../app-content/data-privacy-security`, then Next ×3 — the stepper circles are not clickable):
 >
-> Remaining — three sub-forms in **step 4 "Data usage and handling"**
-> (`.../app-content/data-privacy-security`, then Next ×3):
->
-> | Row | What to answer |
+> | Row | Answered |
 > |---|---|
-> | **Approximate location** (already "Completed" — must be EDITED) | processed ephemerally **Yes → No**; purposes **App functionality + Analytics** |
-> | **App activity → App interactions** (new, 0 of 1) | Collected · shared No · ephemeral No · purpose **Analytics** · required Yes |
-> | **Device or other IDs** (new, 0 of 1) | Collected · shared No · ephemeral No · purposes **App functionality + Fraud prevention and security** · required Yes |
+> | **Approximate location** (was "Completed" — EDITED) | processed ephemerally Yes → **No**; purposes **App functionality + Analytics**; left **optional** |
+> | **App activity → App interactions** (new) | Collected · shared No · ephemeral No · purpose **Analytics** · **required** |
+> | **Device or other IDs** (new) | Collected · shared No · ephemeral No · purposes **App functionality + Fraud prevention, security and compliance** · **required** |
 >
-> **Precise location stays exactly as it is** (collected, ephemeral Yes, App functionality).
-> Then step 5 Preview → **Save**, and submit both changes together from Publishing overview.
+> **Precise location was left untouched** (collected, ephemeral Yes, App functionality).
+>
+> Step-5 preview verified before saving: "No data shared with third parties" · Approximate location
+> *Optional* → App functionality, Analytics · App interactions → Analytics · Device or other IDs →
+> App functionality, Fraud prevention, security and compliance · encrypted in transit · no
+> data-deletion route · policy URL. **Precise location does not appear in the Store-listing preview
+> at all** — Play omits ephemeral-only data types from the public listing, so its absence there is
+> expected and is *not* a sign the answer was lost.
+>
+> Console quirks worth knowing next time: the sub-form **Save** button sits in the page footer and
+> the browser window can resize mid-flow (a click at the old coordinates silently misses — re-shoot
+> before clicking); each sub-form Save shows a "<type> saved" toast; the step-5 Save then offers
+> "Go to Publishing overview". Review runs after a "quick checks for commonly found issues" pass
+> (~14 min) — changes are forwarded automatically once it succeeds. Review itself ≤7 days.
 
 **Data safety form** (rewritten 2026-07-26 for v2.3.0/vc9 — the admin dashboard added an
 anonymous audience ping AND surfaced two pre-existing declarations that were wrong):
@@ -510,6 +533,7 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.1.1 | 6 | `prayer-v2.1.1-vc6.aab` | built + signed 2026-07-23 — alarm-screen unlock fix (`NATIVE_ALARM_FIXES_SPEC.md` §2h, verified on the emulator **and** on the user's Pixel 7 Pro with a real armed rule) + monthly table removed / tab renamed «الاتجاهات» (`FRONTEND.md` §11). |
 | 2.1.2 | 7 | `prayer-v2.1.2-vc7.aab` | built + signed 2026-07-24 — nearest-masjid cold-GPS resilience fix: last-known-first + patient coarse fallback + silent refine + fetch retry (`QIBLA_MASJID_SPEC.md` Session 7). Samsung Auto Blocker investigated + ruled out. Gates green (build · 148 client · 175 server · engine gate · code-review HIGH resolved). ⚠ NOT yet field-verified on the actual cold-GPS case. |
 | 2.2.0 | 8 | `prayer-v2.2.0-vc8.aab` | **uploaded + sent for review 2026-07-25** as release `8 (2.2.0)`. Places quota work (ADR-014): resident OSM masjid dataset (9,835 rows) + user contributions + estimated travel times with a real lookup on expand + fetch discipline + offline list. Server half deployed to prod the same day. Gates green (build · 157 client · 286 server · engine gate) and **device-verified on the user's Pixel 7 Pro** before upload. Console checks: 0 devices lost, +2.51 KB, only the benign no-deobfuscation warning. |
+| 2.3.0 | 9 | `prayer-v2.3.0-vc9.aab` | **uploaded, sent for review AND published 2026-07-26** (review cleared same day) as release `9 (2.3.0)`, Closed testing – Alpha, full rollout. Admin dashboard at `/admin` + anonymous audience ping (`ADMIN_DASHBOARD.md`, ADR-015/016). Sent **together with the rewritten Data safety questionnaire** — that ordering is the point: the ping collects data the old declaration denied. |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —

@@ -1,3 +1,12 @@
+---
+type: Reference
+title: 'Admin Dashboard'
+description: 'Operator surface at https://prayer.altijwal.com/admin — one password, one operator.'
+tags: [prayer, claude-code, current]
+maintainer: claude-code
+timestamp: 2026-07-27
+---
+
 # Admin Dashboard
 
 Operator surface at **https://prayer.altijwal.com/admin** — one password, one operator.
@@ -64,7 +73,17 @@ Two of these are silent failures if reordered, and both are pinned by `server/sr
    with the prayer-times shell; mounted first it would swallow every admin URL.
 
 `/admin` also carries `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer` and a CSP
-pinned to self plus `frame-src https://www.google.com` (the Maps Embed preview).
+pinned to self, plus exactly two third-party allowances:
+
+| Directive | Host | Why |
+|---|---|---|
+| `frame-src` | `https://www.google.com` | Maps Embed preview of a contributed masjid |
+| `img-src` | `https://tile.openstreetmap.org` (+ `*.tile.`) | Leaflet basemap tiles on the Cost and Audience maps (2026-07-26) |
+
+**`script-src` and `connect-src` stay `'self'`.** Leaflet is bundled, not CDN-loaded, and tiles are
+plain `<img>` loads — so the dashboard still cannot execute third-party code or open an XHR to any
+outside origin. Verified in the built bundle: the OSM host appears only as a tile-URL string and
+`dist-admin/index.html` references no external origin at all.
 
 ---
 
@@ -228,6 +247,28 @@ Full rationale in `DECISIONS.md` ADR-016. The essentials:
 - Changing `TELEMETRY_PRECISION_DEG` downward, or storing the client id, is a **Play Data Safety +
   privacy-policy change**, not a config tweak.
 
+**Known, accepted mismatch — 0.01° is technically "precise location" (owner's call, 2026-07-26).**
+Play's Data Safety definitions draw the line at **3 km²**: *approximate* is an area **≥ 3 km²**,
+*precise* is **< 3 km²**. At Baghdad's latitude `0.01°` is 1.11 km × 0.93 km ≈ **1.03 km²**, i.e.
+under the line — so the cell we retain for 180 days is, by Play's literal definition, **precise**
+location, while the form declares the retained data as *approximate* (and declares precise location
+as *ephemeral*, which the retained cell is not).
+
+**Decision: accept it, do not change.** Nothing functionally breaks, no user is materially misled
+(the listing already says location is collected and used for functionality + analytics), and the
+sensitivity is genuinely low because the daily-rotating HMAC makes the rows **unlinkable across
+days** — a ~1 km cell attached to a key that dies every midnight is not a movement trail. Google
+cannot observe server-side retention, so detection risk is negligible; this is a truthfulness gap,
+not an enforcement one.
+
+**If it ever needs closing, it is one env var — no code change.** The server already clamps stored
+precision independently of the client, so `TELEMETRY_PRECISION_DEG=0.02` in `/opt/prayer/.env`
++ `docker compose up -d` makes the retained cell ≈ 4.1 km² and the "approximate" declaration true.
+Caveat if you do: a **fixed** degree grid shrinks in area with latitude — `0.02°` is ≥3 km² only up
+to about 55°N, which covers the Iraq-centric audience (29–37°N ⇒ 3.9–4.1 km²) but not high-latitude
+users. The latitude-proof version is a `0.02°` lat step with the lon step widened by `1/cos(lat)`,
+giving a constant ~4 km² worldwide; that one *is* a code change.
+
 
 ---
 
@@ -238,30 +279,63 @@ Full rationale in `DECISIONS.md` ADR-016. The essentials:
 | **Overview** | Is everything healthy right now? | live process + one counts query |
 | **Masjids** | What is waiting for review, and is it a duplicate? | `masjid_contributions` + `isSameMasjid` against the resident index |
 | **Cost** | What is Google costing me, who is spending it, and where? | `places_stats`, `places_usage`, `places_cell_demand` — all pre-existing |
+| ↳ *both maps* | Where is demand / where is the app used? | `components/TileMap.tsx` — Leaflet + OSM basemap (see below) |
 | **Push** | Are reminders actually being delivered? | `push_subscriptions`, `prayer_alert_rules`, `push_stats` |
 | **Audience** | How many people use the app, where, on what version? | `usage_ping` |
 | **Logs** | What just broke? | in-memory ring buffer (resets on restart) |
 | **Settings** | Turn the paid feature off / lower the cap, and see who changed what | `app_settings` + `admin_audit` |
-| **Play** | Installs, crashes, ratings | *not built — needs a service account (below)* |
+| **Play** | Installs, crashes, ratings | *not built — access is now granted, but Play has no data to serve yet (below)* |
 
-### Play Console stats — what is still needed
+### Play Console stats — access GRANTED, but ⏸ BLOCKED ON DATA EXISTING
 
 Installs, uninstalls, active devices and ratings are **not** in the Play Developer Reporting API;
 they come from the **bulk report CSVs** in the Cloud Storage bucket linked to the developer account.
-Crash/ANR rates do come from the Reporting API. Both need a Google service account that only the
-account owner can authorise:
+Crash/ANR rates do come from the Reporting API.
 
-1. GCP project `al-tijwal-483313` → create a service account → enable the **Play Developer
-   Reporting API** → download a JSON key.
-2. Play Console → **Users and permissions** → invite the service-account email → grant
-   **View app information (read-only)** and **View app quality information (read-only)** (the second
-   is what unlocks vitals).
-3. Put the JSON at `/opt/prayer/secrets/play-sa.json` on the VPS, bind-mount it, and set
-   `PLAY_SA_KEY_FILE` + `PLAY_REPORTS_BUCKET` (Play Console → Download reports → *Copy Cloud
-   Storage URI*).
+**Done 2026-07-26 (steps 1–2 complete):**
 
-Known gotcha for whoever builds it: **the bulk CSVs are UTF-16LE encoded** — decode before parsing —
-and the monthly `installs_<pkg>_<YYYYMM>_overview.csv` is rewritten in place each day.
+- **Play Developer Reporting API enabled** on GCP project `al-tijwal-483313`
+  (`playdeveloperreporting.googleapis.com`, Status: Enabled).
+- **Service account created:** `prayer-play-stats@al-tijwal-483313.iam.gserviceaccount.com`
+  (no roles in GCP IAM — Play access is granted in Play Console, not here). **No key yet.**
+- **Play Console grant** (Users and permissions → Active): *app-scoped* **View app information
+  (read only)** + **View app quality information (read-only)** on **`com.altijwal.prayer` only** —
+  the account has three other apps and the SA has no business reading them — **plus** account-level
+  **"View app information and download bulk reports (read only)"**, which is the permission that
+  actually unlocks the Cloud Storage bucket. There is **no app-scoped equivalent for bulk reports**,
+  so that one grant is unavoidably account-wide (still read-only, still excludes financial data).
+  Everything else — financial, releases, store presence, reply-to-reviews, Play Games — left off.
+
+**What still blocks the page — and it is not effort:**
+
+Verified in the Console on 2026-07-26, all for `com.altijwal.prayer`:
+
+| Source | State |
+|---|---|
+| Download reports → Statistics (Installs / Crashes / Ratings) | **"No monthly reports available"** |
+| Download reports → Reviews | **"No monthly reports available"** |
+| App → Statistics, Installed audience, last 28 days | **"Data unavailable"** |
+
+This is **expected for a closed test with 12 testers**, not a defect: Play suppresses low-volume
+statistics and does not generate bulk report CSVs at this scale. Consequences:
+
+1. There is nothing to parse, so the handover rule — *verify what the APIs return before building
+   UI* — **cannot be satisfied yet**. Building the parser now means shipping unverifiable code
+   against a source whose real column names have never been seen.
+2. `PLAY_REPORTS_BUCKET` **cannot be filled in yet.** The canonical value comes from *Copy Cloud
+   Storage URI*, a button that only renders once a report exists. The documented form is
+   `gs://pubsite_prod_rev_<developer-bucket-id>` — do **not** guess it; wait for the button.
+
+**So: revisit this page once the app has real install volume** (production rollout, or a much larger
+test cohort). Until then the endpoint correctly reports "not configured".
+
+Remaining step 3, for whoever picks it up: create a JSON key for the SA, put it at
+`/opt/prayer/secrets/play-sa.json` on the VPS, bind-mount it, and set `PLAY_SA_KEY_FILE` +
+`PLAY_REPORTS_BUCKET`. Keep the key out of the repo, the image and the deploy tarball.
+
+Known gotcha for whoever builds it: **the bulk CSVs are UTF-16 encoded** (Google's own docs say to
+convert UTF-16→UTF-8 before loading into BigQuery) — decode before parsing — and the monthly
+`installs_<pkg>_<YYYYMM>_<dimension>.csv` is rewritten in place each day.
 
 ---
 
@@ -277,3 +351,28 @@ and the monthly `installs_<pkg>_<YYYYMM>_overview.csv` is rewritten in place eac
   remains the record.
 - **Don't trust an empty Audience page as "no users".** It only starts filling from the release that
   added the ping (web: 2026-07-26; Android: 2.3.0 / versionCode 9).
+
+### The demand maps (`components/TileMap.tsx`, 2026-07-26)
+
+The Cost and Audience maps were originally a tile-less SVG scatter (`ScatterMap`, now deleted): plain
+circles on the panel background. It **read as a broken map** — solid black — and because it auto-fitted
+its viewport to the data extremes, a few sparse cells got pinned to the corners around an empty
+middle. At ~1 km resolution the operative question is *which neighbourhood*, which relative position
+alone cannot answer, so it now renders a real **Leaflet + OpenStreetMap** basemap.
+
+Things a future editor should not undo by accident:
+
+- **`circleMarker`, never `Marker`.** Leaflet's default pin is a PNG resolved relative to the CSS;
+  bundlers famously break that path. Using vector circles means no icon asset is ever requested.
+- **The dark look is a CSS filter on `.leaflet-tile-pane` only** (`admin.css`), not a second tile
+  provider. `invert(1)` darkens the paper and lightens the labels; `hue-rotate(180deg)` restores the
+  hues (drop it and the water turns orange). The filter is scoped to the tile pane so our teal
+  circles and the attribution are untouched.
+- **Attribution must stay visible** — OSM's tile policy requires it. It is themed, never dimmed away.
+- **`scrollWheelZoom` is off**, so the map cannot trap a page scroll. Buttons and double-click zoom.
+- **`maxZoom` on fit is capped at 13.** A 1 km cell is a neighbourhood; zooming to building level
+  would imply precision the data does not have and invite reading a cell centre as an address.
+- The map is invisible to screen readers, so the same figures are emitted as an `sr-only` list of the
+  top cells (the Cost page also has the full ranking as a labelled bar list underneath).
+- Leaflet lives **only** in the admin bundle. Verified after every build: `dist/` (the SPA, which is
+  what Capacitor packages into the APK) contains no `leaflet`.

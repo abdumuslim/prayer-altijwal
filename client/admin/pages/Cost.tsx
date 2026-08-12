@@ -3,7 +3,8 @@ import { api } from "../lib/api";
 import { useApi } from "../lib/useApi";
 import { num, relative } from "../lib/format";
 import { Card, ErrorNote, Spinner, StatTile, cx } from "../components/ui";
-import { CategoryBars, ScatterMap, StackedBars } from "../components/charts";
+import { CategoryBars, StackedBars } from "../components/charts";
+import { TileMap } from "../components/TileMap";
 
 const RANGES = [7, 30, 90];
 
@@ -192,7 +193,7 @@ export function Cost() {
         {demand.loading && !demand.data && <Spinner />}
         {demand.data && (
           <>
-            <ScatterMap
+            <TileMap
               points={demand.data.items.map((c) => ({
                 lat: c.lat,
                 lon: c.lon,
