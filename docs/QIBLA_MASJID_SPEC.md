@@ -9,6 +9,14 @@ timestamp: 2026-07-27
 
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
+> **2026-08-12 — Embed directions `destination` is always `lat,lon`, never `place_id:`.** The
+> nearest-masjid card's Maps **Embed API** directions iframe now passes `destination=<lat>,<lon>` for
+> **every** masjid class. A merge-adopted Google `place_id` can go **stale** (Google merges/refreshes
+> mosque POIs), and the Embed API then renders its raw *"Invalid 'destination' parameter"* error page
+> **inside the card** (user-reported on a real device); coordinates are always valid for every masjid.
+> The external **Google-Maps deep link** keeps `destination_place_id` because it degrades gracefully to
+> the coordinate. Unit tests added in `client/src/components/masjid/NearestMasjids.test.ts`.
+>
 > **Session 7 (2026-07-24, v2.1.2 / versionCode 7) — nearest-masjid "doesn't work" fix. BUILT (signed
 > AAB), NOT yet field-verified.** A tester's Samsung (Galaxy A57, Play install, vc6) saw an error in
 > the أقرب المساجد section. Live adb diagnosis **RULED OUT Samsung Auto Blocker** (the feature also

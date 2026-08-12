@@ -102,7 +102,7 @@ function isGooglePlaceId(id: string): boolean {
   return !id.startsWith("osm:") && !id.startsWith("usr:");
 }
 
-function mapsUrl(m: Masjid): string {
+export function mapsUrl(m: Masjid): string {
   const base = `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}`;
   return isGooglePlaceId(m.id)
     ? `${base}&destination_place_id=${encodeURIComponent(m.id)}`
@@ -114,12 +114,19 @@ function wazeUrl(m: Masjid): string {
 }
 
 /** Google Maps Embed API — directions from the user to this masjid. The key is
- *  the browser-safe Embed-only one the server hands us (never the Places key). */
-function embedUrl(m: Masjid, from: StoredLocation, key: string): string {
+ *  the browser-safe Embed-only one the server hands us (never the Places key).
+ *  The destination is ALWAYS coordinates, never `place_id:…`: this iframe is the
+ *  one deliberately un-proxied, direct-to-Google request in the feature, so it has
+ *  nothing to sanitise a failure. An adopted place_id is only an optional precision
+ *  upgrade (merge.ts) and can be up to 30 days stale — Google merges/refreshes
+ *  mosque POIs often — and a rejected id makes the Embed API render its raw
+ *  "Invalid 'destination' parameter" error page inside the card. Coordinates exist
+ *  for every masjid class (google/osm/usr) and are always valid. */
+export function embedUrl(m: Masjid, from: StoredLocation, key: string): string {
   const params = new URLSearchParams({
     key,
     origin: `${from.lat},${from.lon}`,
-    destination: isGooglePlaceId(m.id) ? `place_id:${m.id}` : `${m.lat},${m.lon}`,
+    destination: `${m.lat},${m.lon}`,
     mode: "driving",
     language: "ar",
   });
