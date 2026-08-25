@@ -116,6 +116,34 @@ deploy a FINAL build. If the change is **shared client code** (e.g. the masjid/G
 redeploy (`docs/DEPLOYMENT.md`) ships the same improvement to the live site — mention it, but it's a
 separate, optional action from this Play deploy.
 
+### ①c Open testing: the current deploy target (since v2.5.0, 2026-08-25)
+
+Since **v2.5.0 / vc11** the deploy target moved to the **Open testing** track (the owner promoted it).
+The closed **Alpha** track stays at vc10 and is **no longer the target**, so don't upload there
+anymore. Track URL: `.../tracks/open-testing`. The click-path is identical to §①b, just under **Test
+and release → Testing → Open testing** instead of Closed testing.
+
+- **The track is pre-configured** (owner, one-time): countries **Iraq + United States**, plus
+  **"unsync from production"** (the track manages its own countries instead of inheriting
+  Production's). The first release, **`11 (2.5.0)`**, was sent for review **2026-08-25** as **four
+  bundled changes**: the release rollout, the two country additions, the production-unsync, and the
+  track resume (next bullet).
+- ⚠ **A newly created open track starts PAUSED.** The banner reads *"Testers are not receiving this
+  release"*, and it **stays paused even after the release's review clears**. **"Resume track"** is a
+  **separate change** that must ALSO be submitted for review. Submitting a new change while a review
+  is already in progress **restarts that review** (a dialog warns you); that is fine when the review
+  is only minutes old but costly later, so **bundle the resume into the same submission** as the
+  release.
+- **What open testing means:** anyone can join, via the public opt-in page
+  `https://play.google.com/apps/testing/com.altijwal.prayer` and straight from the Play listing in
+  the selected countries. Tester feedback is **private** and does **not** affect the public rating.
+  **Send the 12 closed-Alpha testers the open-test link** so they migrate; their old Alpha track no
+  longer receives new builds.
+- **Dashboard "Production: Inactive" is expected:** the app has never had a production release. It
+  flips only when a release rolls out to the **Production** track, which is the next milestone after
+  the open test.
+- **Pre-launch report** still auto-runs on the open-track build, so check it after publishing (§④).
+
 ### ② Release notes «ما الجديد» — AR (v2.2.0, **user-approved 2026-07-25**)
 
 ```

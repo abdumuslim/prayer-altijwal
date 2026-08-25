@@ -7,12 +7,12 @@ guess details that live in a topic doc — read the doc.
 > **Status: implemented and deployed** at https://prayer.altijwal.com. Code lives in `server/`
 > (Express 5) and `client/` (React 19); the layout follows `docs/ARCHITECTURE.md`. Tests are green
 > (`npm --prefix server test`) and the container runs on the shared VPS behind Traefik (`prayer.*`).
-> **v1.0 shipped to the Google Play closed track (12 testers). The v2.0.0 redesign
-> (4-tab shell · theme gallery · reports · a11y · Qibla+nearest-masjid) is BUILT and its WEB half
-> is DEPLOYED to prod (2026-07-14); the signed Android AAB/APK (versionCode 2) are packaged at
-> `D:\keys\releases\prayer-v2.0.0-vc2*` for the closed-track upload. Still open: P9 home-screen
-> widget (deferrable to v2.1) and the Play upload/rollout. Work is on `feat/v2-redesign` (NOT yet
-> merged to `main`) — read `docs/V2_REDESIGN_SPEC.md`'s header before any v2 work.**
+> **The v2 redesign is long merged to `main`.** The Android app shipped through the Google Play
+> **closed Alpha track** (12 testers) and is now on the **OPEN testing track**: the first open
+> release, **v2.5.0 / versionCode 11** (the alarm-reliability round,
+> `docs/NATIVE_ALARM_RELIABILITY_SPEC.md`), was sent for review **2026-08-25** for countries
+> **Iraq + United States**. Production has **not** been released yet (the next milestone). Still
+> deferred: the **P9 home-screen widget**.
 
 ## What this is
 
