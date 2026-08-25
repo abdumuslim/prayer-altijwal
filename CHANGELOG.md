@@ -5,6 +5,30 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.5.0] — 2026-08-25 (versionCode 11)
+
+### Added
+- **A missed alarm now shows a notification** instead of disappearing silently: whether it rang out
+  without being stopped, was skipped as stale, or was found expired-but-unfired at re-sync, the app
+  posts a «فاتك منبّه …» notice.
+- **Every alarm now gets a dismiss notification about 30 minutes early.** It carries an «إيقاف المنبّه»
+  button that turns off that one occurrence without opening the app, and the dismissal is remembered so
+  a later re-sync cannot re-arm it.
+
+### Fixed (full alarm-reliability audit, `docs/NATIVE_ALARM_RELIABILITY_SPEC.md`)
+- **Alarms now survive a reboot that happens before the first unlock.** A direct-boot-aware fire/boot
+  chain, backed by device-protected storage, means a night-time auto-restart can no longer silently kill
+  the Fajr alarm.
+- **A missing exact-alarm permission no longer throws and aborts the whole set.** Scheduling falls back
+  to inexact alarms with per-alarm fault isolation and a 500-alarm cap, and a refused foreground-service
+  start degrades to an audible notification instead of silence.
+- **Re-arming is more thorough.** It now also runs when the exact-alarm permission is re-granted and via
+  a daily self-check alarm; a thinning 7-day horizon posts a quiet «حدّث منبّهات الصلاة» nag; and
+  alarm-store writes are durable and serialized.
+- **The JS scheduler is hardened.** One bad day no longer drops the whole 7-day horizon, DST transitions
+  no longer skip or duplicate a day, a stale in-flight sync can no longer overwrite a newer one, and a
+  failed sync retries.
+
 ## [2.4.0] — 2026-08-12 (versionCode 10)
 
 ### Changed

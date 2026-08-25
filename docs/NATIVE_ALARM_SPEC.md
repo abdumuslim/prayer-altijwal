@@ -31,6 +31,10 @@ timestamp: 2026-07-27
 > `PRAYER_ENGINE.md` (engine + Iraqi calibration), `PRAYER_TIMES_API.md` (payload shape),
 > `FRONTEND.md` (web alarm UI) first. Research basis (AlarmKit, Android/Play policy, plugin survey):
 > `NATIVE_ALARM_PLAN.md`.
+>
+> **2026-08-25, reliability round (v2.5.0):** missed-alarm + pre-alarm-dismiss notifications,
+> direct-boot-aware chain + DE storage, exact-alarm fallback fix, resync canary + horizon nag; see
+> `docs/NATIVE_ALARM_RELIABILITY_SPEC.md`.
 
 ## 1. Goal
 
