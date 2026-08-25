@@ -54,6 +54,21 @@ function dateKeyIn(ms: number, tz: string): string {
   }).format(new Date(ms));
 }
 
+/**
+ * The civil date key one day after `key` (YYYY-MM-DD), by pure UTC arithmetic.
+ * DST-safe: stepping the calendar date (not `now + d*DAY_MS`) visits every civil
+ * day exactly once across spring-forward/fall-back (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §3f).
+ */
+function nextDateKey(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+/** Type guard: a finite number (excludes null/undefined/NaN/±Infinity). */
+function isFiniteMs(x: number | null): x is number {
+  return Number.isFinite(x);
+}
+
 function isFriday(ms: number, tz: string): boolean {
   return (
     new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(new Date(ms)) ===
@@ -109,18 +124,31 @@ export function computeSchedule(input: ScheduleInput): ScheduledAlarm[] {
   const untilLabel = (input.lang === "ar" ? ar : en)["next.header"];
   const out: ScheduledAlarm[] = [];
 
+  // Day 0 = today in the target tz; later days step the civil calendar (not
+  // `now + d*DAY_MS`) so DST transitions neither skip nor duplicate a date. The
+  // key is derived inside the try, so a corrupt tz fails every day (surfaced by
+  // the okDays guard below) instead of throwing before the loop.
+  let dateStr = ""; // "" until the first civil day is derived
+  let okDays = 0; // days whose anchors computed; 0 means a systemic failure
   for (let d = 0; d < HORIZON_DAYS; d++) {
-    const dateStr = dateKeyIn(now + d * DAY_MS, tz);
-    const anchors = anchorsForDay(input, dateStr);
+    let anchors: Record<AlertTarget, number | null>;
+    try {
+      dateStr = dateStr === "" ? dateKeyIn(now, tz) : nextDateKey(dateStr);
+      anchors = anchorsForDay(input, dateStr);
+    } catch {
+      // Fault isolation: one bad civil day (engine/tz throw) drops that day only.
+      continue;
+    }
+    okDays++;
 
     for (const rule of input.rules) {
       const lead = leadFor(rule);
       const deltaMs = -lead * 60_000; // before → earlier, after → later
       for (const target of rule.prayers) {
         const anchor = anchors[target];
-        if (anchor == null) continue;
+        if (!isFiniteMs(anchor)) continue; // null/undefined/NaN all excluded
         const at = anchor + deltaMs;
-        if (at <= now || at > horizon) continue;
+        if (!Number.isFinite(at) || at <= now || at > horizon) continue;
         const friday = target === "dhuhr" && isFriday(at, tz);
         const { title, body } = buildPushPayload(target, lead, input.lang, { friday });
         out.push({
@@ -136,6 +164,13 @@ export function computeSchedule(input: ScheduleInput): ScheduledAlarm[] {
         });
       }
     }
+  }
+  // A systemic failure (every day threw, e.g. corrupt persisted method/tz) must
+  // surface, not silently return []: an empty result would make the caller cancel
+  // every armed alarm and never retry. A legitimately empty horizon (no rules, or
+  // valid days with no future instants) keeps okDays > 0 and returns [] normally.
+  if (okDays === 0) {
+    throw new Error("computeSchedule: every day in the 7-day horizon failed to compute");
   }
   return out;
 }

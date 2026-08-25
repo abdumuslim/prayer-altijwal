@@ -195,6 +195,17 @@ export const ar: Record<StringKey, string> = {
     "على بعض الأجهزة (شاومي، هواوي، أوبو…) فعّل «التشغيل التلقائي» وأزل قيود البطارية عن التطبيق ليعمل المنبّه بثبات.",
   "notify.permGranted": "مُفعّل",
   "notify.offlineNote": "تعمل التذكيرات دون إنترنت",
+  // Native alarm notices — pre-alarm dismiss, missed, horizon refresh
+  // (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4; {prayer}/{min} filled natively).
+  "alarm.preTitle": "سيرنّ منبّه {prayer} بعد {min} دقيقة",
+  "alarm.preBody": "إن كنت مستيقظًا فيمكنك إيقافه من هنا.",
+  "alarm.preAction": "إيقاف المنبّه",
+  "alarm.preStopped": "أُوقف منبّه {prayer}.",
+  "alarm.missedTitle": "فاتك منبّه {prayer}",
+  "alarm.missedRang": "رنّ المنبّه ولم يُوقَف.",
+  "alarm.missedNotFired": "لم ينطلق المنبّه في وقته.",
+  "alarm.refreshTitle": "حدّث منبّهات الصلاة",
+  "alarm.refreshBody": "افتح التطبيق لتحديث مواعيد المنبّهات القادمة.",
 
   // Alarm (full-screen)
   "alarm.stop": "إيقاف",

@@ -50,6 +50,25 @@ export interface PrayerAlarmState {
   batteryExempt: boolean;
 }
 
+/**
+ * Prebuilt localized texts the native layer renders for its own notifications —
+ * pre-alarm dismiss, missed-alarm, and horizon-refresh nag (the nine `alarm.*`
+ * i18n keys). Persisted natively in DE prefs so they survive an update-then-
+ * never-opened case (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4). Placeholders
+ * `{prayer}`/`{min}` are substituted in Java.
+ */
+export interface AlarmTexts {
+  preTitle: string;
+  preBody: string;
+  preAction: string;
+  preStopped: string;
+  missedTitle: string;
+  missedRang: string;
+  missedNotFired: string;
+  refreshTitle: string;
+  refreshBody: string;
+}
+
 /** One selectable system (device) alarm tone. id = `device:<content-uri>`. */
 export interface DeviceTone {
   id: string;
@@ -58,8 +77,13 @@ export interface DeviceTone {
 }
 
 export interface PrayerAlarmPlugin {
-  /** Cancel every previously-armed alarm, then arm exactly this set. Idempotent. */
-  replaceAll(options: { alarms: ScheduledAlarm[] }): Promise<void>;
+  /**
+   * Cancel every previously-armed alarm, then arm exactly this set. Idempotent.
+   * `texts` carries the localized native-notification strings for this sync
+   * (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4); omit it and the native layer
+   * keeps its last-synced (or built-in AR) copy.
+   */
+  replaceAll(options: { alarms: ScheduledAlarm[]; texts?: AlarmTexts }): Promise<void>;
   cancelAll(): Promise<void>;
   getState(): Promise<PrayerAlarmState>;
   requestNotificationPermission(): Promise<{ granted: boolean }>;

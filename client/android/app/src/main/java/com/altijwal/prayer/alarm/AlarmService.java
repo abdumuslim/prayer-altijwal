@@ -49,10 +49,15 @@ public class AlarmService extends Service {
         return sRinging;
     }
 
+    /** The bundled default tone (lib/alarm-sounds DEFAULT_ALARM_SOUND) — always
+     *  present as an APK asset, so it resolves even pre-unlock (P8). */
+    private static final String DEFAULT_ASSET_TONE = "soft-plucks";
+
     private MediaPlayer player;
     private Vibrator vibrator;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable autoStop = this::stopEverything;
+    // The 2-min cap is a "rang out unstopped" path → missed notice (§1.1).
+    private final Runnable autoStop = () -> stopEverything(true);
 
     // Last fire's notification content, kept so a swiped-away notification can be
     // rebuilt identically (users were dismissing the alarm by swiping it out).
@@ -72,7 +77,8 @@ public class AlarmService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-            stopEverything();
+            // The user stopped it (notification Stop / AlarmActivity swipe|tap) — not missed.
+            stopEverything(false);
             return START_NOT_STICKY;
         }
 
@@ -175,46 +181,80 @@ public class AlarmService extends Service {
     public void onTimeout(int startId) {
         // shortService timeout (~3 min) — must stop promptly or the system ANRs
         // the app. The 2-min auto-stop normally fires first; this is the backstop.
-        stopEverything();
+        // Either way the ring ended without the user stopping it → missed (§1.1).
+        stopEverything(true);
     }
 
     private void startTone(String toneId) {
-        try {
-            player = new MediaPlayer();
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build());
-            boolean set = false;
-            if (toneId.startsWith(PrayerAlarmPlugin.DEVICE_TONE_PREFIX)) {
-                // A system (device) tone chosen in the dropdown — play its content URI.
-                try {
-                    android.net.Uri uri = android.net.Uri.parse(
-                            toneId.substring(PrayerAlarmPlugin.DEVICE_TONE_PREFIX.length()));
-                    player.setDataSource(this, uri);
-                    set = true;
-                } catch (Exception ignored) {
-                    // tone gone/unreadable — fall through to the default alarm ringtone
-                }
-            } else if (!toneId.isEmpty()) {
-                try {
-                    AssetFileDescriptor afd = getAssets().openFd("public/alarms/" + toneId + ".mp3");
-                    player.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                    afd.close();
-                    set = true;
-                } catch (Exception ignored) {
-                    // fall through to the default alarm ringtone
-                }
+        releasePlayer(); // release any existing player first — overlapping fires leak it otherwise
+        // Try each candidate through to a FULLY started player (setDataSource +
+        // prepare + start): a device content URI can pass setDataSource yet fail in
+        // prepare() pre-unlock (credential-encrypted provider), so the fallback must
+        // run on a prepare failure too, not only a setDataSource failure (§ finding 1).
+        // Order (§3a/P8): chosen tone → bundled default asset → system default URI →
+        // silent (vibration still runs).
+        MediaPlayer p = null;
+        if (toneId.startsWith(PrayerAlarmPlugin.DEVICE_TONE_PREFIX)) {
+            // A system (device) tone chosen in the dropdown — play its content URI.
+            try {
+                android.net.Uri uri = android.net.Uri.parse(
+                        toneId.substring(PrayerAlarmPlugin.DEVICE_TONE_PREFIX.length()));
+                p = tryStartUri(uri);
+            } catch (Exception ignored) {
+                // malformed device uri — fall through to the default
             }
-            if (!set) {
-                player.setDataSource(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
-            }
-            player.setLooping(true);
-            player.prepare();
-            player.start();
-        } catch (Exception e) {
-            releasePlayer();
+        } else if (!toneId.isEmpty()) {
+            p = tryStartAsset(toneId);
         }
+        if (p == null) p = tryStartAsset(DEFAULT_ASSET_TONE);
+        if (p == null) {
+            android.net.Uri def = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            if (def != null) p = tryStartUri(def);
+        }
+        player = p; // null when every candidate failed → vibration alone
+    }
+
+    /** Start a fresh looping alarm player from a content URI; null on any failure. */
+    private MediaPlayer tryStartUri(android.net.Uri uri) {
+        MediaPlayer mp = null;
+        try {
+            mp = new MediaPlayer();
+            mp.setAudioAttributes(alarmAudioAttributes());
+            mp.setDataSource(this, uri);
+            mp.setLooping(true);
+            mp.prepare();
+            mp.start();
+            return mp;
+        } catch (Exception e) {
+            if (mp != null) mp.release();
+            return null;
+        }
+    }
+
+    /** Start a fresh looping alarm player from a bundled tone asset; null on any failure. */
+    private MediaPlayer tryStartAsset(String toneId) {
+        MediaPlayer mp = null;
+        try {
+            mp = new MediaPlayer();
+            AssetFileDescriptor afd = getAssets().openFd("public/alarms/" + toneId + ".mp3");
+            mp.setAudioAttributes(alarmAudioAttributes());
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            afd.close();
+            mp.setLooping(true);
+            mp.prepare();
+            mp.start();
+            return mp;
+        } catch (Exception e) {
+            if (mp != null) mp.release();
+            return null;
+        }
+    }
+
+    private static AudioAttributes alarmAudioAttributes() {
+        return new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
     }
 
     private void startVibration() {
@@ -228,12 +268,20 @@ public class AlarmService extends Service {
         }
     }
 
-    private void stopEverything() {
+    /**
+     * Tear down the ring. {@code missed} is true only when it ended without the
+     * user stopping it (the 2-min cap or shortService timeout) → a missed notice
+     * (§1.1); ACTION_STOP and onDestroy pass false.
+     */
+    private void stopEverything(boolean missed) {
         boolean wasRinging = sRinging;
         sRinging = false; // stop re-posting: a delete after this is a real dismissal
         // Tear the ringing screen down with the ring (it survives navigation now).
         if (wasRinging) {
             sendBroadcast(new Intent(ACTION_ENDED).setPackage(getPackageName()));
+            if (missed) {
+                AlarmRearm.postMissed(this, lastTitle, true); // rang out, not stopped
+            }
         }
         handler.removeCallbacks(autoStop);
         releasePlayer();
@@ -258,7 +306,7 @@ public class AlarmService extends Service {
 
     @Override
     public void onDestroy() {
-        stopEverything();
+        stopEverything(false); // teardown cleanup — not a "missed" path
         super.onDestroy();
     }
 

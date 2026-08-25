@@ -184,6 +184,17 @@ export const en = {
     "On some devices (Xiaomi, Huawei, Oppo…) enable \"Autostart\" and remove battery restrictions so the alarm works reliably.",
   "notify.permGranted": "On",
   "notify.offlineNote": "Reminders work offline",
+  // Native alarm notices — pre-alarm dismiss, missed, horizon refresh
+  // (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4; {prayer}/{min} filled natively).
+  "alarm.preTitle": "{prayer} alarm rings in {min} min",
+  "alarm.preBody": "Awake? You can turn it off from here.",
+  "alarm.preAction": "Turn off alarm",
+  "alarm.preStopped": "{prayer} alarm turned off.",
+  "alarm.missedTitle": "Missed {prayer} alarm",
+  "alarm.missedRang": "The alarm rang and wasn't stopped.",
+  "alarm.missedNotFired": "The alarm couldn't ring on time.",
+  "alarm.refreshTitle": "Refresh prayer alarms",
+  "alarm.refreshBody": "Open the app to refresh upcoming alarms.",
 
   // Alarm (full-screen)
   "alarm.stop": "Stop",

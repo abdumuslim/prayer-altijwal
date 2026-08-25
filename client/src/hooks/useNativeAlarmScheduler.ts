@@ -3,14 +3,17 @@
 // change to rules / location / tone / method, and again whenever the app returns
 // to the foreground (so a stale horizon is topped up). No-op on web.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { App as CapApp } from "@capacitor/app";
 import {
   isNative,
   loadNativeFacade,
   PrayerAlarm,
+  type AlarmTexts,
   type NativeScheduleInput,
 } from "@/lib/native";
+import { ar } from "@/i18n/strings.ar";
+import { en } from "@/i18n/strings.en";
 import type { LocalAlertRule } from "@/lib/local-alerts";
 import type { StoredLocation } from "@/lib/storage";
 import type { AsrMadhab, Lang } from "@/types/api";
@@ -25,8 +28,28 @@ interface Params {
   rules: LocalAlertRule[];
 }
 
+/** Localized native-notification strings for this sync (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4). */
+function buildAlarmTexts(lang: Lang): AlarmTexts {
+  const d = lang === "ar" ? ar : en;
+  return {
+    preTitle: d["alarm.preTitle"],
+    preBody: d["alarm.preBody"],
+    preAction: d["alarm.preAction"],
+    preStopped: d["alarm.preStopped"],
+    missedTitle: d["alarm.missedTitle"],
+    missedRang: d["alarm.missedRang"],
+    missedNotFired: d["alarm.missedNotFired"],
+    refreshTitle: d["alarm.refreshTitle"],
+    refreshBody: d["alarm.refreshBody"],
+  };
+}
+
 export function useNativeAlarmScheduler(params: Params): void {
   const [resumeNonce, setResumeNonce] = useState(0);
+  // Monotonic generation: each sync captures the current value and, after any
+  // await, bails if a newer sync (or unmount) has since bumped it — a stale
+  // in-flight replaceAll must never overwrite a newer set (§3f).
+  const genRef = useRef(0);
 
   // Re-schedule when the app returns to the foreground (top up the horizon).
   useEffect(() => {
@@ -38,6 +61,14 @@ export function useNativeAlarmScheduler(params: Params): void {
       remove = () => void handle.remove();
     });
     return () => remove?.();
+  }, []);
+
+  // A phone left foregrounded for days never fires appStateChange, so also top
+  // up the 7-day horizon on a 6-hour cadence while mounted (native only) (§3f).
+  useEffect(() => {
+    if (!isNative()) return;
+    const id = setInterval(() => setResumeNonce((n) => n + 1), 6 * 60 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   const sig = useMemo(() => {
@@ -56,11 +87,15 @@ export function useNativeAlarmScheduler(params: Params): void {
 
   useEffect(() => {
     if (!isNative() || !params.location) return;
-    let cancelled = false;
-    void (async () => {
+    const gen = ++genRef.current;
+    const isStale = () => genRef.current !== gen;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    async function sync(isRetry: boolean): Promise<void> {
       const facade = await loadNativeFacade();
+      if (isStale()) return; // after the facade-load await
       const loc = params.location;
-      if (!facade || cancelled || !loc) return;
+      if (!facade || !loc) return;
       const input: NativeScheduleInput = {
         location: loc,
         lang: params.lang,
@@ -70,18 +105,30 @@ export function useNativeAlarmScheduler(params: Params): void {
         toneId: params.toneId,
         rules: params.rules,
       };
+      const texts = buildAlarmTexts(params.lang);
       try {
-        const alarms = facade.computeSchedule(input);
-        await PrayerAlarm.replaceAll({ alarms });
+        const alarms = facade.computeSchedule(input); // sync compute
+        if (isStale()) return; // immediately before replaceAll
+        await PrayerAlarm.replaceAll({ alarms, texts });
+        if (isStale()) return; // immediately after replaceAll
       } catch (err) {
         // Surface failures (plugin unavailable / permission denied / compute
         // throw) in logcat instead of hiding them — a silent catch here masked
         // the original "no alarms armed" bug (docs/NATIVE_ALARM_FIXES_SPEC.md §2a).
         console.error("[native-alarm] replaceAll failed", err);
+        // One retry ~5s later, same generation only (§3f).
+        if (!isRetry) {
+          retry = setTimeout(() => {
+            if (!isStale()) void sync(true);
+          }, 5000);
+        }
       }
-    })();
+    }
+    void sync(false);
+
     return () => {
-      cancelled = true;
+      genRef.current += 1; // invalidate any in-flight sync
+      if (retry) clearTimeout(retry);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig, resumeNonce]);

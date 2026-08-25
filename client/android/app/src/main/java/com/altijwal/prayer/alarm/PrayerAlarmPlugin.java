@@ -31,7 +31,9 @@ import com.getcapacitor.annotation.PermissionCallback;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Bridges the JS PrayerAlarm API (client/src/lib/native.ts) to on-device alarm
@@ -62,17 +64,68 @@ public class PrayerAlarmPlugin extends Plugin {
         JSArray arr = call.getArray("alarms");
         List<ScheduledAlarm> next = parseAlarms(arr);
 
-        // Cancel everything currently armed, then arm the new set.
-        scheduler.cancelAll(store.load());
-        scheduler.scheduleAll(next);
-        store.save(next);
-        call.resolve();
+        // Persist the localized text map (§4) so the pre/missed/refresh notices render
+        // even pre-unlock / after an update-then-never-opened; absent → AR defaults.
+        JSObject texts = call.getObject("texts", null);
+        if (texts != null) new AlarmTexts(getContext()).save(texts);
+
+        // Ids of the incoming sync (before dismiss filtering): a dismiss suppression
+        // whose occurrence no longer arrives from JS refers to a deleted rule and must
+        // not outlive it, else recreating that rule (reused id + identical instant)
+        // before the occurrence passes is silently muted (§ finding 3).
+        Set<String> incomingIds = new HashSet<>();
+        for (ScheduledAlarm a : next) incomingIds.add(a.id);
+
+        // The replacement runs as one transaction against the fire receiver's
+        // removeById, so a concurrent fire can't clobber the new set (§ finding 1).
+        int failures;
+        synchronized (AlarmStore.lock()) {
+            long now = System.currentTimeMillis();
+            store.retainDismissed(incomingIds); // drop suppressions for deleted rules (empty ⇒ map cleared)
+
+            // `saved` = everything we keep in the store; `armable` = the subset we
+            // actually arm. Drop dismissed occurrences (id + exact instant, §2). Any
+            // instant already past by arm time is kept SAVED (so the next resync
+            // reports it missed) but never armed — arming a past instant fires it
+            // immediately, a duplicate ring (§ finding 1).
+            List<ScheduledAlarm> saved = new ArrayList<>();
+            List<ScheduledAlarm> armable = new ArrayList<>();
+            for (ScheduledAlarm a : next) {
+                if (store.isDismissed(a.id, a.at)) continue;
+                saved.add(a);
+                if (a.at > now) armable.add(a);
+            }
+
+            // §3c ordering: cancel the old set (incl. pre-PIs) → persist the new set +
+            // meta BEFORE arming (a crash between save and arm self-heals at the next
+            // resync, since the store is authoritative) → arm.
+            List<ScheduledAlarm> old = store.load();
+            scheduler.cancelAll(old);
+            store.save(saved);
+            store.setSyncMeta(!saved.isEmpty(), now);
+            store.establishMissedInvariant(); // a 2.5 write: the §1.3 "past ⇒ never fired" invariant now holds
+            failures = scheduler.scheduleAll(armable);
+        }
+
+        AlarmRearm.armCanary(getContext());
+        AlarmRearm.clearRefreshNag(getContext());
+        // Occurrences are stored-but-unarmed when arming throws mid-batch (permission
+        // revoked between canScheduleExact and setAlarmClock): tell JS so its 5-second
+        // retry re-runs the idempotent sync rather than trusting a false success (§ finding 2).
+        if (failures > 0) {
+            call.reject("scheduleAll: " + failures + " arm failures");
+        } else {
+            call.resolve();
+        }
     }
 
     @PluginMethod
     public void cancelAll(PluginCall call) {
-        scheduler.cancelAll(store.load());
-        store.clear();
+        synchronized (AlarmStore.lock()) { // atomic against a concurrent fire (§ finding 1)
+            scheduler.cancelAll(store.load()); // cancels fire + pre PIs
+            AlarmRearm.cancelCanary(getContext());
+            store.clear();
+        }
         call.resolve();
     }
 

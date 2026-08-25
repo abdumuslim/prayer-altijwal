@@ -20,10 +20,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Full-screen alarm screen shown over the lock screen (PrayerAlarm plugin). -->
+        <!-- Full-screen alarm screen shown over the lock screen (PrayerAlarm plugin).
+             directBootAware so a pre-unlock ring can show it (FBE — reliability §3a). -->
         <activity
             android:name="com.altijwal.prayer.alarm.AlarmActivity"
             android:exported="false"
+            android:directBootAware="true"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:showWhenLocked="true"
@@ -37,18 +39,26 @@
         <service
             android:name="com.altijwal.prayer.alarm.AlarmService"
             android:exported="false"
+            android:directBootAware="true"
             android:foregroundServiceType="shortService"
         />
 
-        <!-- Fires at each alarm instant (set via AlarmManager). -->
-        <receiver android:name="com.altijwal.prayer.alarm.AlarmReceiver" android:exported="false" />
+        <!-- Fires at each alarm instant (set via AlarmManager). directBootAware so a
+             pre-unlock fire is delivered on FBE devices (reliability §3a). -->
+        <receiver android:name="com.altijwal.prayer.alarm.AlarmReceiver"
+            android:exported="false"
+            android:directBootAware="true" />
 
-        <!-- Re-arms alarms after reboot / app update. -->
-        <receiver android:name="com.altijwal.prayer.alarm.BootReceiver" android:exported="false">
+        <!-- Re-arms alarms after reboot / app update / exact-alarm grant / the daily
+             canary. directBootAware so LOCKED_BOOT_COMPLETED reaches it (reliability §3d). -->
+        <receiver android:name="com.altijwal.prayer.alarm.BootReceiver"
+            android:exported="false"
+            android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
 
