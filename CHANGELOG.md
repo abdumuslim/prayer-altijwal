@@ -5,6 +5,30 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.6.0] - 2026-08-26 (versionCode 12)
+
+### Changed
+- **«أقرب المساجد» (nearest masjids) is now shown only inside Iraq.** The resident masjid dataset
+  covers Iraq, so for a location outside it the section is hidden entirely; the qibla compass, prayer
+  times, reminders, and everything else stay available everywhere. The server now also refuses masjid
+  requests for coordinates outside Iraq, so no lookup can run for a location the dataset cannot answer.
+
+### Added
+- **Crashes and unexpected errors are now captured on the device.** A small local error log records
+  failures so an issue can be diagnosed from the app itself instead of a blank screen.
+- **Alarm scheduling is now observable.** How many alarms are held against the platform's limit is
+  recorded, so a phone approaching that cap can be spotted before an alarm is silently dropped.
+- **Nightly server backups and log rotation.** A scheduled backup of the prayer database and rotation
+  of the container logs keep the deployment recoverable and bounded on disk.
+
+### Security
+- **A security and abuse-hardening round across the backend.** The push endpoints now accept only the
+  known reminder fields (a strict allowlist), the public endpoints are rate-limited, and the daily
+  retention sweep prunes the usage and demand tables to their intended lifetimes so nothing
+  accumulates without bound.
+- **Android auto-backup of the app's data is turned off** (`allowBackup=false`), so reminder and alarm
+  state is not copied off the device by the platform's cloud backup.
+
 ## [2.5.0] — 2026-08-25 (versionCode 11)
 
 ### Added
