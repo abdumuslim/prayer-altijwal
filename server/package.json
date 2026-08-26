@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
@@ -26,6 +27,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.3",

@@ -132,6 +132,11 @@ CREATE INDEX IF NOT EXISTS idx_push_log_fired_at ON push_log (fired_at);
 A daily prune deletes `push_log` rows older than ~48h. Repo: `db/repositories/alert-rules.ts`
 (`PgAlertRulesRepo`: `listByEndpoint`/`listAll`/`create`/`update`/`delete`, all endpoint-scoped).
 
+The daily retention sweep (`db/retention.ts`) also prunes **`push_subscriptions` older than 45 days
+that own zero alert rules** (`DEAD_SUBSCRIPTION_RETENTION_DAYS`, `db/repositories/subscriptions.ts`):
+a device that subscribed but never configured a reminder, or whose rules were all deleted, is dead
+weight the scheduler never fires on, so it is not kept forever.
+
 ---
 
 ## 3a. Reminder UX — independent rules
@@ -258,6 +263,14 @@ for each sub in subs:
   between ticks; the DB dedup prevents the duplicate sends a wide window would otherwise cause.
 - **Cleanup:** on send error `404`/`410` → `DELETE FROM push_subscriptions WHERE endpoint=$1`
   (cascades to `push_log`). (Home's logic, now correct because the cascade clears the ledger too.)
+  A stored endpoint that fails `isAllowedPushEndpoint` (§5a) is treated identically: purged **before**
+  any send, so a row that predates the allowlist can never be POSTed to (defence in depth).
+- **Single-flight tick:** if a tick is still running when the timer fires again (a slow DB), the new
+  tick logs a warning (`tickRunning`) and returns rather than stacking overlapping passes.
+- **Per-tick cache prune:** after each tick the in-memory `Map<endpoint, {dateKey, table}>` is pruned
+  to the live subscription set (`pruneCache`), so an unsubscribed device's entry cannot linger.
+- **Redacted logging:** every scheduler log line names an endpoint only via `redactEndpoint`
+  (host + an 8-char hash), never the full URL (§5a).
 - **DST:** handled automatically — times are recomputed daily per-subscriber via the engine's
   `zonedMidnightUtc`/offset machinery using each subscriber's IANA tz.
 - **Caching:** in-memory `Map<endpoint, {dateKey, table}>` avoids recomputing the ephemeris every
@@ -279,6 +292,25 @@ for each sub in subs:
 `minutes` 1–180 when `timing='before'|'after'`; `prayers` is the `AlertTarget` enum; `kind` is
 `'notification' | 'alarm'`, defaulting to `notification` so pre-alarm clients keep working). All
 zod-validated at the boundary.
+
+### 5a. Boundary hardening (2026-08-25 pre-production round)
+
+- **Endpoint allowlist (SSRF guard).** The scheduler later POSTs to whatever `endpoint` sits on the
+  row, so `PushSubscriptionSchema` no longer accepts a bare `z.string().url()`: `isAllowedPushEndpoint`
+  (`server/src/validation/push.ts`) admits only an **https** URL whose host equals, or is a
+  dot-boundary subdomain of, one of the known browser push services (`fcm.googleapis.com`,
+  `push.services.mozilla.com`, `web.push.apple.com`, `push.apple.com`, `notify.windows.com`), capped at
+  **2048 chars**. The dot-boundary check rejects look-alikes such as
+  `evil-fcm.googleapis.com.attacker.tld`. The function is pure and reused on the **send** path too, so a
+  stored row that fails it is purged like a dead subscription (§4).
+- **Write rate limits.** `POST /api/push/subscribe`, `POST /api/push/alerts` and
+  `PUT /api/push/alerts/:id` pass through the shared sliding limiter (`server/src/http/rate-limit.ts`):
+  **60 writes per IP-prefix per hour** plus a **2000/hour global ceiling** (the backstop against a
+  forged-`cf-connecting-ip` flood, mirroring the telemetry/admin defence). A device also owns at most
+  **40 alert rules** (`400 "Reminder limit reached"`), so one endpoint cannot fill `prayer_alert_rules`.
+- **No endpoint in the logs.** Push endpoints are bearer-capable credentials, so every log site
+  (subscriptions, alert-rules, scheduler) passes them through `redactEndpoint`: host + an 8-char hash,
+  never the raw URL.
 
 ---
 

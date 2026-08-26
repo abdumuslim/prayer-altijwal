@@ -78,7 +78,8 @@ public class PrayerAlarmPlugin extends Plugin {
 
         // The replacement runs as one transaction against the fire receiver's
         // removeById, so a concurrent fire can't clobber the new set (§ finding 1).
-        int failures;
+        AlarmScheduler.ScheduleResult result;
+        int requested; // fire occurrences we tried to arm (armable count), for the JS cap report
         synchronized (AlarmStore.lock()) {
             long now = System.currentTimeMillis();
             store.retainDismissed(incomingIds); // drop suppressions for deleted rules (empty ⇒ map cleared)
@@ -104,7 +105,8 @@ public class PrayerAlarmPlugin extends Plugin {
             store.save(saved);
             store.setSyncMeta(!saved.isEmpty(), now);
             store.establishMissedInvariant(); // a 2.5 write: the §1.3 "past ⇒ never fired" invariant now holds
-            failures = scheduler.scheduleAll(armable);
+            requested = armable.size();
+            result = scheduler.scheduleAll(armable);
         }
 
         AlarmRearm.armCanary(getContext());
@@ -112,10 +114,18 @@ public class PrayerAlarmPlugin extends Plugin {
         // Occurrences are stored-but-unarmed when arming throws mid-batch (permission
         // revoked between canScheduleExact and setAlarmClock): tell JS so its 5-second
         // retry re-runs the idempotent sync rather than trusting a false success (§ finding 2).
-        if (failures > 0) {
-            call.reject("scheduleAll: " + failures + " arm failures");
+        if (result.failures > 0) {
+            call.reject("scheduleAll: " + result.failures + " arm failures");
         } else {
-            call.resolve();
+            // Resolve with the arm counts so JS can observe a UID-cap drop (occurrences
+            // beyond MAX_FIRE are silently dropped here: reported, never behaviour-changed;
+            // P6 / docs/NATIVE_ALARM_RELIABILITY_SPEC.md). Backward compatible: callers that
+            // ignore the resolved value are unaffected.
+            JSObject res = new JSObject();
+            res.put("requested", requested);
+            res.put("armed", result.fires);
+            res.put("dropped", result.dropped);
+            call.resolve(res);
         }
     }
 

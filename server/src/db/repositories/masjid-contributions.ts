@@ -56,19 +56,38 @@ export interface MasjidContributionsRepo {
 export function createMasjidContributionsRepo(pool: pg.Pool): MasjidContributionsRepo {
   return {
     async submit(input) {
+      // Serialize a client's own submissions before counting. The WHERE-guarded
+      // INSERT ... SELECT alone is NOT enough under READ COMMITTED: two
+      // concurrent statements each take their own snapshot, both see the same
+      // pre-insert count, and both slip past the cap. Wrapping the count-and-
+      // insert in a transaction that first takes a per-client transaction-scoped
+      // advisory lock makes concurrent submissions from one client queue instead
+      // (the lock auto-releases at COMMIT/ROLLBACK), so the second one counts the
+      // first's committed row. A dedicated pooled client is required: advisory
+      // locks and BEGIN/COMMIT are connection-scoped, not poolable per-query.
+      // submit() never throws (the route maps false to its "limit reached"
+      // response), so failing to even acquire a connection is a false too.
+      let client: pg.PoolClient;
       try {
-        const { rows } = await pool.query(
-          `SELECT COUNT(*)::int AS n FROM masjid_contributions
-            WHERE client_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
-          [input.clientId],
-        );
-        if ((rows[0]?.n ?? 0) >= MAX_CONTRIBUTIONS_PER_DAY) return false;
-
-        await pool.query(
+        client = await pool.connect();
+      } catch (err) {
+        log.warn("contribution insert failed", err instanceof Error ? err : new Error(String(err)));
+        return false;
+      }
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [input.clientId]);
+        const { rowCount } = await client.query(
           `INSERT INTO masjid_contributions (name, lat, lon, client_id, status)
-                VALUES ($1, $2, $3, $4, 'pending')`,
-          [input.name, input.lat, input.lon, input.clientId],
+                SELECT $1, $2, $3, $4, 'pending'
+                 WHERE (
+                   SELECT COUNT(*) FROM masjid_contributions
+                    WHERE client_id = $4 AND created_at > NOW() - INTERVAL '1 day'
+                 ) < $5`,
+          [input.name, input.lat, input.lon, input.clientId, MAX_CONTRIBUTIONS_PER_DAY],
         );
+        await client.query("COMMIT");
+        if (!rowCount) return false; // rowCount 0 ⇒ the daily cap already refused it
         // Deliberately NOT logging lat/lon: pino writes to stdout, which the
         // container log driver retains, and user-submitted coordinates sitting
         // in logs undercuts the Play Data Safety answer that location is
@@ -76,8 +95,11 @@ export function createMasjidContributionsRepo(pool: pg.Pool): MasjidContribution
         log.info("masjid contribution received");
         return true;
       } catch (err) {
+        await client.query("ROLLBACK").catch(() => undefined);
         log.warn("contribution insert failed", err instanceof Error ? err : new Error(String(err)));
         return false;
+      } finally {
+        client.release();
       }
     },
 

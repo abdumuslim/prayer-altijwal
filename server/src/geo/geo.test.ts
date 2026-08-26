@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import express from "express";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { CitiesIndex } from "./cities-index.js";
+import { CitiesIndex, type City } from "./cities-index.js";
 import { openMeteoSearch } from "./open-meteo.js";
 import { createGeoRouter } from "./routes.js";
 
@@ -70,6 +70,20 @@ describe("CitiesIndex.search — forward city search", () => {
   it("returns [] for blank input and respects the limit", () => {
     expect(index.search("   ")).toEqual([]);
     expect(index.search("a", 3).length).toBeLessThanOrEqual(3);
+  });
+
+  it("precomputed keys preserve every field's matches and the ranking (guards precompute drift)", () => {
+    // Arabic-script query resolves through the precomputed `nar` field; a
+    // precompute that dropped `nar` (or reused a stale key) would miss this.
+    expect(index.search("بغداد").some((c) => c.cc === "IQ")).toBe(true);
+    // Latin alternate name (Mecca is stored as "Makkah" + alt "Mecca").
+    expect(index.search("mecca").some((c) => c.cc === "SA")).toBe(true);
+    // Normalizing once at load (not per-query) must not change the result set or
+    // its order: the accented and plain queries return the identical ranking.
+    const key = (c: City): string => `${c.cc}:${c.n}`;
+    const plain = index.search("zurich").map(key);
+    const accented = index.search("zürich").map(key);
+    expect(accented).toEqual(plain);
   });
 });
 
@@ -181,5 +195,44 @@ describe("createGeoRouter — HTTP routes", () => {
   it("GET /api/geo/governorates with bad country → 400", async () => {
     const res = await fetch(`${base}/api/geo/governorates?country=IRAQ`);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("createGeoRouter: rate limiting", () => {
+  async function withRouter(
+    deps: Parameters<typeof createGeoRouter>[1],
+    fn: (base: string) => Promise<void>,
+  ): Promise<void> {
+    const app = express();
+    app.use(createGeoRouter(index, deps));
+    const server = await new Promise<Server>((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+    try {
+      const { port } = server.address() as AddressInfo;
+      await fn(`http://127.0.0.1:${port}`);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }
+
+  it("429s search past the per-IP cap ({error})", async () => {
+    await withRouter({ searchLimits: { perIpPerMinute: 2 } }, async (base) => {
+      const hit = () => fetch(`${base}/api/geo/search?q=mecca`);
+      expect((await hit()).status).toBe(200);
+      expect((await hit()).status).toBe(200);
+      const over = await hit();
+      expect(over.status).toBe(429);
+      expect((await over.json()).error).toBe("Too many requests");
+    });
+  });
+
+  it("429s reverse + declination past the shared lookup cap", async () => {
+    await withRouter({ lookupLimits: { perIpPerMinute: 2 } }, async (base) => {
+      // The two share one limiter, so one reverse + one declination exhausts it.
+      expect((await fetch(`${base}/api/geo/reverse?lat=33.32&lon=44.36`)).status).toBe(200);
+      expect((await fetch(`${base}/api/geo/declination?lat=33.32&lon=44.36`)).status).toBe(200);
+      expect((await fetch(`${base}/api/geo/reverse?lat=33.32&lon=44.36`)).status).toBe(429);
+    });
   });
 });

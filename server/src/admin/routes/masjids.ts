@@ -10,6 +10,7 @@ import {
 } from "../../db/repositories/masjid-contributions.js";
 import { haversineKm } from "../../util/geo-distance.js";
 import { isSameMasjid } from "../../places/merge.js";
+import { isExcludedVenue } from "../../places/venue-filter.js";
 import type { ResidentIndex } from "../../places/resident-index.js";
 import { actorIpOf, requireSession, type SessionConfig } from "../middleware.js";
 
@@ -143,6 +144,10 @@ function toPublic(row: ContributionRow): Record<string, unknown> {
     status: row.status satisfies ContributionStatus,
     createdAt: row.createdAt,
     clientShort: row.clientId ? `${row.clientId.slice(0, 8)}…` : null,
+    // True ⇒ the shared venue filter keeps this name out of the served index even
+    // if approved (husseiniya/mawkib/mudhif). Operator-visible only; the filter
+    // stays invisible to the contributor.
+    excludedByFilter: isExcludedVenue(row.name),
   };
 }
 

@@ -6,6 +6,7 @@ import express, {
   type NextFunction,
 } from "express";
 import cors from "cors";
+import compression from "compression";
 import path from "node:path";
 import { childLogger } from "./logger.js";
 
@@ -24,8 +25,9 @@ export interface CreateAppOptions {
 
 /**
  * Build the Express app. Middleware order matters:
- *   no-cache → admin API → /api CORS → json → API router → /api JSON-404
- *   → /admin static+fallback → SPA static → SPA fallback → error handler.
+ *   compression → cache-control → admin API → /api CORS → json → API router
+ *   → /api JSON-404 → /admin static+fallback → SPA static → SPA fallback
+ *   → error handler.
  *
  * Two orderings here are load-bearing and covered by app.test.ts:
  *
@@ -41,11 +43,44 @@ export function createApp(opts: CreateAppOptions): Express {
   const app = express();
   app.disable("x-powered-by");
 
-  // No-cache for API + HTML/JS/CSS so clients always get fresh app + data.
+  // Response compression (defence in depth, independent of Cloudflare's edge
+  // gzip/brotli, so a direct-to-origin fetch is compressed too). Default
+  // settings; must sit before the routes it wraps.
+  app.use(compression());
+
+  // Cache-Control policy. The origin is a single-CPU container behind
+  // Cloudflare, so letting the edge + browser cache the deterministic public
+  // GETs takes real load off it, while everything stateful stays uncacheable.
+  //
+  // The API DEFAULTS to no-store here, ahead of routing. The only edge-cacheable
+  // API responses (the prayer-times and geo GETs) opt back in from their own
+  // routers, right before res.json, so the public max-age lands on a 200 ONLY:
+  // a 400/404/429/500 on those same routes never reaches that line and so is
+  // never pinned at the edge (the earlier "set before routing" design cached
+  // errors and even an unmounted route's 404). Static-asset + SPA-shell rules
+  // stay here since they are path-prefix decisions with no per-response state.
   app.use((req: Request, res: Response, next: NextFunction) => {
     const p = req.path;
-    if (p.startsWith("/api/") || p.endsWith(".js") || p.endsWith(".css") || p.endsWith(".html")) {
-      res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    if (p.startsWith("/api/")) {
+      // Uncacheable unless a router explicitly opts a 200 in (prayer/geo).
+      res.set("Cache-Control", "no-store");
+    } else if (p.startsWith("/assets/")) {
+      // Vite content-hashed bundles: the hash changes on every rebuild, so the
+      // URL is a permanent handle for its bytes.
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (
+      p === "/" ||
+      p === "/manifest.webmanifest" ||
+      p.endsWith(".html") ||
+      p.endsWith(".js") ||
+      p.endsWith(".css")
+    ) {
+      // The SPA shell, the manifest, and (CRITICAL) the service worker
+      // (`/sw.js`) must revalidate so an update is never pinned behind a stale
+      // long-lived cache. Extension-less deep links (e.g. /times) miss this
+      // prefix, so the history fallbacks below set the same no-cache explicitly
+      // where they send index.html.
+      res.set("Cache-Control", "no-cache");
     }
     next();
   });
@@ -78,6 +113,9 @@ export function createApp(opts: CreateAppOptions): Express {
   const adminIndex = path.join(opts.adminDir, "index.html");
   app.use("/admin", adminSecurityHeaders, express.static(opts.adminDir));
   app.get("/admin{/*splat}", adminSecurityHeaders, (_req: Request, res: Response) => {
+    // Sends index.html, so revalidate rather than let a stale shell pin (send()
+    // leaves an already-set Cache-Control untouched).
+    res.set("Cache-Control", "no-cache");
     res.sendFile(adminIndex, (err) => {
       if (!err || res.headersSent) return;
       // Missing bundle is an operator mistake, not a crash: say what to run.
@@ -94,6 +132,10 @@ export function createApp(opts: CreateAppOptions): Express {
   // SPA history fallback for any non-API GET — Express 5 named-wildcard syntax
   // (`app.get("*")` throws under path-to-regexp v8).
   app.get("/{*splat}", (_req: Request, res: Response) => {
+    // Deep-link paths (no extension) skipped the no-cache prefix above; the
+    // shell must revalidate like the root document (send() leaves an
+    // already-set Cache-Control untouched, so this is the effective value).
+    res.set("Cache-Control", "no-cache");
     res.sendFile(path.join(opts.staticDir, "index.html"));
   });
 

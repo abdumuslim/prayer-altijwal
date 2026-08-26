@@ -1,12 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Server } from "node:http";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import type { Router } from "express";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createApp } from "./app.js";
 import { createRouter } from "./router.js";
 import { createAdminRouter } from "./admin/index.js";
 import { hashPassword } from "./admin/auth.js";
+import { createPrayerRouter } from "./prayer/routes.js";
+import { createGeoRouter } from "./geo/routes.js";
+import { CitiesIndex } from "./geo/cities-index.js";
 
 /**
  * Middleware ORDER regression tests for app.ts.
@@ -27,6 +31,11 @@ const ADMIN_MARKER = "ADMIN_INDEX_MARKER";
 function makeBundle(marker: string): string {
   const dir = mkdtempSync(path.join(tmpdir(), "prayer-test-"));
   writeFileSync(path.join(dir, "index.html"), `<!doctype html><title>${marker}</title>`);
+  // A real content-hashed asset, so the immutable-cache rule can be asserted
+  // against a file express.static actually serves (a MISSING asset would fall
+  // through to the SPA history fallback and pick up its no-cache instead).
+  mkdirSync(path.join(dir, "assets"));
+  writeFileSync(path.join(dir, "assets", "app-abc123.js"), "export const x = 1;\n");
   return dir;
 }
 
@@ -65,9 +74,9 @@ interface Harness {
   close: () => Promise<void>;
 }
 
-async function start(withAdmin: boolean): Promise<Harness> {
+async function start(withAdmin: boolean, featureRouters: Router[] = []): Promise<Harness> {
   const app = createApp({
-    router: createRouter({ getDbStatus: async () => "disabled", featureRouters: [] }),
+    router: createRouter({ getDbStatus: async () => "disabled", featureRouters }),
     staticDir: makeBundle(SPA_MARKER),
     adminDir: makeBundle(ADMIN_MARKER),
     adminRouter: withAdmin ? adminRouter() : undefined,
@@ -224,5 +233,84 @@ describe("with the admin dashboard disabled", () => {
   it("leaves the public API and SPA untouched", async () => {
     expect((await fetch(`${h.base}/api/health`)).status).toBe(200);
     expect(await (await fetch(`${h.base}/`)).text()).toContain(SPA_MARKER);
+  });
+});
+
+describe("Cache-Control policy", () => {
+  let h: Harness;
+  beforeAll(async () => {
+    // The REAL prayer + geo routers are mounted so the full pipeline (no-store
+    // default set ahead of routing → the router opting a 200 back in) is
+    // exercised, rather than pinning the old bug where an unmounted route's 404
+    // still carried a public max-age.
+    const cities = CitiesIndex.load();
+    h = await start(false, [createPrayerRouter(), createGeoRouter(cities)]);
+  });
+  afterAll(() => h.close());
+
+  const cc = async (path: string): Promise<string | null> =>
+    (await fetch(`${h.base}${path}`)).headers.get("cache-control");
+
+  it("lets the edge cache only the SUCCESSFUL public GETs", async () => {
+    const daily = await fetch(`${h.base}/api/prayer-times?lat=33&lon=44&tz=Asia/Baghdad`);
+    expect(daily.status).toBe(200);
+    expect(daily.headers.get("cache-control")).toBe("public, max-age=60");
+
+    const search = await fetch(`${h.base}/api/geo/search?q=mecca`);
+    expect(search.status).toBe(200);
+    expect(search.headers.get("cache-control")).toBe("public, max-age=21600");
+  });
+
+  it("never lets a 4xx on those same public routes be cached", async () => {
+    // A bad query must not inherit the success path's public max-age: the
+    // no-store default set ahead of routing stands (the old middleware set the
+    // public header before routing, so errors were edge-cacheable).
+    const badDaily = await fetch(`${h.base}/api/prayer-times?lat=999`);
+    expect(badDaily.status).toBe(400);
+    expect(badDaily.headers.get("cache-control")).toBe("no-store");
+
+    const badGeo = await fetch(`${h.base}/api/geo/reverse?lat=999&lon=0`);
+    expect(badGeo.status).toBe(400);
+    expect(badGeo.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not cache a 404 for an unmatched API route", async () => {
+    const res = await fetch(`${h.base}/api/nope`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not cache a 429 rate-limited public GET", async () => {
+    // A dedicated app with a per-IP cap of 1 so the second call trips the limit.
+    const capped = await start(false, [
+      createPrayerRouter({ dailyLimits: { perIpPerMinute: 1, globalPerMinute: 1000 } }),
+    ]);
+    try {
+      const ok = await fetch(`${capped.base}/api/prayer-times?lat=33&lon=44&tz=Asia/Baghdad`);
+      expect(ok.status).toBe(200);
+      const over = await fetch(`${capped.base}/api/prayer-times?lat=33&lon=44&tz=Asia/Baghdad`);
+      expect(over.status).toBe(429);
+      expect(over.headers.get("cache-control")).toBe("no-store");
+    } finally {
+      await capped.close();
+    }
+  });
+
+  it("never caches stateful API routes", async () => {
+    expect(await cc("/api/health")).toBe("no-store");
+  });
+
+  it("makes content-hashed assets immutable but the shell + service worker revalidate", async () => {
+    expect(await cc("/assets/app-abc123.js")).toBe("public, max-age=31536000, immutable");
+    expect(await cc("/")).toBe("no-cache");
+    expect(await cc("/sw.js")).toBe("no-cache");
+    expect(await cc("/manifest.webmanifest")).toBe("no-cache");
+  });
+
+  it("serves a deep link with the SPA shell and no-cache", async () => {
+    const res = await fetch(`${h.base}/times`);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(SPA_MARKER);
+    expect(res.headers.get("cache-control")).toBe("no-cache");
   });
 });

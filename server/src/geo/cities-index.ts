@@ -52,14 +52,36 @@ function normalize(s: string): string {
 }
 
 /**
+ * The normalized haystack search matches a query against: display name,
+ * asciiname, and the Latin + Arabic alternate names, newline-joined so a match
+ * at a field boundary still counts as a prefix. Computed once per city at load.
+ */
+function searchKey(c: City): string {
+  const parts = [c.n, c.a];
+  if (c.alt) parts.push(c.alt);
+  if (c.nar) parts.push(c.nar); // lets Arabic-script queries match
+  return normalize(parts.join("\n"));
+}
+
+/**
  * In-memory index over the GeoNames `cities15000` dataset.
  * - reverse: nearest city by great-circle distance (lat-band bucketed).
  * - search: diacritic-/case-insensitive prefix/substring match, ranked by pop.
  */
+/** A city paired with its normalized haystack, precomputed once at load. */
+interface SearchRow {
+  city: City;
+  /** normalize(n \n a [\n alt] [\n nar]): the same string search matched before. */
+  key: string;
+}
+
 export class CitiesIndex {
   private readonly cities: readonly City[];
   /** Map<floor(lat), City[]> for bounded reverse-lookup scans. */
   private readonly bands: ReadonlyMap<number, readonly City[]>;
+  /** Each city's normalized search haystack, built once so search() only
+   *  normalizes the QUERY rather than every record on every request. */
+  private readonly searchRows: readonly SearchRow[];
 
   private constructor(cities: readonly City[]) {
     this.cities = cities;
@@ -74,6 +96,7 @@ export class CitiesIndex {
       }
     }
     this.bands = bands;
+    this.searchRows = cities.map((c) => ({ city: c, key: searchKey(c) }));
   }
 
   /** Load the dataset once from disk. */
@@ -131,16 +154,12 @@ export class CitiesIndex {
     if (needle === "") return [];
 
     const matches: Array<{ city: City; rank: number }> = [];
-    for (const c of this.cities) {
-      const parts = [c.n, c.a];
-      if (c.alt) parts.push(c.alt);
-      if (c.nar) parts.push(c.nar); // lets Arabic-script queries match
-      const hay = normalize(parts.join("\n"));
-      const idx = hay.indexOf(needle);
+    for (const { city, key } of this.searchRows) {
+      const idx = key.indexOf(needle);
       if (idx === -1) continue;
       // rank 0 = match at a token start (prefix), rank 1 = mid-string substring.
-      const prefix = idx === 0 || hay[idx - 1] === "\n" || hay[idx - 1] === " ";
-      matches.push({ city: c, rank: prefix ? 0 : 1 });
+      const prefix = idx === 0 || key[idx - 1] === "\n" || key[idx - 1] === " ";
+      matches.push({ city, rank: prefix ? 0 : 1 });
     }
 
     matches.sort((x, y) => {

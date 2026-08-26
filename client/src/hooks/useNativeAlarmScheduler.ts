@@ -11,7 +11,9 @@ import {
   PrayerAlarm,
   type AlarmTexts,
   type NativeScheduleInput,
+  type ReplaceAllResult,
 } from "@/lib/native";
+import { recordError } from "@/lib/error-log";
 import { ar } from "@/i18n/strings.ar";
 import { en } from "@/i18n/strings.en";
 import type { LocalAlertRule } from "@/lib/local-alerts";
@@ -42,6 +44,26 @@ function buildAlarmTexts(lang: Lang): AlarmTexts {
     refreshTitle: d["alarm.refreshTitle"],
     refreshBody: d["alarm.refreshBody"],
   };
+}
+
+/**
+ * Surface the AlarmScheduler UID-cap drop (docs/NATIVE_ALARM_RELIABILITY_SPEC.md P6):
+ * occurrences beyond ~500/UID are silently dropped natively while replaceAll still
+ * reports success, so a rule set that overflows the cap loses far-out alarms with no
+ * sign. Make it observable without any UI: a ring-buffer entry (pullable off the
+ * device) plus the same logcat channel the rest of this sync already uses. `result`
+ * may be undefined against an older native build that resolved void; treat that as
+ * "no drop".
+ */
+function reportCapDrop(result: ReplaceAllResult | undefined): void {
+  if (!result || result.dropped <= 0) return;
+  const extra = { requested: result.requested, armed: result.armed, dropped: result.dropped };
+  recordError({
+    kind: "native-alarm-cap",
+    message: `alarm UID cap: armed ${result.armed}/${result.requested}, dropped ${result.dropped}`,
+    extra,
+  });
+  console.error("[native-alarm] UID cap dropped occurrences", extra);
 }
 
 export function useNativeAlarmScheduler(params: Params): void {
@@ -109,8 +131,9 @@ export function useNativeAlarmScheduler(params: Params): void {
       try {
         const alarms = facade.computeSchedule(input); // sync compute
         if (isStale()) return; // immediately before replaceAll
-        await PrayerAlarm.replaceAll({ alarms, texts });
+        const result = await PrayerAlarm.replaceAll({ alarms, texts });
         if (isStale()) return; // immediately after replaceAll
+        reportCapDrop(result);
       } catch (err) {
         // Surface failures (plugin unavailable / permission denied / compute
         // throw) in logcat instead of hiding them — a silent catch here masked

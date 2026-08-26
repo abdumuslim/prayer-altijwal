@@ -2,8 +2,12 @@ import { childLogger } from "../logger.js";
 import type { AdminAuditRepo } from "./repositories/admin-audit.js";
 import { AUDIT_RETENTION_DAYS } from "./repositories/admin-audit.js";
 import type { PlacesUsageRepo } from "./repositories/places-usage.js";
+import type { PlacesStatsRecorder } from "./repositories/places-stats.js";
+import { CELL_DEMAND_RETENTION_DAYS } from "./repositories/places-stats.js";
 import type { PushStatsRepo } from "./repositories/push-stats.js";
 import { PUSH_STATS_RETENTION_DAYS } from "./repositories/push-stats.js";
+import type { OrphanSubscriptionPruner } from "./repositories/subscriptions.js";
+import { DEAD_SUBSCRIPTION_RETENTION_DAYS } from "./repositories/subscriptions.js";
 import type { TelemetryRepo } from "./repositories/telemetry.js";
 
 const log = childLogger("db/retention");
@@ -26,6 +30,13 @@ export interface RetentionDeps {
    * the 90-day retention documented there was, in practice, forever.
    */
   placesUsage?: PlacesUsageRepo;
+  /**
+   * Ruleless push_subscriptions rows the scheduler never touches — they grew
+   * forever until this pruner was wired in.
+   */
+  subscriptions?: OrphanSubscriptionPruner;
+  /** places_cell_demand — an aggregate rollup that also had no retention. */
+  cellDemand?: Pick<PlacesStatsRecorder, "pruneCellDemand">;
 }
 
 /**
@@ -42,6 +53,14 @@ export function startRetention(deps: RetentionDeps, intervalMs: number = DAY_MS)
       if (deps.audit) removed.adminAudit = await deps.audit.prune(AUDIT_RETENTION_DAYS);
       if (deps.pushStats) removed.pushStats = await deps.pushStats.prune(PUSH_STATS_RETENTION_DAYS);
       if (deps.placesUsage) removed.placesUsage = await deps.placesUsage.prune();
+      if (deps.subscriptions) {
+        removed.deadSubscriptions = await deps.subscriptions.pruneOrphaned(
+          DEAD_SUBSCRIPTION_RETENTION_DAYS,
+        );
+      }
+      if (deps.cellDemand) {
+        removed.cellDemand = await deps.cellDemand.pruneCellDemand(CELL_DEMAND_RETENTION_DAYS);
+      }
       const total = Object.values(removed).reduce((a, b) => a + b, 0);
       if (total > 0) log.info("retention sweep removed rows", removed);
     } catch (err) {

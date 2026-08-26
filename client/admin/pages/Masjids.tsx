@@ -155,6 +155,7 @@ function Row({
               {item.status}
             </Badge>
             {item.duplicate && <Badge tone="danger">possible duplicate</Badge>}
+            {item.excludedByFilter && <Badge tone="warn">filtered · not served</Badge>}
           </div>
           <p className="tnum mt-1 text-xs text-muted">
             #{item.id} · {item.lat.toFixed(5)}, {item.lon.toFixed(5)} · {timestamp(item.createdAt)}

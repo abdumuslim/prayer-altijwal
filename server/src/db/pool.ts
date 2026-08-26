@@ -1,5 +1,6 @@
 import pg from "pg";
 import { childLogger } from "../logger.js";
+import { config } from "../config.js";
 
 const log = childLogger("db/pool");
 
@@ -28,7 +29,10 @@ function bootstrapUrl(databaseUrl: string): string {
  * ONLY `CREATE DATABASE prayer` when `pg_database` lacks it; we never drop or
  * alter any other database.
  */
-export async function createPool(databaseUrl: string): Promise<pg.Pool> {
+export async function createPool(
+  databaseUrl: string,
+  max: number = config.pgPoolMax,
+): Promise<pg.Pool> {
   const bootstrap = new pg.Client({ connectionString: bootstrapUrl(databaseUrl) });
   try {
     await bootstrap.connect();
@@ -48,8 +52,8 @@ export async function createPool(databaseUrl: string): Promise<pg.Pool> {
     await bootstrap.end().catch(() => undefined);
   }
 
-  const pool = new pg.Pool({ connectionString: databaseUrl, min: 1, max: 5 });
-  log.info("Connection pool created", { min: 1, max: 5 });
+  const pool = new pg.Pool({ connectionString: databaseUrl, min: 1, max });
+  log.info("Connection pool created", { min: 1, max });
   return pool;
 }
 

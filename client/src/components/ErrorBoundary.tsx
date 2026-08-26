@@ -1,10 +1,11 @@
 // Top-level error boundary so a render error never shows a white screen.
 // Strings are read from the dicts directly (boundary may be outside provider).
 
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ar } from "@/i18n/strings.ar";
 import { en } from "@/i18n/strings.en";
+import { recordError } from "@/lib/error-log";
 
 interface Props {
   children: ReactNode;
@@ -21,8 +22,16 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  componentDidCatch(): void {
-    // In production this would report to an error sink; we avoid console noise.
+  componentDidCatch(error: unknown, info: ErrorInfo): void {
+    // Leave a trace in the local ring buffer (lib/error-log) instead of console
+    // noise; the UI is unchanged, this just makes a render crash recoverable off
+    // the device.
+    recordError({
+      kind: "error-boundary",
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      extra: { componentStack: info.componentStack },
+    });
   }
 
   handleReload = (): void => {

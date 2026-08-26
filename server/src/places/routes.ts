@@ -7,10 +7,12 @@ import {
   PlacesTravelQuery,
 } from "../validation/places.js";
 import { haversineKm } from "../util/geo-distance.js";
+import { isInIraqBbox } from "./iraq-bbox.js";
 import { createMasjidService, type MasjidLookup, type ServedMasjid } from "./masjid-service.js";
 import { createTravelService, UNITS_PER_TRAVEL_LOOKUP } from "./travel-service.js";
 import { RollingBudget } from "./breaker.js";
 import { clientIdOf, clientIpOf, ipPrefix } from "./identity.js";
+import { createSlidingLimiter } from "../http/rate-limit.js";
 import { ptDayKey } from "./budget.js";
 import type { PlacesGovernor, Spender } from "./governor.js";
 import type { ResidentIndex } from "./resident-index.js";
@@ -40,6 +42,16 @@ const UNITS_PER_MASJID_SEARCH = 1;
 /** How far from the submitter a contributed masjid may be pinned. */
 const MAX_CONTRIBUTION_DISTANCE_KM = 50;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Contributions per IP prefix per day, ALONGSIDE the repo's per-client cap. The
+ * per-client cap is keyed on the forgeable X-Client-Id, so a single abuser can
+ * mint a fresh id per request and sail past it; the IP-prefix cap is the bound
+ * that survives that. Set several times the per-client cap so genuine users
+ * sharing a NAT are unaffected.
+ */
+const CONTRIB_PER_IP_PER_DAY = 20;
+
 export interface PlacesRouterDeps {
   /** Google Places API key; undefined ⇒ the endpoints report `enabled: false`. */
   apiKey: string | undefined;
@@ -56,6 +68,16 @@ export interface PlacesRouterDeps {
   resident?: ResidentIndex | undefined;
   /** Persistent spend governor; absent ⇒ the burst breaker alone. */
   governor?: PlacesGovernor | undefined;
+  /**
+   * Fail closed when `governor` is absent (docs/QIBLA_MASJID_SPEC.md §6d). The
+   * burst breaker alone resets on restart, so a paid Google call made without
+   * the PERSISTENT governor is effectively ungoverned across a DB outage. Set by
+   * index.ts on any DB-backed deploy: when the pool is down the router serves
+   * resident-dataset results only (degraded, zero Google spend) instead of
+   * spending unbudgeted. Defaults off so the service-logic tests, which omit the
+   * governor deliberately, keep exercising the live path.
+   */
+  requireGovernor?: boolean | undefined;
   /** Anonymous request telemetry; absent ⇒ nothing is recorded. */
   stats?: PlacesStatsRecorder | undefined;
   /** Store for user-submitted masjids; absent ⇒ contributions are unavailable. */
@@ -69,6 +91,8 @@ export interface PlacesRouterDeps {
    */
   isEnabled?: (() => Promise<boolean>) | undefined;
   isTravelEnabled?: (() => Promise<boolean>) | undefined;
+  /** Overridable so the per-IP contribution cap can be exercised in a test. */
+  contributionLimits?: { perIpPerDay?: number } | undefined;
 }
 
 /**
@@ -106,6 +130,14 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
   const r = Router();
   const breaker = new RollingBudget(UPSTREAM_MAX_PER_MIN);
 
+  // Per-IP-prefix daily cap for contributions, backing up the repo's forgeable
+  // per-client cap. Per-key only — a global ceiling would let one abuser lock
+  // out every contributor, and the repo's client cap already bounds the total.
+  const contribLimiter = createSlidingLimiter({
+    windowMs: DAY_MS,
+    perKey: deps.contributionLimits?.perIpPerDay ?? CONTRIB_PER_IP_PER_DAY,
+  });
+
   const burstAllows = (units: number): boolean => {
     if (breaker.tryConsume(units)) return true;
     if (breaker.takeWarning()) {
@@ -133,6 +165,11 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
   /** Burst breaker first (cheap, in-memory), then the persistent governor. */
   function spender(units: number, s: Spender | null): () => Promise<boolean> {
     return async () => {
+      // Fail closed when the persistent governor is required but missing (DB
+      // down). A `null` spender means no governor; refusing here degrades the
+      // lookup to its free resident answer with zero Google spend, rather than
+      // letting the restart-resettable burst breaker be the only bound.
+      if (!s && deps.requireGovernor) return false;
       if (!burstAllows(units)) return false;
       if (!s) return true;
       return s.spend(units);
@@ -145,6 +182,18 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
       return;
     }
+    const { lat, lon } = parsed.data;
+    // Iraq-only geofence (owner decision 2026-08-26, docs/QIBLA_MASJID_SPEC.md).
+    // The resident dataset is Iraq-only, so a non-Iraq coordinate can never be
+    // answered here: return the same feature-disabled shape and stop before any
+    // governor/DB open, resident lookup, Google call, or telemetry write. A
+    // non-Iraq caller touches nothing (the zero-DB contract). This is the
+    // server-side floor under the client section gating: no spend can happen for
+    // a non-Iraq caller regardless of client behaviour.
+    if (!isInIraqBbox(lat, lon)) {
+      res.json({ enabled: false, masjids: [] });
+      return;
+    }
     // Runtime kill-switch from the admin dashboard. Falls back to "on" if the
     // settings store (or the whole database) is unavailable, so an outage can
     // never silently disable the feature.
@@ -155,7 +204,6 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
     }
 
     const s = await open(req);
-    const { lat, lon } = parsed.data;
     const result = await masjids.lookup(lat, lon, spender(UNITS_PER_MASJID_SEARCH, s));
 
     if (deps.stats) {
@@ -182,6 +230,16 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
       return;
     }
+    const { lat, lon, dlat, dlon } = parsed.data;
+    // Iraq-only geofence (owner decision 2026-08-26): a caller outside Iraq has
+    // no masjid list to buy a travel time for, and a destination outside Iraq is
+    // one this feature never serves. Require BOTH the origin and the destination
+    // inside the bbox, and refuse with the disabled shape before any governor/DB
+    // open or Google Routes call.
+    if (!isInIraqBbox(lat, lon) || !isInIraqBbox(dlat, dlon)) {
+      res.json({ enabled: false, walkMin: null, driveMin: null });
+      return;
+    }
     // Travel lookups are the expensive half (2 units each), so they have their
     // own switch — the masjid list can stay on while these are turned off.
     if (!travel || !(await deps.isTravelEnabled?.() ?? true)) {
@@ -190,7 +248,6 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
     }
 
     const s = await open(req);
-    const { lat, lon, dlat, dlon } = parsed.data;
     const found = await travel.lookup(
       { lat, lon },
       { lat: dlat, lon: dlon },
@@ -236,8 +293,22 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Too far from your location" });
       return;
     }
+    // Iraq-only geofence (owner decision 2026-08-26): the resident index is
+    // Iraq-only, so a masjid pinned outside the bbox could never be served even
+    // if approved, and a submitter outside Iraq has no in-area masjid to add.
+    // Require BOTH the pin and the submitter inside the bbox, and refuse with the
+    // same shape as a disabled store, before any DB write.
+    if (!isInIraqBbox(lat, lon) || !isInIraqBbox(userLat, userLon)) {
+      res.status(503).json({ error: "Contributions unavailable" });
+      return;
+    }
 
     const ipKey = ipPrefix(clientIpOf(req));
+    // IP-prefix daily cap first — the bound a client-id rotator cannot dodge.
+    if (!contribLimiter.allow(ipKey)) {
+      res.status(429).json({ error: "Daily contribution limit reached" });
+      return;
+    }
     const accepted = await deps.contributions.submit({
       name,
       lat,

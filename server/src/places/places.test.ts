@@ -8,6 +8,7 @@ import { searchNearbyMasjids, type Masjid } from "./google-places.js";
 import { fetchTravelMinutes } from "./google-routes.js";
 import { estimateTravel } from "./travel-estimate.js";
 import { ResidentIndex } from "./resident-index.js";
+import { IRAQ_BBOX, isInIraqBbox } from "./iraq-bbox.js";
 import { haversineKm } from "../util/geo-distance.js";
 import type { CachedCell, PlacesCacheRepo } from "../db/repositories/places-cache.js";
 import type { PlacesOutcome, PlacesStatsRecorder } from "../db/repositories/places-stats.js";
@@ -25,6 +26,8 @@ const mockSearch = vi.mocked(searchNearbyMasjids);
 const mockTravel = vi.mocked(fetchTravelMinutes);
 
 const BAGHDAD = { lat: 33.3152, lon: 44.3661 };
+/** New York: comfortably outside the Iraq bbox, for the geofence tests. */
+const NEW_YORK = { lat: 40.7128, lon: -74.006 };
 const MASJID: Masjid = {
   id: "place-1",
   name: "جامع الإمام الأعظم",
@@ -44,6 +47,34 @@ function servedFor(user: { lat: number; lon: number }, m: Masjid) {
   return { ...m, ...estimateTravel(km), estimated: true };
 }
 const SERVED = servedFor(BAGHDAD, MASJID);
+
+describe("Iraq geofence (isInIraqBbox)", () => {
+  it("accepts coordinates inside the bbox", () => {
+    expect(isInIraqBbox(BAGHDAD.lat, BAGHDAD.lon)).toBe(true); // Baghdad
+    expect(isInIraqBbox(36.34, 43.13)).toBe(true); // Mosul
+    expect(isInIraqBbox(30.5, 47.8)).toBe(true); // Basra
+  });
+
+  it("rejects coordinates outside the bbox", () => {
+    expect(isInIraqBbox(NEW_YORK.lat, NEW_YORK.lon)).toBe(false); // New York
+    expect(isInIraqBbox(24.7136, 46.6753)).toBe(false); // Riyadh — south of it
+    expect(isInIraqBbox(41.0082, 28.9784)).toBe(false); // Istanbul — north/west
+  });
+
+  it("rejects the edges just outside, accepts the corners just inside", () => {
+    expect(isInIraqBbox(IRAQ_BBOX.south - 0.01, 44)).toBe(false);
+    expect(isInIraqBbox(IRAQ_BBOX.north + 0.01, 44)).toBe(false);
+    expect(isInIraqBbox(33, IRAQ_BBOX.west - 0.01)).toBe(false);
+    expect(isInIraqBbox(33, IRAQ_BBOX.east + 0.01)).toBe(false);
+    expect(isInIraqBbox(IRAQ_BBOX.south, IRAQ_BBOX.west)).toBe(true);
+    expect(isInIraqBbox(IRAQ_BBOX.north, IRAQ_BBOX.east)).toBe(true);
+  });
+
+  it("rejects non-finite input rather than guessing", () => {
+    expect(isInIraqBbox(Number.NaN, 44)).toBe(false);
+    expect(isInIraqBbox(33, Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
 
 describe("cell geometry", () => {
   it("groups points within the ~1.1 km cell", () => {
@@ -200,6 +231,26 @@ describe("GET /api/places/masjids", () => {
     await stopServer();
   });
 
+  it("outside the Iraq bbox → disabled shape, and NOTHING is touched (Iraq-only)", async () => {
+    // A fully-provisioned deploy (key + governor + durable cache + resident data)
+    // must STILL spend nothing and read nothing for a non-Iraq coordinate.
+    const g = fakeGovernor(true);
+    const repo = fakeRepo();
+    const resident = ResidentIndex.fromRows([
+      { n: "Never Served", lat: NEW_YORK.lat, lon: NEW_YORK.lon, oid: "n1" },
+    ]);
+    await startServer("key", { governor: g.governor, cacheRepo: repo, resident });
+    mockSearch.mockResolvedValue([MASJID]);
+
+    const res = await fetch(`${base}/api/places/masjids?lat=${NEW_YORK.lat}&lon=${NEW_YORK.lon}`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ enabled: false, masjids: [] });
+    expect(mockSearch).not.toHaveBeenCalled(); // no Google
+    expect(g.opened).toHaveLength(0); // governor never opened → no DB spend
+    expect(repo.reads).toBe(0); // durable cache never read
+    await stopServer();
+  });
+
   it("NEVER prices travel times for the list — that is the whole ADR-014 saving", async () => {
     await startServer("key");
     mockSearch.mockResolvedValue([MASJID]);
@@ -289,7 +340,8 @@ describe("GET /api/places/masjids", () => {
   it("genuine empty area → { enabled: true, masjids: [] } without degraded flag", async () => {
     await startServer("key");
     mockSearch.mockResolvedValue([]);
-    const res = await fetch(`${base}/api/places/masjids?lat=0&lon=-160`);
+    // An in-bbox desert cell: the geofence lets it through, Google returns nothing.
+    const res = await fetch(`${base}/api/places/masjids?lat=30&lon=42`);
     expect(await res.json()).toEqual({ enabled: true, masjids: [] });
     await stopServer();
   });
@@ -400,14 +452,15 @@ describe("GET /api/places/masjids", () => {
     await startServer("key");
     mockSearch.mockResolvedValue([]);
     // 0.02° steps > the 0.01° cell — every request is a fresh miss, the attack
-    // shape the breaker exists for (security review 2026-07-14).
+    // shape the breaker exists for (security review 2026-07-14). Swept from
+    // lat 29 so every point stays inside the Iraq geofence (bbox south 28.9).
     for (let i = 0; i < 30; i++) {
       const res = await fetch(
-        `${base}/api/places/masjids?lat=${(10 + i * 0.02).toFixed(4)}&lon=44`,
+        `${base}/api/places/masjids?lat=${(29 + i * 0.02).toFixed(4)}&lon=44`,
       );
       expect((await res.json()).degraded).toBeUndefined();
     }
-    const res31 = await fetch(`${base}/api/places/masjids?lat=${(10 + 30 * 0.02).toFixed(4)}&lon=44`);
+    const res31 = await fetch(`${base}/api/places/masjids?lat=${(29 + 30 * 0.02).toFixed(4)}&lon=44`);
     expect(await res31.json()).toEqual({ enabled: true, masjids: [], degraded: true });
     expect(mockSearch).toHaveBeenCalledTimes(30);
     await stopServer();
@@ -424,15 +477,42 @@ describe("GET /api/places/masjids", () => {
     await startServer("key", { cacheRepo: repo });
     mockSearch.mockResolvedValue([]);
 
-    // Burn the whole minute budget on other cells.
+    // Burn the whole minute budget on other cells (in-bbox so the geofence
+    // doesn't short-circuit them before the breaker sees them).
     for (let i = 0; i < 30; i++) {
-      await fetch(`${base}/api/places/masjids?lat=${(10 + i * 0.02).toFixed(4)}&lon=44`);
+      await fetch(`${base}/api/places/masjids?lat=${(29 + i * 0.02).toFixed(4)}&lon=44`);
     }
 
     const res = await fetch(`${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}`);
     const body = await res.json();
     expect(body.degraded).toBe(true);
     expect(body.masjids).toEqual([SERVED]); // degraded, but NOT empty
+    await stopServer();
+  });
+
+  it("fails closed to resident-only when the governor is REQUIRED but absent (DB down)", async () => {
+    // requireGovernor=true models a DB-backed deploy whose pool is down: with no
+    // persistent governor, no paid Google call may happen (the burst breaker
+    // alone resets on restart). The list must degrade to the free resident
+    // answer with ZERO upstream calls — this is the task-6 fail-closed gap.
+    const resident = ResidentIndex.fromRows([
+      { n: "جامع الرحمن", lat: BAGHDAD.lat + 0.001, lon: BAGHDAD.lon, oid: "n1" },
+    ]);
+    const app = express();
+    app.use(createPlacesRouter({ apiKey: "key", resident, requireGovernor: true }));
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+    mockSearch.mockResolvedValue([MASJID]);
+
+    const res = await fetch(`${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}`);
+    const body = await res.json();
+    expect(mockSearch).not.toHaveBeenCalled(); // zero Google spend
+    expect(body.degraded).toBe(true);
+    expect(body.masjids.map((m: Masjid) => m.name)).toEqual(["جامع الرحمن"]);
     await stopServer();
   });
 });
@@ -490,6 +570,7 @@ function fakeStats() {
     noteOutcome: (_d, _h, outcome, units) => void outcomes.push({ outcome, units }),
     noteCell: (_d, cellKey, miss) => void cells.push({ cellKey, miss }),
     flush: async () => undefined,
+    pruneCellDemand: async () => 0,
     start: () => undefined,
     stop: () => undefined,
   };
@@ -712,9 +793,71 @@ describe("POST /api/places/masjids/contribute", () => {
     await stop();
   });
 
+  it("caps contributions per IP prefix even as the client id rotates", async () => {
+    const c = fakeContributions();
+    const app = express();
+    app.use(express.json());
+    app.use(
+      createPlacesRouter({
+        apiKey: "key",
+        contributions: c.repo,
+        contributionLimits: { perIpPerDay: 2 },
+      }),
+    );
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+
+    // All three share one IP prefix (127.0.0.0/24) despite distinct client ids.
+    expect((await post(VALID, { "X-Client-Id": "aaaaaaaa11112222" })).status).toBe(201);
+    expect((await post(VALID, { "X-Client-Id": "bbbbbbbb11112222" })).status).toBe(201);
+    expect((await post(VALID, { "X-Client-Id": "cccccccc11112222" })).status).toBe(429);
+    // The IP cap refused the 3rd before it ever reached the store.
+    expect(c.received).toHaveLength(2);
+    await stop();
+  });
+
   it("503s when the store isn't configured, rather than pretending it worked", async () => {
     await start(undefined);
     expect((await post(VALID)).status).toBe(503);
+    await stop();
+  });
+
+  it("refuses a pin outside the Iraq bbox with the disabled shape, no DB write (Iraq-only)", async () => {
+    const c = fakeContributions();
+    await start(c.repo);
+    const res = await post({
+      name: "Out of area",
+      lat: NEW_YORK.lat,
+      lon: NEW_YORK.lon,
+      userLat: NEW_YORK.lat,
+      userLon: NEW_YORK.lon,
+    });
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("Contributions unavailable");
+    expect(c.received).toHaveLength(0); // the store was never touched
+    await stop();
+  });
+
+  it("refuses an in-bbox pin submitted from outside the bbox, no DB write (Iraq-only)", async () => {
+    const c = fakeContributions();
+    await start(c.repo);
+    // Pin just inside the southern edge (28.9), submitter ~11 km across it — well
+    // within the 50 km sanity radius, so the geofence (not the distance check) is
+    // what refuses it, and it must refuse before any store write.
+    const res = await post({
+      name: "جامع الحدود",
+      lat: 28.95,
+      lon: 44,
+      userLat: 28.85,
+      userLon: 44,
+    });
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("Contributions unavailable");
+    expect(c.received).toHaveLength(0); // the store was never touched
     await stop();
   });
 });
@@ -810,6 +953,40 @@ describe("GET /api/places/travel", () => {
     await startServer("key");
     const res = await fetch(`${base}/api/places/travel?lat=33&lon=44&dlat=999&dlon=44`);
     expect(res.status).toBe(400);
+    await stopServer();
+  });
+
+  it("caller outside the Iraq bbox → disabled shape, no Routes call (Iraq-only)", async () => {
+    await startServer("key");
+    mockTravel.mockResolvedValue([{ walkMin: 62, driveMin: 11 }]);
+    const res = await fetch(
+      `${base}/api/places/travel?lat=${NEW_YORK.lat}&lon=${NEW_YORK.lon}&dlat=${MASJID.lat}&dlon=${MASJID.lon}`,
+    );
+    expect(await res.json()).toEqual({ enabled: false, walkMin: null, driveMin: null });
+    expect(mockTravel).not.toHaveBeenCalled();
+    await stopServer();
+  });
+
+  it("in-bbox origin + out-of-bbox destination → disabled, no governor open or Routes call", async () => {
+    // The list can only offer an Iraq masjid, so a destination outside the bbox
+    // must be refused before any spend even when the caller is inside Iraq.
+    const g = fakeGovernor(true);
+    const app = express();
+    app.use(createPlacesRouter({ apiKey: "key", governor: g.governor }));
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+    mockTravel.mockResolvedValue([{ walkMin: 62, driveMin: 11 }]);
+
+    const res = await fetch(
+      `${base}/api/places/travel?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}&dlat=${NEW_YORK.lat}&dlon=${NEW_YORK.lon}`,
+    );
+    expect(await res.json()).toEqual({ enabled: false, walkMin: null, driveMin: null });
+    expect(mockTravel).not.toHaveBeenCalled(); // no Google Routes
+    expect(g.opened).toHaveLength(0); // governor never opened → no DB spend
     await stopServer();
   });
 

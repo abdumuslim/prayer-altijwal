@@ -145,3 +145,56 @@ many-small-files, <800 lines/file).
 | DB | shared PG16 (`rag-postgres-1`), dedicated `prayer` database | bootstrapped at startup |
 
 No secrets in code; validated at startup; see `OPERATIONS.md` / `DEPLOYMENT.md`.
+
+---
+
+## 7. HTTP delivery: compression, caching, rate limits
+
+`app.ts` mounts response **compression** (independent of Cloudflare's edge gzip/brotli, so a
+direct-to-origin fetch is compressed too) and a single path-prefix **`Cache-Control`** policy that
+replaces the old blanket `no-store`. The origin is a single-CPU container behind Cloudflare, so the
+deterministic public GETs are made cacheable while everything stateful stays uncacheable:
+
+| Path | Header | Why |
+|---|---|---|
+| `/api/prayer-times*` | `public, max-age=60` | The payload carries now-relative fields, but the client re-derives every countdown/`isPassed` each second from the absolute `timestamp`s, so a ≤60s-old body renders identically; 60s also bounds clock/window drift and stops a "today" body outliving local midnight by more than a minute. |
+| `/api/geo/*` | `public, max-age=21600` | reverse / search / declination / governorates are pure functions of their query over the bundled offline dataset (6 h). |
+| `/api/push`, `/api/places`, `/api/telemetry`, `/api/admin`, `/api/health` | `no-store` | stateful or quota-bound. |
+| `/assets/*` (Vite content-hashed) | `public, max-age=31536000, immutable` | the hash is a permanent handle for its bytes. |
+| `/`, `*.html`, `/sw.js`, `/manifest.webmanifest` | `no-cache` | must revalidate so an SPA or service-worker update is never pinned behind a stale cache. |
+
+The public compute endpoints also carry per-IP-prefix sliding-window rate limits, each with a global
+ceiling behind it (the bound a forged-`cf-connecting-ip` flood cannot sidestep), via the shared
+`server/src/http/rate-limit.ts`:
+
+| Endpoint | Per IP-prefix | Global |
+|---|---|---|
+| `/api/geo/search` | 120 / min | 3000 / min |
+| `/api/geo/reverse` + `/api/geo/declination` | 60 / min | 2000 / min |
+| `/api/prayer-times` | 60 / min | 2000 / min |
+| `/api/prayer-times/month` | 10 / hour | 500 / hour |
+
+Push write limits and the Places per-client/per-IP caps live in `NOTIFICATIONS.md` §5a and
+`QIBLA_MASJID_SPEC.md` §6d.
+
+---
+
+## 8. Startup resilience (the DB may be down at boot)
+
+A Postgres failure at boot no longer permanently degrades the process. `index.ts` brings up the SPA
+plus the stateless routers immediately and, if the pool is unavailable, starts a **60s retry loop**
+that wires the DB-dependent features (repos, scheduler, retention, spend governor, community refresh)
+**exactly once** the moment the database appears, hot-swapping the stateless feature routers for the
+DB-backed ones with no restart. While the DB is down the app still answers: **places** serves
+resident-dataset results only (fails closed, zero Google spend), **telemetry** returns `204` without
+persisting, and **push** is simply absent (it has no stateless mode). `GET /api/health` stays a
+**200** liveness probe (so the Docker healthcheck and Traefik keep routing) but returns
+`degraded: true` while a configured DB is unreachable; a deliberately DB-less deploy reports
+`db: "disabled"` and is not degraded.
+
+> ⚠️ **Known limitation:** the admin router is built once at boot, so if the DB was down then, the
+> dashboard's data views stay degraded until the next restart even after the retry loop brings the
+> pool up.
+
+The Postgres pool size is env-configurable: **`PG_POOL_MAX`** (default 10, validated 1–50); kept
+modest by default because the PG16 cluster is shared with the sibling apps.

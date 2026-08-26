@@ -194,6 +194,25 @@ describe("duplicate detection", () => {
   });
 });
 
+describe("venue filter visibility", () => {
+  it("flags a venue-filtered name so the operator can see it", async () => {
+    h = await start([
+      row({ id: 1, name: "حسينية الزهراء", status: "pending" }),
+      row({ id: 2, name: "جامع الرحمن", status: "pending" }),
+    ]);
+    const res = await fetch(`${h.base}/api/admin/masjids/contributions`, {
+      headers: { cookie: h.cookie },
+    });
+    const body = (await res.json()) as {
+      items: { name: string; excludedByFilter: boolean }[];
+    };
+    const byName = Object.fromEntries(body.items.map((i) => [i.name, i.excludedByFilter]));
+    // The husseiniya is surfaced with the flag; nothing about it is rejected.
+    expect(byName["حسينية الزهراء"]).toBe(true);
+    expect(byName["جامع الرحمن"]).toBe(false);
+  });
+});
+
 describe("PATCH /api/admin/masjids/contributions/:id", () => {
   beforeEach(async () => {
     h = await start([row({ id: 1, status: "pending" })]);

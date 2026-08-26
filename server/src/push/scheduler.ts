@@ -3,6 +3,8 @@ import { dateKey, isValidDate } from "../prayer/format.js";
 import { computePrayerTimes } from "../prayer/compute.js";
 import { duhaWindow, nightThird } from "../prayer-engine/sunnah.js";
 import type { SubscriptionsRepo, Subscription } from "../db/repositories/subscriptions.js";
+import { redactEndpoint } from "../db/repositories/subscriptions.js";
+import { isAllowedPushEndpoint, PushSubscriptionSchema } from "../validation/push.js";
 import type { AlertRule, AlertRulesRepo, AlertKind } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
 import type {
@@ -199,6 +201,14 @@ export class PrayerScheduler {
   /** The last local date we pruned on — prune at most once per local day. */
   private lastPruneDateKey: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Single-flight guard: a tick that scans every subscription can outrun the 30s
+   * interval (slow DB, many subscribers). Overlapping ticks would double the DB
+   * load and race the shared caches, so a still-running tick makes the next one
+   * skip. `tickStartedAt` lets the skip log report how long the laggard has run.
+   */
+  private tickRunning = false;
+  private tickStartedAt: number | null = null;
 
   /** Durable delivery rollup; absent ⇒ counters stay in memory only. */
   private readonly statsRepo: PushStatsRepo | undefined;
@@ -267,39 +277,72 @@ export class PrayerScheduler {
    * bad subscriber can't stall the rest of the tick.
    */
   async tick(): Promise<void> {
-    const now = this.now();
-    let subs: Subscription[];
-    let rules: AlertRule[];
-    try {
-      [subs, rules] = await Promise.all([this.subsRepo.listAll(), this.alertRulesRepo.listAll()]);
-    } catch (error: unknown) {
-      log.error("Tick: failed to load subscriptions/rules", error instanceof Error ? error : { error });
+    if (this.tickRunning) {
+      const runningForMs = this.tickStartedAt !== null ? Date.now() - this.tickStartedAt : 0;
+      log.warn("Previous tick still running; skipping this one", { runningForMs });
       return;
     }
-
-    // Group rules by device so each subscription's table is computed once.
-    const rulesByEndpoint = new Map<string, AlertRule[]>();
-    for (const rule of rules) {
-      const arr = rulesByEndpoint.get(rule.endpoint);
-      if (arr) arr.push(rule);
-      else rulesByEndpoint.set(rule.endpoint, [rule]);
-    }
-
-    for (const sub of subs) {
-      const subRules = rulesByEndpoint.get(sub.endpoint);
-      if (!subRules || subRules.length === 0) continue; // no reminders configured
+    this.tickRunning = true;
+    this.tickStartedAt = Date.now();
+    try {
+      const now = this.now();
+      let subs: Subscription[];
+      let rules: AlertRule[];
       try {
-        await this.processSubscription(sub, subRules, now);
+        [subs, rules] = await Promise.all([this.subsRepo.listAll(), this.alertRulesRepo.listAll()]);
       } catch (error: unknown) {
-        log.error("Tick: subscription failed", { endpoint: sub.endpoint });
-        log.error("Tick error detail", error instanceof Error ? error : { error });
+        log.error("Tick: failed to load subscriptions/rules", error instanceof Error ? error : { error });
+        return;
       }
-    }
 
-    await this.maybePrune(now);
-    await this.flushStats();
-    this.lastTickAt = now;
-    this.lastTickMs = Date.now() - now.getTime();
+      // Group rules by device so each subscription's table is computed once.
+      const rulesByEndpoint = new Map<string, AlertRule[]>();
+      for (const rule of rules) {
+        const arr = rulesByEndpoint.get(rule.endpoint);
+        if (arr) arr.push(rule);
+        else rulesByEndpoint.set(rule.endpoint, [rule]);
+      }
+
+      for (const sub of subs) {
+        const subRules = rulesByEndpoint.get(sub.endpoint);
+        if (!subRules || subRules.length === 0) continue; // no reminders configured
+        try {
+          await this.processSubscription(sub, subRules, now);
+        } catch (error: unknown) {
+          log.error("Tick: subscription failed", { endpoint: redactEndpoint(sub.endpoint) });
+          log.error("Tick error detail", error instanceof Error ? error : { error });
+        }
+      }
+
+      await this.maybePrune(now);
+      this.pruneCache(subs);
+      await this.flushStats();
+      this.lastTickAt = now;
+      this.lastTickMs = Date.now() - now.getTime();
+    } finally {
+      this.tickRunning = false;
+      this.tickStartedAt = null;
+    }
+  }
+
+  /**
+   * Drop cached tables for endpoints no longer in the subscription list. The
+   * cache is keyed by endpoint and would otherwise grow forever as subscribers
+   * churn (a deleted/expired subscription's entry was never reclaimed). Runs
+   * once per tick against the freshly loaded list. Deleting during a Map
+   * key-iteration is safe in JS.
+   */
+  private pruneCache(subs: Subscription[]): void {
+    if (this.cache.size === 0) return;
+    const live = new Set(subs.map((s) => s.endpoint));
+    for (const endpoint of this.cache.keys()) {
+      if (!live.has(endpoint)) this.cache.delete(endpoint);
+    }
+  }
+
+  /** Live table-cache entry count — introspection for tests (mirrors memSize). */
+  cacheSize(): number {
+    return this.cache.size;
   }
 
   private async processSubscription(sub: Subscription, rules: AlertRule[], now: Date): Promise<void> {
@@ -350,6 +393,24 @@ export class PrayerScheduler {
     at: Date,
     kind: AlertKind,
   ): Promise<void> {
+    // Defence in depth (SSRF): never POST to an endpoint that isn't a known
+    // browser push service, even for a row stored before the subscribe-time
+    // allowlist existed. Treat it exactly like a dead (404/410) subscription so
+    // the bad row is purged and never revisited.
+    if (!isAllowedPushEndpoint(sub.endpoint)) {
+      await this.purgeUnsendable(sub, kind, "disallowed endpoint");
+      return;
+    }
+    // The endpoint column is only a label: web-push actually dials the JSONB
+    // `subscription` value, and a hand-crafted row can keep an allowed column
+    // while pointing that JSONB endpoint at an internal address. Validate the
+    // JSONB itself (same allowlist-enforcing schema as subscribe) and require its
+    // endpoint to match the already-checked column; purge on either failure.
+    const validSub = PushSubscriptionSchema.safeParse(sub.subscription);
+    if (!validSub.success || validSub.data.endpoint !== sub.endpoint) {
+      await this.purgeUnsendable(sub, kind, "subscription/endpoint mismatch");
+      return;
+    }
     const friday = isFridayInTz(at, sub.tz);
     // The kind rides on the payload so the service worker can branch (full-screen
     // alarm vs quiet notification). notification-text stays a pure text module.
@@ -364,10 +425,25 @@ export class PrayerScheduler {
       await this.subsRepo.deleteByEndpoint(sub.endpoint);
       this.cache.delete(sub.endpoint);
       this.count(kind, "gone");
-      log.info("Removed gone subscription", { endpoint: sub.endpoint });
+      log.info("Removed gone subscription", { endpoint: redactEndpoint(sub.endpoint) });
       return;
     }
     this.count(kind, result.ok === false ? "failed" : "sent");
+  }
+
+  /**
+   * Remove a subscription that must never be sent to (a disallowed or malformed
+   * endpoint), counted as "gone" like a dead 404/410 row, and dropped from the
+   * table cache so it is not revisited.
+   */
+  private async purgeUnsendable(sub: Subscription, kind: AlertKind, reason: string): Promise<void> {
+    await this.subsRepo.deleteByEndpoint(sub.endpoint);
+    this.cache.delete(sub.endpoint);
+    this.count(kind, "gone");
+    log.warn("Removed unsendable subscription", {
+      endpoint: redactEndpoint(sub.endpoint),
+      reason,
+    });
   }
 
   /** Bump both the in-memory day counter and the buffered durable rollup. */

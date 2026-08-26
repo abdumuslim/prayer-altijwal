@@ -160,14 +160,30 @@ public class AlarmScheduler {
         NotificationManagerCompat.from(ctx).cancel(AlarmReceiver.preNotificationId(id));
     }
 
+    /** Outcome of one scheduleAll pass. fires + dropped + failures == armable count. */
+    public static final class ScheduleResult {
+        /** Fire PIs actually armed (≤ MAX_FIRE). */
+        public final int fires;
+        /** Fire occurrences dropped because the UID cap (MAX_FIRE) was hit (P6). */
+        public final int dropped;
+        /** Fire PIs that threw while arming (per-alarm fault isolation). */
+        public final int failures;
+
+        ScheduleResult(int fires, int dropped, int failures) {
+            this.fires = fires;
+            this.dropped = dropped;
+            this.failures = failures;
+        }
+    }
+
     /**
      * Arm the batch nearest-first with the UID cap and per-alarm fault isolation
      * (§3b): fire PIs up to MAX_FIRE, then pre-alarms for those fires while the
-     * total stays under MAX_TOTAL. Returns the number of fires that failed to arm;
-     * logs a summary (and any capped drops) to logcat.
+     * total stays under MAX_TOTAL. Returns the armed/dropped/failed counts (the
+     * caller surfaces a UID-cap drop, otherwise silent, P6); logs a summary too.
      */
-    public int scheduleAll(List<ScheduledAlarm> alarms) {
-        if (am == null || alarms == null) return 0;
+    public ScheduleResult scheduleAll(List<ScheduledAlarm> alarms) {
+        if (am == null || alarms == null) return new ScheduleResult(0, 0, 0);
         List<ScheduledAlarm> sorted = new ArrayList<>(alarms);
         Collections.sort(sorted, (x, y) -> Long.compare(x.at, y.at));
 
@@ -201,7 +217,7 @@ public class AlarmScheduler {
         if (failures > 0 || dropped > 0) {
             Log.e(TAG, "scheduleAll armed=" + armed + " failures=" + failures + " dropped=" + dropped);
         }
-        return failures;
+        return new ScheduleResult(fires, dropped, failures);
     }
 
     public void cancelAll(List<ScheduledAlarm> alarms) {

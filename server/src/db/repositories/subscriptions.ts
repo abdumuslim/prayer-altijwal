@@ -1,7 +1,35 @@
+import { createHash } from "node:crypto";
 import pg from "pg";
 import { childLogger } from "../../logger.js";
 
 const log = childLogger("db/subscriptions");
+
+/**
+ * A subscription with no reminder rules is inert — the scheduler skips it every
+ * tick — yet nothing ever removes it, so these rows accumulate forever as
+ * devices subscribe and drift away without ever configuring an alert. Delete a
+ * ruleless row once it has been untouched (no upsert / prefs change) for this
+ * long. Mirrors the other retention constants (e.g. AUDIT_RETENTION_DAYS).
+ */
+export const DEAD_SUBSCRIPTION_RETENTION_DAYS = 45;
+
+/**
+ * A push endpoint URL is a bearer-capable credential (anyone holding it can push
+ * to that device), so it must never be logged verbatim to stdout — the container
+ * log driver would retain it. Reduce it to its host plus a short, non-reversible
+ * token (the first 8 hex of a sha256) — enough to correlate log lines for one
+ * subscriber without exposing the URL. Shared so every log site redacts alike.
+ */
+export function redactEndpoint(endpoint: string): string {
+  let host = "invalid";
+  try {
+    host = new URL(endpoint).host;
+  } catch {
+    // Malformed URL: keep the "invalid" host, still emit a token to correlate.
+  }
+  const token = createHash("sha256").update(endpoint).digest("hex").slice(0, 8);
+  return `${host}#${token}`;
+}
 
 /**
  * A push subscriber: their Web Push token plus the location + preferences the
@@ -27,6 +55,19 @@ export interface Subscription {
 export type SubscriptionPrefs = Partial<
   Pick<Subscription, "prayers" | "leadMinutes" | "method" | "asr" | "lang">
 >;
+
+/**
+ * The narrow slice of the subscriptions store the retention job needs. Kept
+ * separate from SubscriptionsRepo so the many in-memory fakes that implement the
+ * full CRUD interface aren't forced to carry a prune method they never exercise.
+ */
+export interface OrphanSubscriptionPruner {
+  /**
+   * Delete ruleless subscriptions untouched for longer than `olderThanDays`.
+   * Returns how many rows were removed.
+   */
+  pruneOrphaned(olderThanDays: number): Promise<number>;
+}
 
 /** Storage abstraction so the scheduler + routes can be tested with a fake. */
 export interface SubscriptionsRepo {
@@ -73,7 +114,7 @@ function rowToSubscription(row: SubscriptionRow): Subscription {
 }
 
 /** Postgres-backed implementation. */
-export class PgSubscriptionsRepo implements SubscriptionsRepo {
+export class PgSubscriptionsRepo implements SubscriptionsRepo, OrphanSubscriptionPruner {
   constructor(private readonly pool: pg.Pool) {}
 
   async upsert(sub: Subscription): Promise<void> {
@@ -107,12 +148,12 @@ export class PgSubscriptionsRepo implements SubscriptionsRepo {
         sub.lang,
       ],
     );
-    log.info("Subscription upserted", { endpoint: sub.endpoint });
+    log.info("Subscription upserted", { endpoint: redactEndpoint(sub.endpoint) });
   }
 
   async deleteByEndpoint(endpoint: string): Promise<void> {
     await this.pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
-    log.info("Subscription deleted", { endpoint });
+    log.info("Subscription deleted", { endpoint: redactEndpoint(endpoint) });
   }
 
   async deleteById(id: number): Promise<boolean> {
@@ -145,7 +186,10 @@ export class PgSubscriptionsRepo implements SubscriptionsRepo {
       `UPDATE push_subscriptions SET ${sets.join(", ")} WHERE endpoint = $${i}`,
       values,
     );
-    log.info("Subscription prefs updated", { endpoint, fields: Object.keys(prefs) });
+    log.info("Subscription prefs updated", {
+      endpoint: redactEndpoint(endpoint),
+      fields: Object.keys(prefs),
+    });
   }
 
   async listAll(): Promise<Subscription[]> {
@@ -155,5 +199,27 @@ export class PgSubscriptionsRepo implements SubscriptionsRepo {
          FROM push_subscriptions`,
     );
     return rows.map(rowToSubscription);
+  }
+
+  async pruneOrphaned(olderThanDays: number): Promise<number> {
+    // One statement: delete only stale rows that own no alert rule. The FK on
+    // prayer_alert_rules cascades on subscription delete, so a row matched here
+    // genuinely has zero reminders — the NOT EXISTS is the whole gate. Self-
+    // guards like the other retention pruners so one failure can't stall the
+    // daily sweep.
+    try {
+      const { rowCount } = await this.pool.query(
+        `DELETE FROM push_subscriptions s
+          WHERE s.updated_at < NOW() - ($1::int * INTERVAL '1 day')
+            AND NOT EXISTS (
+              SELECT 1 FROM prayer_alert_rules r WHERE r.endpoint = s.endpoint
+            )`,
+        [Math.max(1, Math.floor(olderThanDays))],
+      );
+      return rowCount ?? 0;
+    } catch (err) {
+      log.warn("orphan subscription prune failed", err instanceof Error ? err : new Error(String(err)));
+      return 0;
+    }
   }
 }

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { QiblaCompass } from "@/components/qibla/QiblaCompass";
 import { NearestMasjids } from "@/components/masjid/NearestMasjids";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { isInIraqBbox } from "@/lib/iraq-bbox";
 import { hasGeolocationPermission } from "@/lib/geolocation";
 import { useCompassHeading } from "@/hooks/useCompassHeading";
 import type { useLocation } from "@/hooks/useLocation";
@@ -76,15 +77,23 @@ export function TimesPage({ location, times, active }: TimesPageProps) {
       {loc && (
         <>
           <QiblaCompass location={loc} compass={compass} />
-          <NearestMasjids
-            location={loc}
-            active={active}
-            compass={compass}
-            onUseGps={() => void requestGpsStaged().catch(() => undefined)}
-            resolving={location.resolving}
-            gpsErrorKind={location.errorKind}
-            refreshNonce={refreshNonce}
-          />
+          {/* Nearest-masjids is Iraq-only (owner decision 2026-08-26,
+              docs/QIBLA_MASJID_SPEC.md): the resident dataset is Iraq-only and the
+              server geofences the endpoints, so the whole section is hidden for a
+              location outside the bbox, while the compass and the rest of the tab
+              stay for everyone. bbox is the single source of truth, mirrored from
+              the server (lib/iraq-bbox.ts). */}
+          {isInIraqBbox(loc.lat, loc.lon) && (
+            <NearestMasjids
+              location={loc}
+              active={active}
+              compass={compass}
+              onUseGps={() => void requestGpsStaged().catch(() => undefined)}
+              resolving={location.resolving}
+              gpsErrorKind={location.errorKind}
+              refreshNonce={refreshNonce}
+            />
+          )}
         </>
       )}
     </>

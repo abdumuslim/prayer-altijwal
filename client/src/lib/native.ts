@@ -76,14 +76,29 @@ export interface DeviceTone {
   title: string;
 }
 
+/**
+ * Arm counts returned by replaceAll (docs/NATIVE_ALARM_RELIABILITY_SPEC.md P6).
+ * `dropped > 0` means fire occurrences beyond the ~500/UID cap were silently
+ * dropped by AlarmScheduler; the caller records that so the drop is observable.
+ */
+export interface ReplaceAllResult {
+  /** Fire occurrences we asked to arm (future, non-dismissed). */
+  requested: number;
+  /** Fire PIs actually armed (≤ MAX_FIRE). */
+  armed: number;
+  /** Fire occurrences dropped because the UID cap was hit. */
+  dropped: number;
+}
+
 export interface PrayerAlarmPlugin {
   /**
    * Cancel every previously-armed alarm, then arm exactly this set. Idempotent.
    * `texts` carries the localized native-notification strings for this sync
    * (docs/NATIVE_ALARM_RELIABILITY_SPEC.md §4); omit it and the native layer
-   * keeps its last-synced (or built-in AR) copy.
+   * keeps its last-synced (or built-in AR) copy. Resolves with the arm counts
+   * so the caller can observe a UID-cap drop (P6); rejects on arm failures.
    */
-  replaceAll(options: { alarms: ScheduledAlarm[]; texts?: AlarmTexts }): Promise<void>;
+  replaceAll(options: { alarms: ScheduledAlarm[]; texts?: AlarmTexts }): Promise<ReplaceAllResult>;
   cancelAll(): Promise<void>;
   getState(): Promise<PrayerAlarmState>;
   requestNotificationPermission(): Promise<{ granted: boolean }>;

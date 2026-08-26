@@ -445,6 +445,18 @@ copy (`prayer.masjids.v1`, 24 h fresh / 30 d retained) paints instantly and is t
 Anonymous identity is a random `X-Client-Id` plus an IP PREFIX (/24 or /64) — enough to throttle,
 never enough to identify, and no table links a client to a coordinate.
 
+**Amendment (2026-08-26): the feature is Iraq-only.** The owner decided the nearest-masjid feature
+serves Iraq only, and outside Iraq it is not offered at all. Rationale: the resident dataset is
+Iraq-only (built for one Iraq bbox by `scripts/build-masjids.mjs`), so anywhere else would fall
+straight through to metered Google with no free floor beneath it, exactly the ungoverned spend this
+ADR exists to prevent, and the app's Play production launch is Iraq + the United States, where US
+users are served qibla and prayer times but never the masjid feature. A shared bbox predicate
+(`server/src/places/iraq-bbox.ts`, mirrored client-side as `client/src/lib/iraq-bbox.ts`) gates both
+sides on `lat`/`lon`: the server geofences all three Places endpoints so a non-Iraq coordinate gets the
+feature-disabled shape without touching Google, the resident index, or the DB, and the client hides the
+whole section outside Iraq. bbox is the single source of truth (a location's country code is not
+consulted). Full mechanism in `QIBLA_MASJID_SPEC.md` (2026-08-26 header note).
+
 ---
 
 ## ADR-015 — The operator dashboard is a separate bundle behind a password ✅

@@ -140,7 +140,9 @@ Wrap in a versioned envelope `{ v: 1, ... }` for safe migrations. Keys:
 Method/asr are **not** persisted from a picker any more (auto-resolved server-side; no UI). Reminder
 selections are **server-side** (alert rules) — no `reminderPrefs` key. Note `features` (the worship
 opt-ins) lives in `prayer.app.v1`; the tracker's *log/history* is a separate envelope
-(`prayer.worship.v1`, §8) — toggling a feature off only hides its UI and never touches that log.
+(`prayer.worship.v1`, §8) — toggling a feature off only hides its UI and never touches that log. The
+defensive crash/error ring buffer is another separate top-level key (`prayer.errors.v1`, §14), not
+part of the app envelope.
 
 ---
 
@@ -432,7 +434,13 @@ compute. Full detail: `NATIVE_ALARM_SPEC.md`. Frontend-relevant pieces:
   byte unchanged.
 - **Local rules** — `lib/local-alerts.ts` (localStorage `prayer.alerts.v1`) + `useLocalAlerts`; no push
   endpoint (Web Push is absent in the Android WebView). `useNativeAlarmScheduler` recomputes and
-  `PrayerAlarm.replaceAll`s the OS alarms on rule/location/tone change and on app resume.
+  `PrayerAlarm.replaceAll`s the OS alarms on rule/location/tone change and on app resume. `replaceAll`
+  now resolves with `{ requested, armed, dropped }` so a **440-fire UID-cap drop** is observable rather
+  than silent: `reportCapDrop` records a `native-alarm-cap` entry to the ring buffer (§14) and logs it
+  on the `[native-alarm]` channel when `dropped > 0` (`NATIVE_ALARM_RELIABILITY_SPEC.md` P6).
+- **`allowBackup` is `false`** (`AndroidManifest.xml`): the app opts out of Android auto-backup, so the
+  on-device data (reminder rules, worship log, settings) never leaves the phone, matching the privacy
+  promise that data stays local.
 - **UI** — `SettingsPanel` renders `<NativeReminders>` (native) vs `<NotificationsOptIn>` (web); both
   share the extracted **`AlertRuleList`** (add/edit/delete + `AlertForm`, whose `initial` was widened to
   `AlertDraft`). `NativeReminders` adds the Android **permission-onboarding rows** (`useAlarmPermissions`
@@ -507,6 +515,9 @@ check-ins moved to the Home strip — §8). The masjid list is server-filtered: 
   under the opt-in button via the `gpsErrorKind` prop (2026-07-19 — it used to fail silently).
   `enabled:false` from the proxy hides the section entirely. Rows: distance («850 م» / «1.2 كم»,
   Latin digits), live bearing arrow, Maps/Waze deep links (`<a target="_blank" rel="noopener noreferrer">`).
+  **Iraq-only (2026-08-26):** the whole masjids block renders only when the active location is inside
+  the Iraq bbox (`lib/iraq-bbox.ts`, mirroring the server geofence); outside Iraq the section is absent
+  and the compass stays (`QIBLA_MASJID_SPEC.md` header note).
 - **Cold-GPS resilience (2026-07-24, `lib/gps-staging.ts` — v2.1.2 · `QIBLA_MASJID_SPEC.md` Session 7).**
   The section used to error on the first cold visit: on a device with no recent fix (GNSS cold /
   indoors) BOTH staged-GPS timeouts expired before one landed, so `source` never became `"gps"` and
@@ -598,3 +609,32 @@ restrained active pill (`0.34` alpha + `brightness(1.06)`) instead of a solid wh
 so its background reaches the screen edge; a *floating* capsule (glass) must take it as
 `margin-bottom` instead — as padding it inflates the capsule with a dead band under the icons.
 Themes switch this via `--tabbar-safe-pad` / `--tabbar-safe-margin` (`surfaces.css`).
+
+## 14. Local error ring buffer (`prayer.errors.v1`, 2026-08-25)
+
+A defensive on-device crash trace with **no third-party service**: a single localStorage key holds the
+newest **≤50** `ErrorEntry` records (`lib/error-log.ts`; the pure parse/append/evict/clamp logic is
+covered by `error-log.test.ts`). Every read and write is wrapped in try/catch so the recorder can
+**never throw**: it runs from the global handlers and the error boundary, where a throw would either
+loop or mask the original failure. Feeders:
+
+- **`main.tsx`** attaches `window` `error` and `unhandledrejection` listeners (kinds `window.error` /
+  `window.unhandledrejection`).
+- **`components/ErrorBoundary.tsx`** records an `error-boundary` entry from `componentDidCatch` (the UI
+  is unchanged; this just makes a render crash recoverable off the device).
+- the **native-alarm cap-drop reporter** (`native-alarm-cap`, §10).
+
+On Android, `MainActivity` also installs a `Thread.setDefaultUncaughtExceptionHandler` that logs the
+full stack to logcat under the app tag, **then delegates to the platform default handler**, so system
+crash handling and Play Vitals reporting are unchanged.
+
+## 15. Anonymous usage ping: grid kept at ~1.1 km (2026-08-25)
+
+The once-a-day telemetry ping (`lib/telemetry.ts`) rounds its coordinate to a **0.01° grid (~1.1 km)**
+on the device before sending (`TELEMETRY_PRECISION_DEG = 0.01`). A **0.03° (~3.3 km)** coarsening was
+proposed on 2026-08-25, to lift the retained cell above Play's **3 km²** approximate/precise boundary,
+but the user decided to keep the grid at 0.01°. The full analysis of why the 0.01° cell is accepted
+(Play's literal definition calls it *precise*, yet the daily-rotating HMAC makes the stored rows
+unlinkable across days) lives in `ADMIN_DASHBOARD.md` §8 and is not duplicated here. The server-side
+clamp (`TELEMETRY_PRECISION_DEG`) remains a separate defence-in-depth backstop against a modified
+client.

@@ -10,6 +10,7 @@ import type {
   AlertRule,
   AlertRuleInput,
   AlertRulesRepo,
+  CreateAlertResult,
 } from "../db/repositories/alert-rules.js";
 import type { PushLogRepo } from "../db/repositories/push-log.js";
 import type { PushStatDelta, PushStatsRepo } from "../db/repositories/push-stats.js";
@@ -67,10 +68,10 @@ class FakeAlertRulesRepo implements AlertRulesRepo {
   async listAll(): Promise<AlertRule[]> {
     return this.rules;
   }
-  async create(input: AlertRuleInput): Promise<AlertRule> {
+  async create(input: AlertRuleInput): Promise<CreateAlertResult> {
     const rule = { id: ++this.seq, ...input };
     this.rules.push(rule);
-    return rule;
+    return { ok: true, rule };
   }
   async update(
     id: number,
@@ -89,10 +90,12 @@ class FakeAlertRulesRepo implements AlertRulesRepo {
 
 const ALL_PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
+const EP1 = "https://fcm.googleapis.com/fcm/send/ep1";
+
 function makeSub(overrides: Partial<Subscription> = {}): Subscription {
   return {
-    endpoint: "https://push.example/ep1",
-    subscription: { endpoint: "https://push.example/ep1", keys: { p256dh: "p", auth: "a" } },
+    endpoint: EP1,
+    subscription: { endpoint: EP1, keys: { p256dh: "p", auth: "a" } },
     lat: 33.32,
     lon: 44.36,
     tz: "Asia/Baghdad",
@@ -109,7 +112,7 @@ function makeSub(overrides: Partial<Subscription> = {}): Subscription {
 function makeRule(overrides: Partial<AlertRule> = {}): AlertRule {
   return {
     id: 1,
-    endpoint: "https://push.example/ep1",
+    endpoint: EP1,
     timing: "at_time",
     minutes: null,
     prayers: ALL_PRAYERS,
@@ -312,20 +315,22 @@ describe("PrayerScheduler", () => {
   it("two subscribers in different tz fire on their own local schedule", async () => {
     // Both have dhuhr at NOW+1min, but different tz → different localDateKey →
     // independent fireKeys; both must fire exactly once.
+    const epA = "https://fcm.googleapis.com/fcm/send/A";
+    const epB = "https://fcm.googleapis.com/fcm/send/B";
     const subA = makeSub({
-      endpoint: "https://push.example/A",
+      endpoint: epA,
       tz: "Asia/Baghdad",
-      subscription: { endpoint: "https://push.example/A", keys: { p256dh: "p", auth: "a" } },
+      subscription: { endpoint: epA, keys: { p256dh: "p", auth: "a" } },
     });
     const subB = makeSub({
-      endpoint: "https://push.example/B",
+      endpoint: epB,
       tz: "America/New_York",
-      subscription: { endpoint: "https://push.example/B", keys: { p256dh: "p", auth: "a" } },
+      subscription: { endpoint: epB, keys: { p256dh: "p", auth: "a" } },
     });
     const subsRepo = new FakeSubscriptionsRepo([subA, subB]);
     const rulesRepo = new FakeAlertRulesRepo([
-      makeRule({ id: 1, endpoint: "https://push.example/A" }),
-      makeRule({ id: 2, endpoint: "https://push.example/B" }),
+      makeRule({ id: 1, endpoint: epA }),
+      makeRule({ id: 2, endpoint: epB }),
     ]);
     const logRepo = new FakePushLogRepo();
     const scheduler = new PrayerScheduler({
@@ -343,7 +348,10 @@ describe("PrayerScheduler", () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     const endpoints = send.mock.calls.map((c) => (c[0] as { endpoint: string }).endpoint).sort();
-    expect(endpoints).toEqual(["https://push.example/A", "https://push.example/B"]);
+    expect(endpoints).toEqual([
+      "https://fcm.googleapis.com/fcm/send/A",
+      "https://fcm.googleapis.com/fcm/send/B",
+    ]);
 
     // Their dedup keys are distinct (different local dates may apply, but
     // endpoints differ regardless), proving independent schedules.
@@ -474,6 +482,63 @@ describe("PrayerScheduler", () => {
     expect((await subsRepo.listAll()).length).toBe(0);
   });
 
+  // Defence in depth: a stored endpoint that isn't a known push service (e.g. an
+  // internal address left over from before the allowlist) is never POSTed to —
+  // it is purged like a dead subscription instead.
+  it("purges (never sends to) a subscription whose endpoint is disallowed", async () => {
+    const evil = "https://169.254.169.254/steal";
+    const sub = makeSub({
+      endpoint: evil,
+      subscription: { endpoint: evil, keys: { p256dh: "p", auth: "a" } },
+    });
+    const subsRepo = new FakeSubscriptionsRepo([sub]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule({ endpoint: evil })]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+
+    expect(send).not.toHaveBeenCalled();
+    expect((await subsRepo.listAll()).length).toBe(0);
+    expect(scheduler.stats().goneRemovedToday).toBe(1);
+  });
+
+  // SSRF depth: the send guard validates the actual POST target (the JSONB
+  // `subscription`), not just the endpoint column. A hand-crafted row can keep an
+  // allowlisted column while the JSONB endpoint diverges; that must be purged,
+  // never dialed, even when the JSONB endpoint is itself an allowlisted host.
+  it("purges a row whose JSONB subscription endpoint differs from the column", async () => {
+    const sub = makeSub({
+      endpoint: EP1, // column: the legitimate, allowlisted endpoint
+      subscription: {
+        endpoint: "https://fcm.googleapis.com/fcm/send/OTHER", // diverges from the column
+        keys: { p256dh: "p", auth: "a" },
+      },
+    });
+    const subsRepo = new FakeSubscriptionsRepo([sub]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+
+    expect(send).not.toHaveBeenCalled();
+    expect((await subsRepo.listAll()).length).toBe(0);
+    expect(scheduler.stats().goneRemovedToday).toBe(1);
+  });
+
   it("start() runs an immediate tick and stop() halts the timer", async () => {
     vi.useFakeTimers();
     try {
@@ -501,6 +566,74 @@ describe("PrayerScheduler", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Single-flight: a still-running tick makes the next one skip, so a slow scan
+  // can't overlap itself and double the DB load / race the shared caches.
+  it("skips an overlapping tick while a slow one is still running", async () => {
+    const subsRepo = new FakeSubscriptionsRepo([makeSub()]);
+    const rulesRepo = new FakeAlertRulesRepo([makeRule()]);
+    // Gate the first tick's load so a second tick.tick() overlaps it.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let listCalls = 0;
+    const base = subsRepo.listAll.bind(subsRepo);
+    subsRepo.listAll = async () => {
+      listCalls += 1;
+      await gate;
+      return base();
+    };
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    const first = scheduler.tick(); // runs, blocks on the gate
+    await scheduler.tick(); // overlaps → skipped before it can load
+    expect(listCalls).toBe(1); // the second tick never reached the load
+
+    release();
+    await first;
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  // The per-endpoint table cache must not grow forever as subscriptions churn.
+  it("prunes cached tables for subscriptions that have churned away", async () => {
+    const epA = "https://fcm.googleapis.com/fcm/send/A";
+    const epB = "https://fcm.googleapis.com/fcm/send/B";
+    const subA = makeSub({
+      endpoint: epA,
+      subscription: { endpoint: epA, keys: { p256dh: "p", auth: "a" } },
+    });
+    const subB = makeSub({
+      endpoint: epB,
+      subscription: { endpoint: epB, keys: { p256dh: "p", auth: "a" } },
+    });
+    const subsRepo = new FakeSubscriptionsRepo([subA, subB]);
+    const rulesRepo = new FakeAlertRulesRepo([
+      makeRule({ id: 1, endpoint: epA }),
+      makeRule({ id: 2, endpoint: epB }),
+    ]);
+    const scheduler = new PrayerScheduler({
+      subsRepo,
+      alertRulesRepo: rulesRepo,
+      logRepo: new FakePushLogRepo(),
+      now: () => NOW,
+      computeTimes: () => fixedTable(),
+      send,
+    });
+
+    await scheduler.tick();
+    expect(scheduler.cacheSize()).toBe(2);
+
+    // B unsubscribes; its cache entry must be reclaimed, not linger forever.
+    await subsRepo.deleteByEndpoint(epB);
+    await scheduler.tick();
+    expect(scheduler.cacheSize()).toBe(1);
   });
 });
 

@@ -9,6 +9,23 @@ timestamp: 2026-07-27
 
 # Qibla + Nearest-Masjid Spec — accurate direction, hosted in the Times tab
 
+> **2026-08-26: Nearest-masjid is Iraq-only (owner decision).** The resident dataset is Iraq-only
+> (`scripts/build-masjids.mjs` builds it for a single Iraq bbox), and the owner decided NOT to serve
+> masjid search outside Iraq at all. The app ships to Play (open testing now, production still
+> pending) for Iraq + the United States; US users keep qibla, prayer times, reminders and everything
+> else, and simply never see the masjid feature. **Mechanism.** A shared Iraq bbox constant + predicate (`server/src/places/iraq-bbox.ts`,
+> mirrored on the client as `client/src/lib/iraq-bbox.ts` since the client cannot import server code)
+> gates both sides against `lat`/`lon`, not the location's country code (bbox is the single source of
+> truth). The server geofences all three Places endpoints (`server/src/places/routes.ts`): a masjid
+> search, a travel lookup, or a contribution for coordinates outside the bbox gets the SAME
+> feature-disabled shape the no-key/kill-switch path already returns, and never touches Google, the
+> resident index, or the DB, so no Google spend can happen for a non-Iraq caller regardless of client
+> behaviour. The client hides the entire nearest-masjids section (list + «أضف مسجداً» entry) whenever
+> the active location is outside the bbox (`client/src/pages/TimesPage.tsx`); the qibla compass and
+> the rest of the tab stay for every location. Values `{ south: 28.9, west: 38.6, north: 37.5,
+> east: 48.9 }`, a little wider than the border so a border-town user still sees masjids just across
+> it.
+
 > **2026-08-12 — Embed directions `destination` is always `lat,lon`, never `place_id:`.** The
 > nearest-masjid card's Maps **Embed API** directions iframe now passes `destination=<lat>,<lon>` for
 > **every** masjid class. A merge-adopted Google `place_id` can go **stale** (Google merges/refreshes
@@ -203,6 +220,13 @@ The design below addresses all four; the accuracy target is **±3° on a calibra
          GET /api/places/masjids?lat&lon       (Places proxy, zod, grid cache, key server-only)
 ```
 
+**Iraq-only geofence (2026-08-26, see the header note).** All three Places endpoints
+(`/api/places/masjids`, `/api/places/travel`, `/api/places/masjids/contribute`) are gated by a shared
+bbox predicate (`server/src/places/iraq-bbox.ts`) so a non-Iraq coordinate returns the feature-disabled
+shape and reaches neither Google, the resident index, nor the DB. The client mirrors the same constant
+(`client/src/lib/iraq-bbox.ts`) to hide the whole nearest-masjids section outside Iraq, while qibla and
+the rest of the tab stay for every location.
+
 ## 5. Qibla implementation
 
 ### 5a. Math (`client/src/lib/qibla.ts` — new, pure)
@@ -366,12 +390,24 @@ Admission: burst breaker (ADR-011, 30 units/min) → global pool → per-client 
 increment is guarded **inside a single SQL statement**, so concurrent requests cannot both pass a cap
 they both read as clear. A denial is not an error — it falls to step 4.
 
+**Fail closed when the governor is unavailable (2026-08-25).** On a DB-backed deploy the persistent
+governor lives in Postgres, so a DB outage means there is no durable spend record. Rather than let the
+restart-resettable burst breaker be the only bound, the router then makes **no paid Google call at
+all**: `GET /api/places/masjids` serves **resident-dataset results only** (`degraded: true`, zero
+spend) and `GET /api/places/travel` returns `degraded`. `index.ts` sets this on any deploy that has a
+DB; the service-logic tests omit the governor deliberately, so they keep exercising the live path. The
+in-memory burst breaker stays as the per-minute burst bound.
+
 **Telemetry.** EVERY request is recorded, not only paid ones, so `activeClients` is real:
 `places_usage` (per PT day × client/ip: requests + spend, written synchronously because it gates
 spending), `places_stats` (hourly outcome rollup) and `places_cell_demand` (which cells cost live
 calls → where contributed masjids would pay off), both buffered and flushed every 15 s. No table
 links a client id to a coordinate. IPs are stored only as a /24 or /64 **prefix**.
 `GET /api/places/usage?token=…` reports the live plan (404 unless `ADMIN_TOKEN` is set).
+
+The daily retention sweep (`db/retention.ts`) now actually enforces these tables' lifetimes: it prunes
+`places_cell_demand` rows older than **400 days** (`CELL_DEMAND_RETENTION_DAYS`) and applies
+`places_usage`'s ADR-014 window, both of which previously had a `prune()` that nothing ever called.
 
 **Resident dataset.** `npm run build:masjids` → `server/data/masjids-iq.json` from OpenStreetMap via
 Overpass (tiled 8×8 over an Iraq bbox, each tile cached under `data/_raw/masjid-tiles/` so a rerun
@@ -390,11 +426,21 @@ Venue exclusion (husseiniya/mawkib/mudhif) is applied at LOAD time via the share
 ومساهمو التطبيق».
 
 **Contributions.** `POST /api/places/masjids/contribute` `{ name, lat, lon, userLat, userLon }` →
-`masjid_contributions` as `pending`; 5/day/client; rejected beyond 50 km from the submitter (a guard
-against a mis-dropped pin, not a security control). Approved rows join the resident index within
-10 minutes (`places/community-refresh.ts`). The contributor sees their own submission immediately
-from their **own device's** copy (`client/src/lib/my-masjids.ts`), so no unreviewed text is ever
-served to anyone else. Moderation is `psql` — see `docs/OPERATIONS.md`.
+`masjid_contributions` as `pending`; rejected beyond 50 km from the submitter (a guard against a
+mis-dropped pin, not a security control). Two caps bound abuse: the **5/day per-client** cap is
+enforced by **serializing each client's submissions**: `submit()` runs in a transaction that takes a
+per-client transaction-scoped advisory lock (`pg_advisory_xact_lock(hashtext(clientId))`) before the
+`WHERE`-guarded count-and-insert, so two concurrent submissions from one client queue rather than both
+reading the same pre-insert count and racing past the cap (which a bare `INSERT ... SELECT` still
+allows under READ COMMITTED, where each statement counts against its own snapshot), and a
+**20/day per-IP-prefix** cap (in-memory sliding window, `places/routes.ts`) backs it up because the
+per-client key is the forgeable `X-Client-Id`. Approved rows join the resident index within 10 minutes
+(`places/community-refresh.ts`), but only after passing the **same `isExcludedVenue` venue filter** the
+OSM and Google paths already apply, so a husseiniya/mawkib/mudhif approved by mistake still never
+enters the served index (single source of truth: `places/venue-filter.ts`). The contributor sees their
+own submission immediately from their **own device's** copy (`client/src/lib/my-masjids.ts`), so no
+unreviewed text is ever served to anyone else. Moderation happens in the operator dashboard
+(`docs/ADMIN_DASHBOARD.md`).
 
 > **Legal boundary that shapes all of the above.** Google Maps Platform ToS §3.2.3 allows caching a
 > `place_id` indefinitely but other Places content for at most 30 days, and forbids pre-fetching or

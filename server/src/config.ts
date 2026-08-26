@@ -14,6 +14,9 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().max(65535).default(8000),
   LOG_LEVEL: z.string().default("info"),
   DATABASE_URL: z.string().url().optional(),
+  // Upper bound on the app's Postgres connection pool. Shared cluster, so keep
+  // it modest; validated here (fail fast on nonsense); pool min stays 1.
+  PG_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).default("mailto:admin@altijwal.com"),
@@ -80,6 +83,8 @@ export interface Config {
   port: number;
   logLevel: string;
   databaseUrl: string | undefined;
+  /** Upper bound on the Postgres pool (min stays 1). */
+  pgPoolMax: number;
   vapid: VapidConfig | undefined;
   corsOrigins: string[];
   /** DB-backed features (push storage + scheduler) are available. */
@@ -187,6 +192,7 @@ function load(): Config {
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
     databaseUrl: env.DATABASE_URL,
+    pgPoolMax: env.PG_POOL_MAX,
     vapid,
     corsOrigins,
     dbEnabled: Boolean(env.DATABASE_URL),

@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
+import express from "express";
+import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { detectMethod, describeMethod } from "./method-detect.js";
 import { fmtCountdown, dateKey, instantForCivilDate, minuteOfDay } from "./format.js";
 import { hijriParts, nextIslamicEvent } from "./hijri.js";
 import { buildPrayerTimesPayload } from "./payload.js";
+import { createPrayerRouter, type PrayerRouterDeps } from "./routes.js";
 
 const BAGHDAD = { lat: 33.321502, lon: 44.358335 };
 const MOSUL = { lat: 36.335, lon: 43.118 };
@@ -273,5 +277,49 @@ describe("sunnah windows (Duha + Qiyam)", () => {
     });
     expect(p.duhaWindow).toBeNull();
     expect(p.qiyamWindow).toBeNull();
+  });
+});
+
+describe("createPrayerRouter: rate limiting", () => {
+  async function withRouter(
+    deps: PrayerRouterDeps,
+    fn: (base: string) => Promise<void>,
+  ): Promise<void> {
+    const app = express();
+    app.use(createPrayerRouter(deps));
+    const server = await new Promise<Server>((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+    try {
+      const { port } = server.address() as AddressInfo;
+      await fn(`http://127.0.0.1:${port}`);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }
+
+  const DAILY = "/api/prayer-times?lat=33.32&lon=44.36&tz=Asia/Baghdad";
+  const MONTH = "/api/prayer-times/month?lat=33.32&lon=44.36&tz=Asia/Baghdad&month=2026-07";
+
+  it("429s /api/prayer-times past the per-IP cap ({error})", async () => {
+    await withRouter({ dailyLimits: { perIpPerMinute: 2 } }, async (base) => {
+      expect((await fetch(base + DAILY)).status).toBe(200);
+      expect((await fetch(base + DAILY)).status).toBe(200);
+      const over = await fetch(base + DAILY);
+      expect(over.status).toBe(429);
+      expect((await over.json()).error).toBe("Too many requests");
+    });
+  });
+
+  it("429s /api/prayer-times/month under its strict cap without touching the daily cap", async () => {
+    await withRouter(
+      { monthLimits: { perIpPerHour: 1 }, dailyLimits: { perIpPerMinute: 5 } },
+      async (base) => {
+        expect((await fetch(base + MONTH)).status).toBe(200);
+        expect((await fetch(base + MONTH)).status).toBe(429);
+        // The daily route uses a separate limiter, still open.
+        expect((await fetch(base + DAILY)).status).toBe(200);
+      },
+    );
   });
 });

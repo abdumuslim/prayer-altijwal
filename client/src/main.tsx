@@ -5,6 +5,39 @@ import App from "./App";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { isNative } from "@/lib/native";
+import { recordError } from "@/lib/error-log";
+
+// Local crash visibility (no third-party service): capture uncaught errors and
+// unhandled rejections into the defensive ring buffer (lib/error-log). Guarded so
+// a throw from the recorder itself can never re-enter these handlers and loop.
+let recordingGlobalError = false;
+function captureGlobalError(kind: string, message: string, stack?: string): void {
+  if (recordingGlobalError) return;
+  recordingGlobalError = true;
+  try {
+    recordError({ kind, message, stack });
+  } catch {
+    // never let logging crash the app
+  } finally {
+    recordingGlobalError = false;
+  }
+}
+window.addEventListener("error", (e) => {
+  const err = e.error;
+  captureGlobalError(
+    "window.error",
+    err instanceof Error ? err.message : e.message || String(err),
+    err instanceof Error ? err.stack : undefined,
+  );
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason;
+  captureGlobalError(
+    "unhandledrejection",
+    reason instanceof Error ? reason.message : String(reason),
+    reason instanceof Error ? reason.stack : undefined,
+  );
+});
 
 // DEV-only design preview (?design=N) — lazy so it is code-split and the chunk
 // is never even requested in production builds.

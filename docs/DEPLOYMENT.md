@@ -66,6 +66,9 @@ services:
     restart: unless-stopped
     mem_limit: 1g
     cpus: 1.0
+    logging:                          # cap container-log growth on the shared box
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
     env_file: .env
     networks: [rag_default]
     labels:
@@ -158,6 +161,7 @@ GOOGLE_MAPS_EMBED_KEY=        # optional — browser-visible Embed-only key (ADR
 # optional: PLACES_MONTHLY_UNIT_CAP=4500   # ADR-014 spend ceiling, in units
 # optional: ADMIN_TOKEN=                   # gates GET /api/places/usage (min 16 chars)
 # optional: PORT=8000
+# optional: PG_POOL_MAX=10                 # Postgres pool ceiling (1–50; shared cluster, keep modest)
 # ── admin dashboard + telemetry (2026-07-26, docs/ADMIN_DASHBOARD.md) ──
 ADMIN_PASSWORD_HASH=      # scrypt digest; absent ⇒ the whole /api/admin tree 404s
 ADMIN_SESSION_SECRET=     # ≥32 chars; absent ⇒ random per boot ⇒ logged out on every deploy
@@ -203,6 +207,23 @@ to `/postgres` first, `CREATE DATABASE prayer`), then runs the idempotent migrat
 (`push_subscriptions`, `push_log` — see `NOTIFICATIONS.md`). Use a least-privilege role; if it can't
 create databases, pre-create `prayer` and let the app run migrations only.
 
+### Backups (VPS cron)
+
+`scripts/vps-backup-prayer.sh` (ships in the tarball) takes a daily **`pg_dump --format=custom`** of
+the dedicated `prayer` database via `docker exec` into the shared PG16 container, writing timestamped
+dumps to `/opt/prayer/backups` and pruning anything older than **14 days**. It only ever touches its
+own `prayer-*.dump` files (safe on the shared box) and overrides via env: `BACKUP_DIR`, `KEEP_DAYS`,
+`DB_NAME`, `PG_CONTAINER`. Install it once as a VPS cron (the exact line is in the script header):
+
+```bash
+chmod +x /opt/prayer/scripts/vps-backup-prayer.sh
+crontab -e   # add (runs daily at 03:20 UTC):
+20 3 * * * /opt/prayer/scripts/vps-backup-prayer.sh >> /var/log/prayer-backup.log 2>&1
+```
+
+Restore a dump into the `prayer` database with `pg_restore` (custom format), e.g.
+`docker exec -i rag-postgres-1 pg_restore -U postgres -d prayer --clean < /opt/prayer/backups/prayer-<stamp>.dump`.
+
 ---
 
 ## 5. Deploy sequence (same as home)
@@ -226,7 +247,7 @@ create databases, pre-create `prayer` and let the app run migrations only.
 tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=dist-admin \
   --exclude=.git --exclude=docs/OPERATIONS.md --exclude=docs/refs \
   --exclude=client/android --exclude=server/data/_raw \
-  server client Dockerfile docker-compose.yml .env.example docs
+  server client scripts Dockerfile docker-compose.yml .env.example docs
 
 # 1b. always confirm the ops doc did not slip in
 tar tzf /tmp/prayer-deploy.tar.gz | grep -i OPERATIONS.md && echo "LEAK — stop" || echo "clean"
@@ -250,6 +271,15 @@ curl -fsS https://prayer.altijwal.com/api/health
 
 **VPS dir:** `/opt/prayer/` (mirrors `/opt/home-dashboard/`). The `.env` is placed there once and is
 not part of the tarball.
+
+> **Reclaiming disk after a rebuild, stay scoped.** `docker compose up -d --build` leaves the previous
+> image untagged (`<none>`). Reclaim **only this project's** dangling layers:
+> ```bash
+> docker image prune -f --filter label=com.docker.compose.project=prayer
+> ```
+> ⚠️ **Never `docker image prune -a` on this shared host** (the standing caution in §7): it would
+> delete on-demand images used by the sibling apps. Build cache is handled separately by the
+> `docker builder prune` in step 3.
 
 ---
 

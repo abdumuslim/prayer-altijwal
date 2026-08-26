@@ -1,6 +1,7 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { Router } from "express";
 import { config } from "./config.js";
 import { childLogger } from "./logger.js";
 import { createApp } from "./app.js";
@@ -45,6 +46,9 @@ import { registerRedactedSecrets } from "./log-buffer.js";
 const log = childLogger("index");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/** How often to retry DB bring-up after a failed startup (forever, unref'd). */
+const DB_RETRY_INTERVAL_MS = 60_000;
+
 /** Deployed server version, shown on the admin overview. */
 const SERVER_VERSION = ((): string => {
   try {
@@ -56,6 +60,14 @@ const SERVER_VERSION = ((): string => {
 })();
 
 type Pool = Awaited<ReturnType<typeof createPool>>;
+
+/** The DB-backed halves of the places router — absent while the DB is down. */
+interface PlacesDbDeps {
+  cacheRepo?: PlacesCacheRepo;
+  governor?: PlacesGovernor;
+  stats?: PlacesStatsRecorder;
+  contributions?: MasjidContributionsRepo;
+}
 
 async function main(): Promise<void> {
   // Geo index — stateless, always available.
@@ -70,6 +82,9 @@ async function main(): Promise<void> {
 
   // DB + push are optional. Degrade to stateless (public prayer-times still
   // works) rather than crash-looping if the SHARED Postgres is briefly down.
+  // Everything the DB brings up is held in these mutable refs so a LATER bring-up
+  // (see initDbDependent + the retry loop) can populate them without a restart,
+  // and the shutdown handler can stop whatever ended up running.
   let pool: Pool | undefined;
   let scheduler: PrayerScheduler | undefined;
   let cachePrune: CachePruneJob | undefined;
@@ -85,131 +100,250 @@ async function main(): Promise<void> {
   let telemetryRepo: TelemetryRepo | undefined;
   let placesUsageRepo: ReturnType<typeof createPlacesUsageRepo> | undefined;
   let retention: RetentionJob | undefined;
-  let getDbStatus = async (): Promise<DbStatus> => "disabled";
+  // Wire the DB features exactly once (dbUp), and never let a slow retry overlap
+  // itself (dbInitInFlight). dbRetryTimer is the forever-retry loop's handle.
+  let dbUp = false;
+  let dbInitInFlight = false;
+  let dbRetryTimer: ReturnType<typeof setInterval> | null = null;
 
-  if (config.dbEnabled && config.databaseUrl) {
-    try {
-      pool = await createPool(config.databaseUrl);
-      await initDb(pool);
-      getDbStatus = async () => dbHealth(pool!);
+  // Live DB status for /api/health and the admin overview. Reads the mutable
+  // `pool` so a later bring-up (or loss) is reflected without rebuilding the
+  // closure: "disabled" when there is no DB by config, "down" while configured
+  // but not (yet) connected, else the real connectivity probe.
+  const getDbStatus = async (): Promise<DbStatus> => {
+    if (!config.dbEnabled || !config.databaseUrl) return "disabled";
+    if (!pool) return "down";
+    return dbHealth(pool);
+  };
 
-      subsRepo = new PgSubscriptionsRepo(pool);
-      const logRepo = new PgPushLogRepo(pool);
-      const alertRulesRepo = new PgAlertRulesRepo(pool);
-      // Durable delivery rollup — push_log is pruned at 48h and cannot back a
-      // history chart (docs/ADMIN_DASHBOARD.md).
-      pushStatsRepo = createPushStatsRepo(pool);
+  const dbIntended = Boolean(config.dbEnabled && config.databaseUrl);
 
-      // Durable 30-day masjid cell cache — survives deploys, so a redeploy no
-      // longer re-buys every cell from Google (ADR-014).
-      placesCacheRepo = createPlacesCacheRepo(pool);
-      cachePrune = startCachePrune(placesCacheRepo);
-
-      // Spend governor + anonymous request telemetry. Both are DB-backed, so a
-      // stateless boot simply runs without them (burst breaker only).
-      const usageRepo = createPlacesUsageRepo(pool);
-      placesUsageRepo = usageRepo;
-      placesGovernor = createPlacesGovernor(usageRepo, {
-        monthlyCap: config.placesMonthlyUnitCap,
-      });
-      placesStats = createPlacesStatsRecorder(pool);
-      placesStats.start();
-
-      // User-contributed masjids: stored here, folded into the resident index
-      // once a moderator approves them.
-      contributionsRepo = createMasjidContributionsRepo(pool);
-      communityRefresh = startCommunityRefresh(contributionsRepo, residentMasjids);
-
-      // Audit trail for the admin dashboard. Optional like everything else here:
-      // without a DB the dashboard still serves its read-only views.
-      auditRepo = createAdminAuditRepo(pool);
-
-      // Runtime overrides (Places kill-switch + spend cap). Read on the request
-      // path through a 30s cache; every reader falls back to the env value.
-      telemetryRepo = createTelemetryRepo(pool);
-      appSettings = createAppSettings(pool);
-      const storedCap = await appSettings.get<number | null>(
-        SETTING_KEYS.placesMonthlyUnitCap,
-        null,
-      );
-      if (typeof storedCap === "number" && placesGovernor) {
-        // Honour a dashboard change across restarts.
-        placesGovernor.setMonthlyCap(storedCap);
-        log.info("Applied stored Places monthly cap", { cap: storedCap });
-      }
-
-      featureRouters.push(
-        createPushRouter({
-          subsRepo,
-          alertRulesRepo,
-          vapidPublicKey: config.vapid?.publicKey ?? null,
-          pushEnabled: config.pushEnabled,
-        }),
-      );
-
-      if (config.pushEnabled && config.vapid) {
-        setupWebPush(config.vapid);
-        scheduler = new PrayerScheduler({
-          subsRepo,
-          alertRulesRepo,
-          logRepo,
-          statsRepo: pushStatsRepo,
-        });
-        scheduler.start();
-        log.info("Web-push scheduler started");
-      } else {
-        log.warn("Push routes mounted but sending disabled (no VAPID)");
-      }
-    } catch (err) {
-      getDbStatus = async (): Promise<DbStatus> => "down";
-      log.error("Database/push init failed — continuing in stateless mode", err instanceof Error ? err : new Error(String(err)));
-    }
-  }
-
-  // Mounted last so it can take the cache repo when the DB came up; always
-  // mounted, and without a key the route itself reports { enabled: false }.
-  featureRouters.push(
-    createPlacesRouter({
-      apiKey: config.googleMapsApiKey,
-      embedKey: config.googleMapsEmbedKey,
-      cacheRepo: placesCacheRepo,
-      resident: residentMasjids,
-      governor: placesGovernor,
-      stats: placesStats,
-      contributions: contributionsRepo,
-      adminToken: config.adminToken,
-      // Kill-switches. Both default to ON when the store is unreadable.
-      isEnabled: () =>
-        appSettings?.get(SETTING_KEYS.placesEnabled, true) ?? Promise.resolve(true),
-      isTravelEnabled: () =>
-        appSettings?.get(SETTING_KEYS.placesTravelEnabled, true) ?? Promise.resolve(true),
-    }),
-  );
-
-  // Anonymous audience ping (ADR-016). Always mounted: it answers 204
-  // regardless, so its behaviour never depends on what came up at boot.
-  featureRouters.push(
+  // Router builders. Called both for the stateless boot and — with the DB deps —
+  // once the pool is up, so a bring-up simply rebuilds and swaps them in.
+  const buildTelemetryRouter = (repo: TelemetryRepo | undefined): Router =>
     createTelemetryRouter({
-      repo: telemetryRepo,
+      repo,
       cities: citiesIndex,
       salt: config.telemetrySalt,
       precisionDeg: config.telemetryPrecisionDeg,
       isEnabled: () =>
         appSettings?.get(SETTING_KEYS.telemetryEnabled, true) ?? Promise.resolve(true),
-    }),
-  );
-
-  // One daily sweep for every retention policy, so the privacy policy's
-  // promises are kept by code. Also finally schedules places_usage.prune(),
-  // which has existed since ADR-014 with nothing calling it.
-  if (pool) {
-    retention = startRetention({
-      telemetry: telemetryRepo,
-      telemetryRetentionDays: config.telemetryRetentionDays,
-      audit: auditRepo,
-      pushStats: pushStatsRepo,
-      placesUsage: placesUsageRepo,
     });
+
+  const buildPlacesRouter = (db: PlacesDbDeps = {}): Router =>
+    createPlacesRouter({
+      apiKey: config.googleMapsApiKey,
+      embedKey: config.googleMapsEmbedKey,
+      cacheRepo: db.cacheRepo,
+      resident: residentMasjids,
+      governor: db.governor,
+      stats: db.stats,
+      contributions: db.contributions,
+      adminToken: config.adminToken,
+      // On a DB-backed deploy a missing governor means the pool is down, so fail
+      // closed to resident-only (zero Google spend) rather than let the burst
+      // breaker be the sole bound (task 6 / docs/QIBLA_MASJID_SPEC.md §6d).
+      requireGovernor: dbIntended,
+      // Kill-switches. Both default to ON when the store is unreadable.
+      isEnabled: () =>
+        appSettings?.get(SETTING_KEYS.placesEnabled, true) ?? Promise.resolve(true),
+      isTravelEnabled: () =>
+        appSettings?.get(SETTING_KEYS.placesTravelEnabled, true) ?? Promise.resolve(true),
+    });
+
+  // Late-bindable mount for the DB-dependent feature routers. It is placed in the
+  // chain now with a STATELESS delegate — places (resident-only; fails closed
+  // without a governor) and telemetry (204s without persisting) still answer
+  // while the DB is down; push has no stateless mode, so it appears only once the
+  // DB comes up. On bring-up the delegate is swapped for the DB-backed build.
+  let dbFeatureRouter: Router = ((): Router => {
+    const r = Router();
+    r.use(buildPlacesRouter());
+    r.use(buildTelemetryRouter(undefined));
+    return r;
+  })();
+  const dbFeatureMount = Router();
+  dbFeatureMount.use((req, res, next) => dbFeatureRouter(req, res, next));
+  featureRouters.push(dbFeatureMount);
+
+  /**
+   * Bring up everything that needs the database, exactly once. Shared by the
+   * startup path and the retry loop. ALL fallible work (the pool, the schema,
+   * the stored-cap read, and VAPID validation, since setupWebPush throws
+   * synchronously on a bad key) happens before any shared ref is published, the
+   * feature router swapped, or a background timer started. So a throw leaves nothing
+   * published or running and a retry starts from a clean slate (rather than a
+   * half-live system whose timers the retry would then duplicate).
+   */
+  async function initDbDependent(): Promise<void> {
+    if (dbUp || dbInitInFlight) return;
+    dbInitInFlight = true;
+    let p: Pool | undefined;
+    try {
+      p = await createPool(config.databaseUrl!);
+      await initDb(p);
+
+      const newSubsRepo = new PgSubscriptionsRepo(p);
+      const logRepo = new PgPushLogRepo(p);
+      const alertRulesRepo = new PgAlertRulesRepo(p);
+      // Durable delivery rollup — push_log is pruned at 48h and cannot back a
+      // history chart (docs/ADMIN_DASHBOARD.md).
+      const newPushStatsRepo = createPushStatsRepo(p);
+      // Durable 30-day masjid cell cache — survives deploys, so a redeploy no
+      // longer re-buys every cell from Google (ADR-014).
+      const newPlacesCacheRepo = createPlacesCacheRepo(p);
+      // Spend governor + anonymous request telemetry.
+      const usageRepo = createPlacesUsageRepo(p);
+      const newGovernor = createPlacesGovernor(usageRepo, {
+        monthlyCap: config.placesMonthlyUnitCap,
+      });
+      const newPlacesStats = createPlacesStatsRecorder(p);
+      // User-contributed masjids: stored here, folded into the resident index
+      // once a moderator approves them.
+      const newContributionsRepo = createMasjidContributionsRepo(p);
+      // Audit trail for the admin dashboard.
+      const newAuditRepo = createAdminAuditRepo(p);
+      // Runtime overrides (Places kill-switch + spend cap).
+      const newTelemetryRepo = createTelemetryRepo(p);
+      const newAppSettings = createAppSettings(p);
+      const storedCap = await newAppSettings.get<number | null>(
+        SETTING_KEYS.placesMonthlyUnitCap,
+        null,
+      );
+      if (typeof storedCap === "number") {
+        // Honour a dashboard change across restarts.
+        newGovernor.setMonthlyCap(storedCap);
+        log.info("Applied stored Places monthly cap", { cap: storedCap });
+      }
+
+      // Validate VAPID and construct the scheduler HERE, while a throw is still
+      // safe: setupWebPush() validates the keys and throws SYNCHRONOUSLY on a
+      // malformed one. It must run before anything is published or any timer is
+      // started, otherwise a bad key would throw with the shared refs already
+      // live and the cache/stats/community timers already running, and each 60s
+      // retry (which re-enters this function) would start duplicates. The
+      // scheduler is only constructed now; it is started in the side-effect phase
+      // below. Absent VAPID keeps the existing warn-and-continue behaviour.
+      let newScheduler: PrayerScheduler | undefined;
+      if (config.pushEnabled && config.vapid) {
+        setupWebPush(config.vapid);
+        newScheduler = new PrayerScheduler({
+          subsRepo: newSubsRepo,
+          alertRulesRepo,
+          logRepo,
+          statsRepo: newPushStatsRepo,
+        });
+      } else {
+        log.warn("Push routes mounted but sending disabled (no VAPID)");
+      }
+
+      // Build the DB-backed feature router (construction only, no side effects):
+      // adds push, gives places its governor/cache/stats, and persists telemetry.
+      const dbRouter = Router();
+      dbRouter.use(
+        createPushRouter({
+          subsRepo: newSubsRepo,
+          alertRulesRepo,
+          vapidPublicKey: config.vapid?.publicKey ?? null,
+          pushEnabled: config.pushEnabled,
+        }),
+      );
+      dbRouter.use(
+        buildPlacesRouter({
+          cacheRepo: newPlacesCacheRepo,
+          governor: newGovernor,
+          stats: newPlacesStats,
+          contributions: newContributionsRepo,
+        }),
+      );
+      dbRouter.use(buildTelemetryRouter(newTelemetryRepo));
+
+      // ── Side-effect phase. Everything fallible is done; nothing below throws.
+      // Publish the shared refs (admin router + shutdown read these), swap in the
+      // router, then start the background timers, so a throw earlier leaves NOTHING
+      // published or running and a retry starts from a clean slate. ──
+      pool = p;
+      subsRepo = newSubsRepo;
+      pushStatsRepo = newPushStatsRepo;
+      placesCacheRepo = newPlacesCacheRepo;
+      placesUsageRepo = usageRepo;
+      placesGovernor = newGovernor;
+      placesStats = newPlacesStats;
+      contributionsRepo = newContributionsRepo;
+      auditRepo = newAuditRepo;
+      telemetryRepo = newTelemetryRepo;
+      appSettings = newAppSettings;
+      scheduler = newScheduler;
+      dbFeatureRouter = dbRouter;
+
+      cachePrune = startCachePrune(newPlacesCacheRepo);
+      newPlacesStats.start();
+      communityRefresh = startCommunityRefresh(newContributionsRepo, residentMasjids);
+      if (newScheduler) {
+        newScheduler.start();
+        log.info("Web-push scheduler started");
+      }
+
+      // One daily sweep for every retention policy, so the privacy policy's
+      // promises are kept by code. Also schedules the pruners that had existed
+      // with nothing calling them (places_usage since ADR-014) and the two this
+      // batch adds: ruleless subscriptions and places_cell_demand.
+      retention = startRetention({
+        telemetry: newTelemetryRepo,
+        telemetryRetentionDays: config.telemetryRetentionDays,
+        audit: newAuditRepo,
+        pushStats: newPushStatsRepo,
+        placesUsage: usageRepo,
+        subscriptions: newSubsRepo,
+        cellDemand: newPlacesStats,
+      });
+
+      dbUp = true;
+      log.info("Database-dependent features initialized");
+    } catch (err) {
+      // Roll back a half-open pool so a retry neither leaks it nor reports "up".
+      if (p) {
+        await p.end().catch(() => undefined);
+        if (pool === p) pool = undefined;
+      }
+      throw err;
+    } finally {
+      dbInitInFlight = false;
+    }
+  }
+
+  /** After a failed startup, retry the DB bring-up forever until it succeeds. */
+  function scheduleDbRetry(): void {
+    if (dbRetryTimer || dbUp) return;
+    dbRetryTimer = setInterval(() => {
+      void initDbDependent()
+        .then(() => {
+          if (dbUp && dbRetryTimer) {
+            clearInterval(dbRetryTimer);
+            dbRetryTimer = null;
+            log.info("Database came up on retry — stateful features enabled");
+          }
+        })
+        .catch((err) => {
+          log.warn(
+            "Database still unavailable; will keep retrying",
+            err instanceof Error ? err : new Error(String(err)),
+          );
+        });
+    }, DB_RETRY_INTERVAL_MS);
+    dbRetryTimer.unref();
+  }
+
+  if (dbIntended) {
+    try {
+      await initDbDependent();
+    } catch (err) {
+      log.error(
+        "Database/push init failed — continuing in stateless mode; will retry",
+        err instanceof Error ? err : new Error(String(err)),
+      );
+      scheduleDbRetry();
+    }
   }
 
   // Values the log ring buffer must scrub if they ever appear in a message.
@@ -227,6 +361,10 @@ async function main(): Promise<void> {
 
   // Operator dashboard. Built only when a password hash is configured, so an
   // unconfigured deploy exposes nothing (and doesn't advertise the surface).
+  // Built after the startup DB attempt so a normal boot gives it live repos;
+  // when the DB was down at boot and only comes up on a later retry, its
+  // getDbStatus still reflects that (it reads the mutable pool), but its data
+  // views stay degraded until the next restart.
   const adminRouter = config.adminEnabled
     ? createAdminRouter({
         session: {
@@ -281,6 +419,7 @@ async function main(): Promise<void> {
 
   const shutdown = (signal: string): void => {
     log.info(`Received ${signal}, shutting down...`);
+    if (dbRetryTimer) clearInterval(dbRetryTimer);
     scheduler?.stop();
     cachePrune?.stop();
     communityRefresh?.stop();

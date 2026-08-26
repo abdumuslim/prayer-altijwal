@@ -157,7 +157,7 @@ All under `/api/admin`, all requiring a session except `POST /api/admin/session`
 | GET | `/api/admin/session` | session probe | P0 |
 | DELETE | `/api/admin/session` | log out | P0 |
 | GET | `/api/admin/overview` | health, counts, scheduler, spend, audience | P0 |
-| GET | `/api/admin/masjids/contributions?status=` | moderation queue + counts, with duplicate flags | ✅ |
+| GET | `/api/admin/masjids/contributions?status=` | moderation queue + counts, with duplicate and venue-filter flags | ✅ |
 | PATCH | `/api/admin/masjids/contributions/:id` | approve / reject / correct name+coords | ✅ |
 | GET | `/api/admin/masjids/summary` | counts by status, resident vs community | ✅ |
 | GET | `/api/admin/places/stats?days=` | daily + hourly outcome mix, governor plan | ✅ |
@@ -261,6 +261,10 @@ days** — a ~1 km cell attached to a key that dies every midnight is not a move
 cannot observe server-side retention, so detection risk is negligible; this is a truthfulness gap,
 not an enforcement one.
 
+**Revisited 2026-08-25:** a proposal to coarsen the grid to `0.03°` (~9 km² cell at the audience's
+latitudes, which would make the *approximate* declaration literally true) was considered and
+**declined**; the 0.01° grid stands, for the reasons above.
+
 **If it ever needs closing, it is one env var — no code change.** The server already clamps stored
 precision independently of the client, so `TELEMETRY_PRECISION_DEG=0.02` in `/opt/prayer/.env`
 + `docker compose up -d` makes the retained cell ≈ 4.1 km² and the "approximate" declaration true.
@@ -285,6 +289,12 @@ giving a constant ~4 km² worldwide; that one *is* a code change.
 | **Logs** | What just broke? | in-memory ring buffer (resets on restart) |
 | **Settings** | Turn the paid feature off / lower the cap, and see who changed what | `app_settings` + `admin_audit` |
 | **Play** | Installs, crashes, ratings | *not built — access is now granted, but Play has no data to serve yet (below)* |
+
+Each contribution row on the **Masjids** page also carries a server-computed **`excludedByFilter`**
+flag: `true` when the submitted name matches the shared `isExcludedVenue` venue filter
+(husseiniya/mawkib/mudhif; see `QIBLA_MASJID_SPEC.md` §6d). Nothing is auto-rejected on it; it just tells
+the operator that approving the row would have no serving effect, since `community-refresh` runs the
+same filter before an entry reaches the resident index.
 
 ### Play Console stats — access GRANTED, but ⏸ BLOCKED ON DATA EXISTING
 

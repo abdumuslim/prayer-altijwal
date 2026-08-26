@@ -31,14 +31,21 @@ timestamp: 2026-07-27
 
 ---
 
-## Update runbook — ship a new version to the EXISTING closed track (repeatable)
+## Update runbook — ship a new version to the current testing track (repeatable)
 
 > **This is the common path now.** Phases 0–4 below (account, signing, store listing, privacy,
 > data-safety, permission declarations) are **one-time and already done** — you only revisit them if
 > something structural changes. To push an update you do just this section. Everything the Console
 > asks that isn't covered here keeps its Phase-4 answer.
 
-### ⓪ What's ready for THIS release (v2.4.0)
+> **Current status (2026-08-26).** **v2.5.0 / versionCode 11** cleared review and is **live** on the
+> **Open testing** track (published 25 Aug; countries **Iraq + United States**). **v2.6.0 /
+> versionCode 12** (the production-hardening round + Iraq-only masjids) was **sent for review
+> 2026-08-26**; the same day the updated store listing descriptions went in for review. Production
+> has **not** been released yet (§①d checklist). **The next bump is versionCode 13**, deploy target
+> **Open testing**. §⓪ below documents the earlier **v2.4.0** round and is kept for reference only.
+
+### ⓪ Reference: the v2.4.0 round (superseded by v2.5.0/vc11)
 
 - **Signed bundle:** `D:\keys\releases\prayer-v2.4.0-vc10.aab` — versionName **2.4.0**, versionCode
   **10**, signed with the upload key (`prayer-upload.jks`). Built + verified 2026-08-12
@@ -143,6 +150,22 @@ and release → Testing → Open testing** instead of Closed testing.
   flips only when a release rolls out to the **Production** track, which is the next milestone after
   the open test.
 - **Pre-launch report** still auto-runs on the open-track build, so check it after publishing (§④).
+
+### ①d Production rollout checklist (the next milestone after the open soak)
+
+The app has **never had a production release**, and Google offers **no staged-percentage rollout for a
+first production release** (the percentage slider appears only from the *second* production release
+onward). There is therefore no "1% then watch" safety valve, so promote to Production only after an
+**open-testing soak** that clears defined thresholds:
+
+- **Crash-free rate** healthy on **Play Vitals** (the open track feeds it; check once testers have
+  used the build for a real stretch).
+- **No alarm-reliability regressions** reported by testers (the offline ring is the core feature;
+  see `NATIVE_ALARM_RELIABILITY_SPEC.md`).
+- **Data Safety re-verified against the vc12 build.**
+
+Then **re-walk the Data Safety form against the current manifest**, including the new
+**`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`** permission, before submitting for production.
 
 ### ② Release notes «ما الجديد» — AR (v2.2.0, **user-approved 2026-07-25**)
 
@@ -400,23 +423,23 @@ worship features on. Screenshots must show the REAL app (no mockup frames with d
 **Create app:** name `مواقيت الصلاة` · default language **العربية — ar** · App · Free · accept both
 declarations.
 
-**Main store listing** (⚠ drafts — review/edit the Arabic before submitting):
+**Main store listing** (the text APPLIED to the Console + submitted for review 2026-08-25):
 - Short description (≤80 chars):
-  > مواقيت الصلاة والأذان بدقة — منبّه يعمل دون إنترنت حتى والتطبيق مغلق
-- Full description (≤4000 — draft):
-  > تطبيق «مواقيت الصلاة» يعرض أوقات الصلاة بدقة لموقعك مع عدّاد تنازلي حيّ للأذان القادم.
+  > مواقيت الصلاة والأذان بدقة، ومنبّه يرنّ في وقت الصلاة حتى دون إنترنت
+- Full description (≤4000):
+  > يعرض التطبيق أوقات الصلاة بدقة لموقعك، مع عدّاد تنازلي حيّ للأذان القادم.
   >
-  > ★ دقة عالية في العراق: مواقيت مطابقة لجداول ديوان الوقف السني لكل محافظة.
-  > ★ منبّه حقيقي: يرنّ بملء الشاشة بالنغمة التي تختارها في وقت الصلاة تمامًا — حتى والتطبيق
-  >   مغلق والهاتف دون إنترنت.
-  > ★ يعمل دون اتصال: بعد اختيار موقعك أول مرة، يحسب التطبيق المواقيت على جهازك مباشرة.
-  > ★ تذكيرات مرنة: قبل الأذان أو بعده بالدقائق التي تريد، إشعار هادئ أو منبّه كامل.
+  > ★ دقة عالية في العراق: مواقيت معايَرة لكل محافظة على حدة.
+  > ★ منبّه حقيقي بملء الشاشة: يرنّ بالنغمة التي تختارها في وقت الصلاة تماماً، حتى والتطبيق مغلق والهاتف دون إنترنت.
+  > ★ يعمل دون اتصال: بعد اختيار موقعك أول مرة، تُحسب المواقيت على جهازك مباشرة.
+  > ★ تذكيرات مرنة لكل صلاة: قبل الأذان أو بعده بالدقائق التي تريدها، كإشعار هادئ أو منبّه كامل.
+  > ★ اتجاه القبلة ببوصلة دقيقة، وأقرب المساجد مع الاتجاهات وزمن الوصول مشياً أو بالسيارة.
   > ★ التقويم الهجري والمناسبات الإسلامية القادمة.
-  > ★ اختياري: الضحى وقيام الليل، السنن الرواتب، أذكار الصباح والمساء مع عدّاد، وسجل نقاط
-  >   لمواظبتك على الصلاة.
+  > ★ مزايا اختيارية تفعّلها متى شئت: الضحى وقيام الليل، السنن الرواتب، أذكار الصباح والمساء مع عدّاد باللمس، وسجلّ نقاط وتقارير لمواظبتك على الصلاة.
+  > ★ أربعة أنماط بصرية أنيقة تختار منها ما يناسبك.
   > ★ بدون إعلانات، بدون حسابات، مجاني بالكامل.
   >
-  > يدعم جميع مدن العالم مع تحديد الطريقة الحسابية المناسبة تلقائيًا لكل بلد.
+  > يدعم جميع مدن العالم مع اختيار طريقة الحساب المناسبة تلقائياً لكل بلد.
 - Graphics: icon 512 + feature graphic + screenshots (Phase 3).
 
 **Store settings:** Category **Lifestyle** · tags (e.g. "Religion & spirituality") · contact email
@@ -525,6 +548,10 @@ string; if it is added, flip these two to "optional".
   row already routes users to grant it) — the code already falls back gracefully.
 - **Full-screen intent (`USE_FULL_SCREEN_INTENT`)** — declare **alarm** core functionality (keeps the
   Android 14+ automatic grant). The app already degrades to heads-up + tone if FSI is revoked.
+- **Battery-optimization exemption (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`)** (use case: **core alarm
+  reliability**). The app requests the exemption **in onboarding** (a user-initiated permission row in
+  `NativeReminders`, never silent) so offline prayer alarms survive **Doze** and OEM battery
+  management. Declare it as core alarm functionality alongside the two above.
 - **Foreground service** — ✅ **no declaration needed**: the alarm service is `shortService`
   (declaration + demo video are only demanded for other FGS types). `RECEIVE_BOOT_COMPLETED` needs no
   declaration either.
@@ -566,7 +593,8 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.2.0 | 8 | `prayer-v2.2.0-vc8.aab` | **uploaded + sent for review 2026-07-25** as release `8 (2.2.0)`. Places quota work (ADR-014): resident OSM masjid dataset (9,835 rows) + user contributions + estimated travel times with a real lookup on expand + fetch discipline + offline list. Server half deployed to prod the same day. Gates green (build · 157 client · 286 server · engine gate) and **device-verified on the user's Pixel 7 Pro** before upload. Console checks: 0 devices lost, +2.51 KB, only the benign no-deobfuscation warning. |
 | 2.3.0 | 9 | `prayer-v2.3.0-vc9.aab` | **uploaded, sent for review AND published 2026-07-26** (review cleared same day) as release `9 (2.3.0)`, Closed testing – Alpha, full rollout. Admin dashboard at `/admin` + anonymous audience ping (`ADMIN_DASHBOARD.md`, ADR-015/016). Sent **together with the rewritten Data safety questionnaire** — that ordering is the point: the ping collects data the old declaration denied. |
 | 2.4.0 | 10 | `prayer-v2.4.0-vc10.aab` | **uploaded + sent for review 2026-08-12**, Closed testing – Alpha. Year-round exact Waqf times (adjudicated full-year archive + same-date recycle, ADR-017) + masjid directions embed fix. Web half deployed to prod the same day. |
-| 2.5.0 | 11 | `prayer-v2.5.0-vc11.aab` | **uploaded + sent for review 2026-08-25 as the FIRST OPEN-TESTING release** (`11 (2.5.0)`, full rollout; track pre-configured by the owner: countries Iraq + United States, unsynced from production). Alarm reliability round (`NATIVE_ALARM_RELIABILITY_SPEC.md`): missed-alarm + pre-alarm-dismiss notifications, direct-boot chain + DE storage, exact-alarm fallback fix, resync canary + horizon nag, JS hardening. Gates green (build · 182 client · 414 server · engine gate); features + fixes emulator-verified, incl. ringing before first unlock; 4 Codex review rounds + a delta pass to SHIP. Only the benign no-deobfuscation warning. |
+| 2.6.0 | 12 | `prayer-v2.6.0-vc12.aab` | **uploaded + sent for review 2026-08-26 on Open testing** (`12 (2.6.0)`, full rollout). Production-hardening round: push endpoint allowlist + write rate limits, public-endpoint limits + success-only edge caching + compression, contribution caps + silent venue filter at read-back, scheduler single-flight, retention (orphan subs 45d, cell demand 400d), DB-startup retry + governor fail-closed, local error ring buffer + native crash logger, alarm-cap observability, `allowBackup=false`, **nearest-masjids Iraq-only (server geofence + client gating)**. Gates green (build · 196 client · 475 server · engine gate); 2 Codex review rounds + 2 scoped verifies to SHIP. Only the benign no-deobfuscation warning. |
+| 2.5.0 | 11 | `prayer-v2.5.0-vc11.aab` | **uploaded + sent for review 2026-08-25 as the FIRST OPEN-TESTING release; cleared review + LIVE 25 Aug** (`11 (2.5.0)`, full rollout; track pre-configured by the owner: countries Iraq + United States, unsynced from production). Alarm reliability round (`NATIVE_ALARM_RELIABILITY_SPEC.md`): missed-alarm + pre-alarm-dismiss notifications, direct-boot chain + DE storage, exact-alarm fallback fix, resync canary + horizon nag, JS hardening. Gates green (build · 182 client · 414 server · engine gate); features + fixes emulator-verified, incl. ringing before first unlock; 4 Codex review rounds + a delta pass to SHIP. Only the benign no-deobfuscation warning. |
 
 **Sideload testing gotcha:** a locally-signed APK (`*-release.apk`, signed with the upload key)
 will NOT install over a copy the phone got from Play (Google re-signs with the app-signing key —
@@ -577,7 +605,7 @@ settings — all local); reinstall from Play once the track updates.
 
 ```powershell
 # 1. bump client/package.json version (semver — MAJOR/MINOR/PATCH by change size)
-# 2. mirror into versionName + bump versionCode (+1 → next is 3) in client/android/app/build.gradle
+# 2. mirror into versionName + bump versionCode (+1 → next is 12) in client/android/app/build.gradle
 # 3. add the CHANGELOG.md entry, then:
 cd D:\dev\prayer\client; npm run build; npx cap sync android
 cd android; .\gradlew.bat bundleRelease         # AAB for Play
@@ -599,10 +627,12 @@ cd android; .\gradlew.bat bundleRelease         # AAB for Play
 
 ## Open items on you
 
-**v2.2.0 / vc8 is IN REVIEW (sent 2026-07-25)** — nothing is owed on it beyond keeping ≥12 testers
-opted in. Once Google's review clears, Play auto-updates the testers within hours. For the *next*
-update, follow the **Update runbook** at the top: (1) get the AR release notes OK'd in §②, (2) build +
-archive the AAB, (3) upload it to the closed track.
+**v2.5.0 / vc11 is LIVE on Open testing (published 25 Aug); v2.6.0 / vc12 is IN REVIEW (sent
+2026-08-26, full rollout, with the updated store-listing descriptions also in review).** Nothing is
+owed on them beyond keeping ≥12 testers opted in and sending the closed-Alpha testers the open-test
+opt-in link (§①c). Once Google's review clears, Play auto-updates the testers within hours. For the
+*next* update (**versionCode 13**), follow the **Update runbook** at the top: (1) get the AR release
+notes OK'd in §②, (2) build + archive the AAB, (3) upload it to the **Open testing** track.
 
 **One-time setup (done — kept for reference):**
 1. ~~Pay the $25 + finish identity verification.~~ ✅

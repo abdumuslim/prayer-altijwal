@@ -119,6 +119,8 @@ export interface Contribution {
   clientShort: string | null;
   nearest: { name: string; distanceM: number } | null;
   duplicate: boolean;
+  /** True ⇒ the shared venue filter keeps this name out of the served index even if approved. */
+  excludedByFilter: boolean;
 }
 
 export interface ContributionList {

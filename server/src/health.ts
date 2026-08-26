@@ -12,7 +12,12 @@ export function createHealthRouter(getDbStatus: () => Promise<DbStatus>): Router
     } catch {
       db = "down";
     }
-    res.json({ ok: true, db });
+    // Liveness stays 200 while the process is up, so the Docker healthcheck and
+    // Traefik keep routing unchanged. `degraded` is additive: it surfaces a DB
+    // that is configured but currently unreachable (the stateless-fallback mode)
+    // without repurposing the status code. A deliberately DB-less deploy
+    // ("disabled") is not degraded.
+    res.json({ ok: true, db, degraded: db === "down" });
   });
   return r;
 }

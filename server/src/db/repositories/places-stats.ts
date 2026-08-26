@@ -29,6 +29,12 @@ export interface PlacesStatsRecorder {
   noteCell(day: string, cellKey: string, miss: boolean): void;
   /** Write the buffer out. Safe to call at any time; used by tests and shutdown. */
   flush(): Promise<void>;
+  /**
+   * Delete places_cell_demand rows older than `olderThanDays`. This aggregate
+   * had no retention — it grew a row per (PT day × cell) forever — so the daily
+   * sweep now trims it like the other rollups. Returns the row count removed.
+   */
+  pruneCellDemand(olderThanDays: number): Promise<number>;
   start(): void;
   stop(): void;
 }
@@ -106,6 +112,20 @@ export function createPlacesStatsRecorder(pool: pg.Pool): PlacesStatsRecorder {
       bump(cells, `${day}|${cellKey}`, 1, miss ? 1 : 0);
     },
     flush,
+    async pruneCellDemand(olderThanDays) {
+      // Self-guards so a failure here can't stall the daily retention sweep, the
+      // same contract the other pruners keep. `day` is a PT calendar day.
+      try {
+        const { rowCount } = await pool.query(
+          `DELETE FROM places_cell_demand WHERE day < CURRENT_DATE - ($1::int)`,
+          [Math.max(1, Math.floor(olderThanDays))],
+        );
+        return rowCount ?? 0;
+      } catch (err) {
+        log.warn("cell demand prune failed", err instanceof Error ? err : new Error(String(err)));
+        return 0;
+      }
+    },
     start() {
       if (timer) return;
       timer = setInterval(() => void flush(), FLUSH_INTERVAL_MS);

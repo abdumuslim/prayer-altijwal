@@ -1,6 +1,7 @@
 package com.altijwal.prayer;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.webkit.WebSettings;
 
@@ -15,6 +16,9 @@ import com.altijwal.prayer.compass.CompassPlugin;
 import java.util.Locale;
 
 public class MainActivity extends BridgeActivity {
+    /** Shared with the alarm plugin's logs so a crash lands under one grep-able tag. */
+    private static final String TAG = "PrayerAlarm";
+
     /**
      * Combined font-scale tolerance (docs/V2_REDESIGN_SPEC.md Phase 8.5): the
      * WebView's default textZoom already follows Configuration.fontScale; the
@@ -24,8 +28,30 @@ public class MainActivity extends BridgeActivity {
      */
     private static final float MAX_FONT_SCALE = 1.3f;
 
+    /** Guards the crash-logger install: chain the wrapper onto the default handler
+     * once per process, not on every activity recreation (each onCreate would
+     * otherwise wrap the current default again, growing the chain and duplicating
+     * the log line). */
+    private static volatile boolean crashLoggerInstalled = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Local crash visibility: log any uncaught throwable (full stack + thread
+        // name) under the shared tag, then delegate to the platform default handler
+        // so system crash handling (and Play Vitals reporting) is unchanged.
+        if (!crashLoggerInstalled) {
+            crashLoggerInstalled = true;
+            final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+            Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+                try {
+                    Log.e(TAG, "Uncaught exception on thread " + thread.getName(), throwable);
+                } catch (Throwable ignored) {
+                    // never let logging swallow the crash
+                }
+                if (previous != null) previous.uncaughtException(thread, throwable);
+            });
+        }
+
         // Register the app-local plugins before the bridge initializes.
         registerPlugin(PrayerAlarmPlugin.class);
         registerPlugin(CompassPlugin.class);
