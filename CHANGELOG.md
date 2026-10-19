@@ -5,6 +5,21 @@ All notable changes to the prayer-times app (web + Android). Format follows
 from 2.0.0 (client `package.json` is the source of truth; Android `versionName` mirrors it,
 `versionCode` increments by 1 on every Play upload — `docs/V2_REDESIGN_SPEC.md`, ADR-008).
 
+## [2.6.1] - 2026-10-19 (versionCode 13)
+
+### Removed
+- **The Waze button is gone from «أقرب المساجد».** An expanded masjid row now shows the directions
+  map with a single Google Maps button.
+
+### Fixed
+- **The website's qibla compass now reads correctly with the phone held flat** (Android Chrome). It
+  used the direction the back of the phone faces, which points at the floor when the phone lies flat,
+  so a few degrees of tilt swung the needle by 90° or more. It now follows the top edge of the screen
+  (in landscape too), the same reading the Android app's native compass uses; with the phone held
+  nearly upright it keeps the last direction and asks to hold the phone flat instead of guessing.
+  The Android app's compass is unchanged by this
+  fix (a separate report about it is open, `docs/QIBLA_MASJID_SPEC.md`).
+
 ## [2.6.0] - 2026-08-26 (versionCode 12)
 
 ### Changed
