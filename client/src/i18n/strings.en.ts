@@ -91,7 +91,6 @@ export const en = {
   "masjid.none": "No masjids found within 5 km",
   "masjid.error": "Couldn't load nearby masjids",
   "masjid.maps": "Google Maps",
-  "masjid.waze": "Waze",
   "masjid.walk": "walk",
   "masjid.drive": "drive",
   "masjid.minute": "min",

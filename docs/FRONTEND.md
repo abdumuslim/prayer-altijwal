@@ -488,7 +488,8 @@ check-ins moved to the Home strip — §8). The masjid list is server-filtered: 
 - **`useCompassHeading` lives in TimesPage** (ONE sensor stream shared by the compass card and the
   masjid bearing arrows) and stops whenever the tab loses `active` (keep-mounted tabs) or the
   document hides. Accuracy chain: native `Compass` plugin (fused ROTATION_VECTOR + GeomagneticField,
-  display-rotation remapped, ~20 Hz) → `deviceorientationabsolute` (W3C tilt-compensated formula +
+  display-rotation remapped, ~20 Hz) → `deviceorientationabsolute` (screen-top heading,
+  `lib/compass-heading.ts`, fixed 2026-10-19 from the W3C back-vector formula +
   `/api/geo/declination`, cached per ~10 km in `prayer.declination.v1`) → iOS `webkitCompassHeading`
   (requestPermission MUST run inside the start-button tap — it is the FIRST await in `start()`) →
   `unavailable` = static mode (fixed rose, arrow at true bearing — never a needle from relative
@@ -514,7 +515,8 @@ check-ins moved to the Home strip — §8). The masjid list is server-filtered: 
   never get one), and a denied/failed request surfaces `error.locationDenied`/`error.location`
   under the opt-in button via the `gpsErrorKind` prop (2026-07-19 — it used to fail silently).
   `enabled:false` from the proxy hides the section entirely. Rows: distance («850 م» / «1.2 كم»,
-  Latin digits), live bearing arrow, Maps/Waze deep links (`<a target="_blank" rel="noopener noreferrer">`).
+  Latin digits), live bearing arrow, a Google Maps deep link (`<a target="_blank" rel="noopener noreferrer">`;
+  the Waze link was removed 2026-10-19).
   **Iraq-only (2026-08-26):** the whole masjids block renders only when the active location is inside
   the Iraq bbox (`lib/iraq-bbox.ts`, mirroring the server geofence); outside Iraq the section is absent
   and the compass stays (`QIBLA_MASJID_SPEC.md` header note).

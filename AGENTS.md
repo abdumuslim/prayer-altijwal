@@ -11,7 +11,8 @@ guess details that live in a topic doc — read the doc.
 > **closed Alpha track** (12 testers) and is now on the **OPEN testing track**: the first open
 > release, **v2.5.0 / versionCode 11** (the alarm-reliability round,
 > `docs/NATIVE_ALARM_RELIABILITY_SPEC.md`), was sent for review **2026-08-25** for countries
-> **Iraq + United States**. Production has **not** been released yet (the next milestone). Still
+> **Iraq + United States** (**Jordan** added to the open track 2026-10-19, sent for review).
+Production has **not** been released yet (the next milestone). Still
 > deferred: the **P9 home-screen widget**.
 
 ## What this is
@@ -61,7 +62,7 @@ Browser (GPS) → Cloudflare → Traefik (VPS) → prayer container (port 8000) 
 | Web-push: service worker, VAPID, DB schema, **restart-safe per-tz scheduler**, alarm kind + full-screen overlay + tone picker, iOS PWA caveat | `docs/NOTIFICATIONS.md` |
 | Native (Capacitor) alarm — real closed-app **offline** ringing; **Android first, iOS (AlarmKit) deferred** | `docs/NATIVE_ALARM_SPEC.md` (build) + `docs/NATIVE_ALARM_PLAN.md` (research/verdict) + `docs/NATIVE_ALARM_FIXES_SPEC.md` (emulator-verified fix round: shared rules store, hardware-back handler, AlarmActivity dark theme, brand launcher icon) + `docs/NATIVE_ALARM_RELIABILITY_SPEC.md` (missed/pre-alarm notifications + not-firing audit fixes) |
 | **v2.0.0 redesign** — 4-tab shell, theme engine/gallery (Liquid Glass, Material, contrast, kashi exploration), monthly table, reports, a11y, widget; versioning policy | `docs/V2_REDESIGN_SPEC.md` (spec + CHECKPOINT status header: phases done, session decisions, what's next) |
-| **Qibla + nearest masjid** — accurate compass (native fused sensor + declination), Google Places proxy, Maps/Waze deep links, Times-tab restructure. **BUILT + deployed (session 4); key live** | `docs/QIBLA_MASJID_SPEC.md` |
+| **Qibla + nearest masjid** — accurate compass (native fused sensor + declination), Google Places proxy, Google Maps deep link (Waze removed 2026-10-19), Times-tab restructure. **BUILT + deployed (session 4); key live** | `docs/QIBLA_MASJID_SPEC.md` |
 | **Places quota / cost** — why travel times were the ceiling, the resident OSM dataset + user contributions, the spend governor, request telemetry, the 30-day caching boundary | `docs/QIBLA_MASJID_SPEC.md` §6d + `docs/DECISIONS.md` ADR-014 |
 | **Admin dashboard** (`/admin`) — separate bundle, password+cookie auth, mount order, operator endpoints, anonymous audience telemetry, kill-switch, audit trail | `docs/ADMIN_DASHBOARD.md` |
 | Frontend: components, hooks, geolocation flow, i18n/RTL, localStorage, PWA | `docs/FRONTEND.md` |

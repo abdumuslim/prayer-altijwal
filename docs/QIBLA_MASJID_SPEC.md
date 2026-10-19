@@ -154,6 +154,22 @@ timestamp: 2026-07-27
 > Maps/Waze chooser check on the emulator, VPS `.env` entry at deploy (+ remove the user's home
 > IP from the key allowlist after).
 
+> **OPEN ISSUE (2026-10-19): the APP's compass is reported inaccurate in Baghdad** (owner report;
+> phone and the app's location both Baghdad, so the bearing origin is ruled out). The native path
+> (`CompassPlugin.java` → `useCompassHeading` → `QiblaCompass`) was re-read and matches Android's
+> canonical pipeline; nothing in it changed since the 2026-07 on-device audit, whose verdict on the
+> same complaint was a magnetically swamped Pixel 7 Pro (171 µT, see Round 3 above). The web fix of
+> the same day (`lib/compass-heading.ts`) does not touch the app. **Needed to close it:** the
+> owner's answers to (1) a magnetic case/ring/mount removed + figure-8, (2) a comparison with
+> qiblafinder.withgoogle.com on the same phone, (3) the 5-tap diagnostic line
+> (`hdg · qibla · source/sensor · accuracy`) and whether «بحاجة إلى معايرة» shows, (4) the error's
+> shape (constant offset, jumpy, or only when tilted up); or a live wireless-adb session
+> (`dumpsys sensorservice` field magnitude). **Known weakness to fix if (4) is "only when tilted":**
+> the native path shows no hold-flat hint (`tiltHint` is set by the web paths only) and its
+> `getOrientation` azimuth (the top edge) degrades as the phone nears upright; the fix is the web
+> path's rule (no heading once the screen's top is within ~15° of vertical) plus a pitch-based
+> hint from the plugin.
+
 > **Moderation moved out of psql (2026-07-26).** Contributions are approved, rejected and corrected
 > from the operator dashboard (`docs/ADMIN_DASHBOARD.md`), which also flags likely duplicates using
 > the same `isSameMasjid` the serving path uses. An approval now takes effect **immediately** —
@@ -265,9 +281,18 @@ In priority order inside the hook:
 
 1. **`isNative()`** → plugin (§5b).
 2. **`"ondeviceorientationabsolute" in window`** (Android Chrome; secure context required) →
-   listen `deviceorientationabsolute`; derive the tilt-compensated compass heading from the
-   α/β/γ rotation matrix (the standard W3C-example formula — NOT raw `360 − alpha`), correct by
-   `screen.orientation.angle`, then add declination.
+   listen `deviceorientationabsolute`; rotate the SCREEN's top axis (device +Y, or +X/−Y/−X
+   at `screen.orientation.angle` 90/180/270) into the earth frame and take its ground heading
+   (`lib/compass-heading.ts`; exact for any roll and screen rotation, the same quantity as
+   Android's `getOrientation` azimuth in portrait), then add declination. When that axis is
+   within ~15° of vertical there is no heading: the sample is skipped, the last heading holds and
+   the hold-flat hint shows (also while starting; such events still count as "sensor present"
+   for the 3 s probe). There is no fallback vector: a switch to the back-of-device direction
+   disagreed with the projection under roll and made the needle jump (Sol review, same day).
+   **Fixed 2026-10-19:** this path used the W3C spec's worked-example formula, which is the
+   direction the device's BACK faces: lying flat that points at the floor, so the heading swung
+   90–180° with a few degrees of tilt (NaN when perfectly flat). Regression:
+   `compass-heading.test.ts`.
 3. **iOS Safari/PWA** → `DeviceOrientationEvent.requestPermission()` (MUST be called from the
    tap on «ابدأ البوصلة» — it throws outside a user gesture), then `deviceorientation` with
    `webkitCompassHeading` (already tilt-compensated, magnetic) + declination;
@@ -459,7 +484,7 @@ unreviewed text is ever served to anyone else. Moderation happens in the operato
   digits) + a small bearing arrow per row, live-rotating when the compass is active (reuses
   `useCompassHeading` state; static bearing-from-north otherwise).
 - Row actions: **خرائط Google** → `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lon>&destination_place_id=<id>`
-  · **Waze** → `https://waze.com/ul?ll=<lat>,<lon>&navigate=yes`. Plain
+  (a **Waze** link sat beside it until it was removed on 2026-10-19). Plain
   `<a target="_blank" rel="noopener">` — Capacitor sends external hosts to the system (app
   chooser). If the WebView swallows it on the emulator, fall back to `@capacitor/app-launcher`
   (tiny official plugin; native-only import).
@@ -495,7 +520,7 @@ layout variants live before building final; screenshot per theme × 390/360 afte
 | `masjid.gpsButton` | «استخدام موقعي» |
 | `masjid.none` | «لا توجد مساجد قريبة ضمن 5 كم» |
 | `masjid.error` | «تعذّر جلب المساجد القريبة» |
-| `masjid.maps` / `masjid.waze` | «خرائط Google» · «Waze» |
+| `masjid.maps` | «خرائط Google» (`masjid.waze` «Waze» removed 2026-10-19) |
 | `times.monthCollapsed` | «الجدول الشهري» (existing `times.monthTitle` may be reused) |
 
 Every key mirrors into `strings.en.ts` (the `StringKey` source of truth).

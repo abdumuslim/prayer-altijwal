@@ -1,6 +1,7 @@
 // Compass heading with the QIBLA_MASJID_SPEC §5 accuracy chain:
 //   1. native  — CompassPlugin (fused ROTATION_VECTOR + GeomagneticField declination)
-//   2. web     — deviceorientationabsolute, tilt-compensated (W3C rotation matrix)
+//   2. web     — deviceorientationabsolute, heading of the screen's top edge
+//                (lib/compass-heading.ts; exact for any roll and screen rotation)
 //   3. web iOS — webkitCompassHeading after requestPermission() (must run inside
 //                the start-button tap — it throws outside a user gesture)
 //   4. neither — status "unavailable" → the UI renders static guidance; a needle
@@ -12,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { Compass, isNative, type CompassHeadingEvent } from "@/lib/native";
 import { getDeclination } from "@/lib/declination";
+import { headingFromEuler } from "@/lib/compass-heading";
 
 export type CompassStatus = "idle" | "starting" | "active" | "unavailable" | "denied";
 export type CompassAccuracy = "high" | "medium" | "low" | "unreliable";
@@ -78,31 +80,6 @@ const TILT_ENTER_DEG = 30;
 /** …and it only clears below this, so a hand hovering at 30° can't strobe it. */
 const TILT_EXIT_DEG = 25;
 
-/**
- * Tilt-compensated compass heading from deviceorientation Euler angles — the
- * standard W3C-example rotation-matrix derivation (NOT raw `360 − alpha`).
- * Returns degrees CW from magnetic north in the device's own frame.
- */
-function compassHeadingFromEuler(alpha: number, beta: number, gamma: number): number {
-  const rad = Math.PI / 180;
-  const _x = beta * rad;
-  const _y = gamma * rad;
-  const _z = alpha * rad;
-  const cY = Math.cos(_y);
-  const cZ = Math.cos(_z);
-  const sX = Math.sin(_x);
-  const sY = Math.sin(_y);
-  const sZ = Math.sin(_z);
-
-  const Vx = -cZ * sY - sZ * sX * cY;
-  const Vy = -sZ * sY + cZ * sX * cY;
-
-  let heading = Math.atan(Vx / Vy);
-  if (Vy < 0) heading += Math.PI;
-  else if (Vx < 0) heading += 2 * Math.PI;
-  return heading / rad;
-}
-
 function screenAngle(): number {
   try {
     return window.screen.orientation?.angle ?? 0;
@@ -138,6 +115,9 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
   const sinRef = useRef(0);
   const cosRef = useRef(0);
   const hasSampleRef = useRef(false);
+  /** An absolute event arrived, even one too steep to give a heading — the
+   *  sensor exists, so the probe must not declare it unavailable. */
+  const sensorSeenRef = useRef(false);
   const headingRef = useRef<number | null>(null);
   const lastEmitRef = useRef(0);
   const declRef = useRef(0);
@@ -189,6 +169,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
     cleanupsRef.current = [];
     runningRef.current = false;
     hasSampleRef.current = false;
+    sensorSeenRef.current = false;
     headingRef.current = null;
     setStatus("idle");
     setAccuracy(null);
@@ -256,9 +237,12 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
       const onEvent = (e: DeviceOrientationEvent) => {
         if (e.alpha == null || e.beta == null || e.gamma == null) return;
         if (e.absolute !== true) return;
-        const magnetic =
-          (compassHeadingFromEuler(e.alpha, e.beta, e.gamma) + screenAngle()) % 360;
+        sensorSeenRef.current = true;
         pushTilt(e.beta, e.gamma);
+        const magnetic = headingFromEuler(e.alpha, e.beta, e.gamma, screenAngle());
+        // Screen's top near vertical: no defined heading. Keep the last one;
+        // the hold-flat hint is already up at this tilt.
+        if (magnetic == null) return;
         pushHeading((magnetic + declRef.current + 360) % 360);
       };
       window.addEventListener("deviceorientationabsolute", onEvent as EventListener);
@@ -296,7 +280,7 @@ export function useCompassHeading(location: CompassLocation | null): UseCompassH
 
     function armProbeTimeout(): void {
       const timer = window.setTimeout(() => {
-        if (!hasSampleRef.current) {
+        if (!hasSampleRef.current && !sensorSeenRef.current) {
           // Listener exists but never fired with usable data (typical desktop).
           for (const fn of cleanupsRef.current) fn();
           cleanupsRef.current = [];

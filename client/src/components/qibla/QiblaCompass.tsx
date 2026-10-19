@@ -158,7 +158,9 @@ export function QiblaCompass({ location, compass }: QiblaCompassProps) {
   }, [aligned]);
 
   const showCalibrate = live && (accuracy === "low" || accuracy === "unreliable");
-  const showHoldFlat = live && !showCalibrate && tiltHint;
+  // Also while starting: a web compass started with the phone upright gets no
+  // heading until it is lowered, so the hint is what tells the user to.
+  const showHoldFlat = (live || status === "starting") && !showCalibrate && tiltHint;
   const staticMode = status === "unavailable" || status === "denied";
 
   const needleColor = aligned ? "var(--color-gold)" : "var(--color-teal)";

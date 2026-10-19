@@ -95,7 +95,6 @@ export const ar: Record<StringKey, string> = {
   "masjid.none": "لا توجد مساجد قريبة ضمن 5 كم",
   "masjid.error": "تعذّر جلب المساجد القريبة",
   "masjid.maps": "خرائط Google",
-  "masjid.waze": "Waze",
   "masjid.walk": "مشيًا",
   "masjid.drive": "بالسيارة",
   // Arabic number agreement: 1 → دقيقة · 2 → دقيقتان · 3–10 → دقائق · 11+ → دقيقة

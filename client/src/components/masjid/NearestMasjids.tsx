@@ -2,10 +2,10 @@
 // around the user's REAL GPS position via the server-side Places proxy. Each row
 // shows the name (marquee when it doesn't fit), distance + walking/driving time,
 // and a live bearing arrow; TAPPING a row expands an embedded Google directions
-// map with the Google Maps / Waze buttons (2026-07-22 redesign — the buttons
-// used to sit in every row). Gated on a real GPS fix: searching from the Baghdad
-// default would mislead (Q5). The section hides itself entirely when the server
-// reports the feature disabled.
+// map with the Google Maps button (2026-07-22 redesign — the buttons used to
+// sit in every row; the Waze button was removed 2026-10-19). Gated on a real
+// GPS fix: searching from the Baghdad default would mislead (Q5). The section
+// hides itself entirely when the server reports the feature disabled.
 //
 // FETCH DISCIPLINE (user, 2026-07-25 — ADR-014). The list is fetched ONCE per
 // mount, when the tab first opens with a real GPS fix, and thereafter only when
@@ -107,10 +107,6 @@ export function mapsUrl(m: Masjid): string {
   return isGooglePlaceId(m.id)
     ? `${base}&destination_place_id=${encodeURIComponent(m.id)}`
     : base;
-}
-
-function wazeUrl(m: Masjid): string {
-  return `https://waze.com/ul?ll=${m.lat},${m.lon}&navigate=yes`;
 }
 
 /** Google Maps Embed API — directions from the user to this masjid. The key is
@@ -537,14 +533,6 @@ export function NearestMasjids({
                         className="press hit-target flex-1 rounded-full border border-teal/30 bg-teal/[0.07] px-3 py-1.5 text-center text-[12px] font-semibold text-teal transition-colors hover:bg-teal/[0.12]"
                       >
                         {t("masjid.maps")}
-                      </a>
-                      <a
-                        href={wazeUrl(m)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="press hit-target flex-1 rounded-full border border-sky/30 bg-sky/[0.07] px-3 py-1.5 text-center text-[12px] font-semibold text-sky transition-colors hover:bg-sky/[0.12]"
-                      >
-                        {t("masjid.waze")}
                       </a>
                     </div>
                   </div>

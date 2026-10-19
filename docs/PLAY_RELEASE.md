@@ -39,7 +39,8 @@ timestamp: 2026-07-27
 > asks that isn't covered here keeps its Phase-4 answer.
 
 > **Current status (2026-08-26).** **v2.5.0 / versionCode 11** cleared review and is **live** on the
-> **Open testing** track (published 25 Aug; countries **Iraq + United States**). **v2.6.0 /
+> **Open testing** track (published 25 Aug; countries **Iraq + United States**, plus **Jordan** sent
+> for review 2026-10-19). **v2.6.0 /
 > versionCode 12** (the production-hardening round + Iraq-only masjids) was **sent for review
 > 2026-08-26**; the same day the updated store listing descriptions went in for review. Production
 > has **not** been released yet (§①d checklist). **The next bump is versionCode 13**, deploy target
@@ -130,7 +131,8 @@ The closed **Alpha** track stays at vc10 and is **no longer the target**, so don
 anymore. Track URL: `.../tracks/open-testing`. The click-path is identical to §①b, just under **Test
 and release → Testing → Open testing** instead of Closed testing.
 
-- **The track is pre-configured** (owner, one-time): countries **Iraq + United States**, plus
+- **The track is pre-configured** (owner, one-time): countries **Iraq + United States** (**Jordan**
+  added 2026-10-19 on the owner's request, sent for review as a standalone country change), plus
   **"unsync from production"** (the track manages its own countries instead of inheriting
   Production's). The first release, **`11 (2.5.0)`**, was sent for review **2026-08-25** as **four
   bundled changes**: the release rollout, the two country additions, the production-unsync, and the
