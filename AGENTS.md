@@ -11,7 +11,8 @@ guess details that live in a topic doc — read the doc.
 > **closed Alpha track** (12 testers) and is now on the **OPEN testing track**: the first open
 > release, **v2.5.0 / versionCode 11** (the alarm-reliability round,
 > `docs/NATIVE_ALARM_RELIABILITY_SPEC.md`), was sent for review **2026-08-25** for countries
-> **Iraq + United States** (**Jordan** added to the open track 2026-10-19, sent for review).
+> **Iraq + United States** (**Jordan** added to the open track 2026-10-19, live the same day;
+**v2.6.1 / versionCode 13** sent for review 2026-10-19).
 Production has **not** been released yet (the next milestone). Still
 > deferred: the **P9 home-screen widget**.
 

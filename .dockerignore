@@ -12,5 +12,7 @@ docs
 ssh_out*.txt
 .env
 .env.*
+# Nested too: the gitignored local server/.env must never enter a build context.
+**/.env
 # Raw GeoNames download (only the built cities15000.json is needed in the image)
 server/data/_raw

@@ -244,13 +244,16 @@ Restore a dump into the `prayer` database with `pg_restore` (custom format), e.g
 #    the tarball is 160 MB; with them, 35 MB.
 #    docs/refs is also excluded (2026-08-12): it now carries the full-year Waqf poster
 #    archive (~75 MB of JPGs) — reference material only, never read by the server.
+#    `--exclude=.env` (2026-10-19) keeps the gitignored LOCAL `server/.env` (dev secrets) out:
+#    earlier deploys shipped it to /opt/prayer/server/.env. The production `.env` is the one
+#    in the /opt/prayer ROOT, which the tarball never touches.
 tar czf /tmp/prayer-deploy.tar.gz --exclude=node_modules --exclude=dist --exclude=dist-admin \
-  --exclude=.git --exclude=docs/OPERATIONS.md --exclude=docs/refs \
+  --exclude=.git --exclude=docs/OPERATIONS.md --exclude=docs/refs --exclude=.env \
   --exclude=client/android --exclude=server/data/_raw \
   server client scripts Dockerfile docker-compose.yml .env.example docs
 
-# 1b. always confirm the ops doc did not slip in
-tar tzf /tmp/prayer-deploy.tar.gz | grep -i OPERATIONS.md && echo "LEAK — stop" || echo "clean"
+# 1b. always confirm the ops doc and no .env file slipped in
+tar tzf /tmp/prayer-deploy.tar.gz | grep -i -E 'OPERATIONS.md|(^|/)\.env$' && echo "LEAK — stop" || echo "clean"
 
 # 2. upload  (SSH/SCP specifics — host, key — in OPERATIONS.md)
 scp /tmp/prayer-deploy.tar.gz <vps>:/tmp/

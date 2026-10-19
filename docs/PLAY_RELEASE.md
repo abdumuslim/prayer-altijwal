@@ -38,13 +38,13 @@ timestamp: 2026-07-27
 > something structural changes. To push an update you do just this section. Everything the Console
 > asks that isn't covered here keeps its Phase-4 answer.
 
-> **Current status (2026-08-26).** **v2.5.0 / versionCode 11** cleared review and is **live** on the
-> **Open testing** track (published 25 Aug; countries **Iraq + United States**, plus **Jordan** sent
-> for review 2026-10-19). **v2.6.0 /
-> versionCode 12** (the production-hardening round + Iraq-only masjids) was **sent for review
-> 2026-08-26**; the same day the updated store listing descriptions went in for review. Production
-> has **not** been released yet (§①d checklist). **The next bump is versionCode 13**, deploy target
-> **Open testing**. §⓪ below documents the earlier **v2.4.0** round and is kept for reference only.
+> **Current status (2026-10-19).** **v2.6.0 / versionCode 12** is **live** on the **Open testing**
+> track; its countries are **Iraq + United States + Jordan** (Jordan added 2026-10-19 as a standalone
+> country change, which cleared review and published the same day). **v2.6.1 / versionCode 13** (Waze
+> button removed, web compass flat-phone fix; notes «إصلاح الأخطاء وتحسينات في الأداء.») was **sent
+> for review 2026-10-19**, full rollout. Production has **not** been released yet (§①d checklist).
+> **The next bump is versionCode 14**, deploy target **Open testing**. §⓪ below documents the
+> earlier **v2.4.0** round and is kept for reference only.
 
 ### ⓪ Reference: the v2.4.0 round (superseded by v2.5.0/vc11)
 
@@ -595,6 +595,7 @@ Gradle output at `app/build/outputs/**` is overwrite-prone — copy each shipped
 | 2.2.0 | 8 | `prayer-v2.2.0-vc8.aab` | **uploaded + sent for review 2026-07-25** as release `8 (2.2.0)`. Places quota work (ADR-014): resident OSM masjid dataset (9,835 rows) + user contributions + estimated travel times with a real lookup on expand + fetch discipline + offline list. Server half deployed to prod the same day. Gates green (build · 157 client · 286 server · engine gate) and **device-verified on the user's Pixel 7 Pro** before upload. Console checks: 0 devices lost, +2.51 KB, only the benign no-deobfuscation warning. |
 | 2.3.0 | 9 | `prayer-v2.3.0-vc9.aab` | **uploaded, sent for review AND published 2026-07-26** (review cleared same day) as release `9 (2.3.0)`, Closed testing – Alpha, full rollout. Admin dashboard at `/admin` + anonymous audience ping (`ADMIN_DASHBOARD.md`, ADR-015/016). Sent **together with the rewritten Data safety questionnaire** — that ordering is the point: the ping collects data the old declaration denied. |
 | 2.4.0 | 10 | `prayer-v2.4.0-vc10.aab` | **uploaded + sent for review 2026-08-12**, Closed testing – Alpha. Year-round exact Waqf times (adjudicated full-year archive + same-date recycle, ADR-017) + masjid directions embed fix. Web half deployed to prod the same day. |
+| 2.6.1 | 13 | `prayer-v2.6.1-vc13.aab` | **uploaded + sent for review 2026-10-19 on Open testing** (`13 (2.6.1)`, full rollout; AR notes «إصلاح الأخطاء وتحسينات في الأداء.»). Waze button removed from nearest masjids; web compass (`deviceorientationabsolute`) now projects the screen-top axis instead of the W3C back-of-device vector (flat-phone NaN / 90-180° swings). Gates green (build · 205 client · 475 server · engine gate); Sol FIX-FIRST (2 P2) then SHIP on the repair. Device support unchanged; only the benign no-deobfuscation warning. Web half deployed to the VPS the same day. |
 | 2.6.0 | 12 | `prayer-v2.6.0-vc12.aab` | **uploaded + sent for review 2026-08-26 on Open testing** (`12 (2.6.0)`, full rollout). Production-hardening round: push endpoint allowlist + write rate limits, public-endpoint limits + success-only edge caching + compression, contribution caps + silent venue filter at read-back, scheduler single-flight, retention (orphan subs 45d, cell demand 400d), DB-startup retry + governor fail-closed, local error ring buffer + native crash logger, alarm-cap observability, `allowBackup=false`, **nearest-masjids Iraq-only (server geofence + client gating)**. Gates green (build · 196 client · 475 server · engine gate); 2 Codex review rounds + 2 scoped verifies to SHIP. Only the benign no-deobfuscation warning. |
 | 2.5.0 | 11 | `prayer-v2.5.0-vc11.aab` | **uploaded + sent for review 2026-08-25 as the FIRST OPEN-TESTING release; cleared review + LIVE 25 Aug** (`11 (2.5.0)`, full rollout; track pre-configured by the owner: countries Iraq + United States, unsynced from production). Alarm reliability round (`NATIVE_ALARM_RELIABILITY_SPEC.md`): missed-alarm + pre-alarm-dismiss notifications, direct-boot chain + DE storage, exact-alarm fallback fix, resync canary + horizon nag, JS hardening. Gates green (build · 182 client · 414 server · engine gate); features + fixes emulator-verified, incl. ringing before first unlock; 4 Codex review rounds + a delta pass to SHIP. Only the benign no-deobfuscation warning. |
 
