@@ -138,7 +138,7 @@ describe("ResidentIndex", () => {
     it("honours the radius and the limit", () => {
       const idx = ResidentIndex.fromRows([]);
       idx.setCommunity(community);
-      expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 0.1, 10)).toEqual([]);
+      expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 0.01, 10)).toEqual([]); // nearest is ~25 m away
       expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 5, 1).map((m) => m.id)).toEqual(["usr:1"]);
     });
 
