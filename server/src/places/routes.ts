@@ -120,7 +120,9 @@ function outcomeOf(result: MasjidLookup, spender: Spender | null): PlacesOutcome
  *   { enabled: false, masjids: [] }                    — no key configured
  *   { enabled: true,  masjids: ServedMasjid[], embedKey? }
  *   { enabled: true,  masjids: [...], degraded: true } — best free answer only
- * Optional `source=google`: the same shapes, built from Google results alone.
+ * Optional `source=google`: the same shapes, built from Google results plus the
+ * approved community masjids near the user, the latter only when a Google cell
+ * (live, cached or stale) is served; with none the degraded list stays empty.
  *
  * GET /api/places/travel — REAL walk/drive minutes for ONE masjid, spent only
  * when the user expands a row.
@@ -205,7 +207,8 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
     }
 
     const s = await open(req);
-    // `source=google` (the watch app): Google's own names, no resident union.
+    // `source=google` (the watch app): Google results plus approved community
+    // masjids near the user, served only with a Google cell; no bundled OSM base.
     const result = await masjids.lookup(lat, lon, spender(UNITS_PER_MASJID_SEARCH, s), {
       googleOnly: source === "google",
     });

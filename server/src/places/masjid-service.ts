@@ -135,8 +135,8 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
    * resident dataset — places_cache stays purely Google so its 30-day retention
    * means what it says. In Google-only mode only the approved community masjids
    * are read (never the bundled OSM base): they cover real masjids Google files
-   * under another category. They are added at serve time too, so they never reach
-   * the g: cache cells.
+   * under another category, and only when a Google cell is being served. They are
+   * added at serve time too, so they never reach the g: cache cells.
    */
   const build = (
     lat: number,
@@ -147,6 +147,9 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
     if (googleOnly) {
       const added =
         deps.resident?.nearestCommunity(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
+      // No community row near: Google's own list, untouched (no dedupe among
+      // Google's places), exactly as before community rows existed.
+      if (added.length === 0) return rank(lat, lon, google);
       return rank(lat, lon, mergeMasjids(added, google));
     }
     const local = deps.resident?.nearest(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
@@ -179,8 +182,12 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
         source: MasjidSource,
         degraded: boolean,
       ): MasjidLookup => {
+        // Google-only with NO Google cell (live, cached or stale): stay empty. The
+        // watch reads [] as "use my saved list", whereas a community-only reply
+        // would overwrite that saved offline list. Community rows join only when
+        // a Google cell is served (an empty Google cell that exists counts).
         const result: MasjidLookup = {
-          masjids: build(lat, lon, cell?.masjids ?? [], googleOnly),
+          masjids: googleOnly && !cell ? [] : build(lat, lon, cell?.masjids ?? [], googleOnly),
           source,
           degraded,
           cellKey: key,
