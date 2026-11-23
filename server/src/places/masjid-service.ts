@@ -46,12 +46,26 @@ export interface MasjidServiceDeps {
   resident?: ResidentIndex | undefined;
 }
 
+export interface MasjidLookupOptions {
+  /**
+   * Serve Google results only: no resident union, no merge, and no "resident is
+   * dense" short-cut. The cache tiers are unchanged because places_cache is
+   * already purely Google.
+   */
+  googleOnly?: boolean | undefined;
+}
+
 export interface MasjidService {
   /**
    * `spend` is passed PER CALL because it is bound to the requesting client's
    * budget, while the service (and its memory cache) is shared by everyone.
    */
-  lookup(lat: number, lon: number, spend: () => Promise<boolean>): Promise<MasjidLookup>;
+  lookup(
+    lat: number,
+    lon: number,
+    spend: () => Promise<boolean>,
+    opts?: MasjidLookupOptions,
+  ): Promise<MasjidLookup>;
   memSize(): number;
 }
 
@@ -102,15 +116,22 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
    *
    * Google results are merged in at SERVE time and never written into the
    * resident dataset — places_cache stays purely Google so its 30-day retention
-   * means what it says.
+   * means what it says. In Google-only mode the resident data is not read at all.
    */
-  const build = (lat: number, lon: number, google: Masjid[]): ServedMasjid[] => {
+  const build = (
+    lat: number,
+    lon: number,
+    google: Masjid[],
+    googleOnly: boolean,
+  ): ServedMasjid[] => {
+    if (googleOnly) return rank(lat, lon, google);
     const local = deps.resident?.nearest(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
     return rank(lat, lon, mergeMasjids(local, google));
   };
 
   return {
-    async lookup(lat, lon, spend) {
+    async lookup(lat, lon, spend, opts) {
+      const googleOnly = opts?.googleOnly === true;
       const key = gridKey(lat, lon);
       const centre = cellCentre(key);
       if (!centre) {
@@ -129,7 +150,7 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
       if (hit) {
         if (cellIsUsable(hit, fromCentreKm)) {
           return {
-            masjids: build(lat, lon, hit.masjids),
+            masjids: build(lat, lon, hit.masjids, googleOnly),
             source: "cache_mem",
             degraded: false,
             cellKey: key,
@@ -144,7 +165,7 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
           mem.set(key, row);
           if (cellIsUsable(row, fromCentreKm)) {
             return {
-              masjids: build(lat, lon, row.masjids),
+              masjids: build(lat, lon, row.masjids, googleOnly),
               source: "cache_db",
               degraded: false,
               cellKey: key,
@@ -156,10 +177,11 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
 
       // Nothing cached — but where the resident data is genuinely dense, it is
       // already a good answer, and buying one would add little. This is what
-      // makes Google's share shrink as the community fills Iraq in.
-      if (!stale && deps.resident?.isDenseAt(lat, lon)) {
+      // makes Google's share shrink as the community fills Iraq in. A Google-only
+      // caller has asked for Google's data, so it goes on to the live search.
+      if (!googleOnly && !stale && deps.resident?.isDenseAt(lat, lon)) {
         return {
-          masjids: build(lat, lon, []),
+          masjids: build(lat, lon, [], false),
           source: "resident",
           degraded: false,
           cellKey: key,
@@ -168,7 +190,7 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
 
       if (!(await spend())) {
         return {
-          masjids: build(lat, lon, stale?.masjids ?? []),
+          masjids: build(lat, lon, stale?.masjids ?? [], googleOnly),
           source: "degraded",
           degraded: true,
           cellKey: key,
@@ -182,7 +204,7 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
         // Upstream failure (already logged) — fall back to whatever is free, and
         // do NOT cache the failure so the next request retries.
         return {
-          masjids: build(lat, lon, stale?.masjids ?? []),
+          masjids: build(lat, lon, stale?.masjids ?? [], googleOnly),
           source: "degraded",
           degraded: true,
           cellKey: key,
@@ -194,7 +216,12 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
       mem.set(key, cell);
       void deps.cacheRepo?.put(key, { masjids: found, ...coverage });
 
-      return { masjids: build(lat, lon, found), source: "live", degraded: false, cellKey: key };
+      return {
+        masjids: build(lat, lon, found, googleOnly),
+        source: "live",
+        degraded: false,
+        cellKey: key,
+      };
     },
 
     memSize: () => mem.size,

@@ -684,6 +684,192 @@ describe("spend governor + telemetry", () => {
   });
 });
 
+describe("GET /api/places/masjids?source=google (Google-only list)", () => {
+  let server: Server;
+  let base: string;
+
+  async function start(deps: Parameters<typeof createPlacesRouter>[0]): Promise<void> {
+    const app = express();
+    app.use(createPlacesRouter(deps));
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        const { port } = server.address() as AddressInfo;
+        base = `http://127.0.0.1:${port}`;
+        resolve();
+      });
+    });
+  }
+  async function stop(): Promise<void> {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+
+  const url = (source?: string): string =>
+    `${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}` +
+    (source === undefined ? "" : `&source=${encodeURIComponent(source)}`);
+
+  /** Google's record of a masjid a few hundred metres from the caller. */
+  const GOOGLE: Masjid = {
+    id: "ChIJ-dalal",
+    name: "جامع الحاجة دلال الكبيسي",
+    lat: BAGHDAD.lat + 0.002,
+    lon: BAGHDAD.lon,
+    address: "بغداد",
+  };
+
+  /** Three resident masjids within a kilometre: isDenseAt(BAGHDAD) is true. */
+  const denseResident = (): ResidentIndex =>
+    ResidentIndex.fromRows([
+      { n: "جامع الرحمن", lat: BAGHDAD.lat + 0.001, lon: BAGHDAD.lon, oid: "n1" },
+      { n: "مسجد الهدى", lat: BAGHDAD.lat + 0.003, lon: BAGHDAD.lon, oid: "n2" },
+      { n: "جامع بلال", lat: BAGHDAD.lat + 0.006, lon: BAGHDAD.lon, oid: "n3" },
+    ]);
+  const RESIDENT_NAMES = ["جامع الرحمن", "مسجد الهدى", "جامع بلال"];
+
+  beforeEach(() => {
+    mockSearch.mockReset();
+    mockTravel.mockReset();
+  });
+
+  it("serves Google's name where the default list keeps the resident one", async () => {
+    // Same building in both sources under different names.
+    const resident = ResidentIndex.fromRows([
+      { n: "مصلى", lat: GOOGLE.lat, lon: GOOGLE.lon, oid: "w1" },
+    ]);
+    await start({ apiKey: "key", resident });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const def = await (await fetch(url())).json();
+    expect(def.masjids.map((m: Masjid) => m.name)).toEqual(["مصلى"]);
+
+    // Same process, same cell: now answered from the memory cell, Google only.
+    const goog = await (await fetch(url("google"))).json();
+    expect(goog).toEqual({ enabled: true, masjids: [servedFor(BAGHDAD, GOOGLE)] });
+    expect(goog.masjids[0].id).toBe("ChIJ-dalal");
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+
+    // The default list is untouched by a Google-only request before it.
+    const def2 = await (await fetch(url())).json();
+    expect(def2).toEqual(def);
+    await stop();
+  });
+
+  it("skips the dense-resident short-cut: nothing cached means a live search", async () => {
+    const s = fakeStats();
+    const g = fakeGovernor(true);
+    await start({ apiKey: "key", resident: denseResident(), governor: g.governor, stats: s.recorder });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url("google"))).json();
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(g.spendCount()).toBe(1);
+    expect(body).toEqual({ enabled: true, masjids: [servedFor(BAGHDAD, GOOGLE)] });
+    expect(s.outcomes).toEqual([{ outcome: "live", units: 1 }]);
+    expect(s.outcomes.map((o) => o.outcome)).not.toContain("resident");
+    await stop();
+  });
+
+  it("a refused spend with no cache serves [] degraded, never resident entries", async () => {
+    const s = fakeStats();
+    await start({
+      apiKey: "key",
+      resident: denseResident(),
+      governor: fakeGovernor(false).governor,
+      stats: s.recorder,
+    });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url("google"))).json();
+    expect(body).toEqual({ enabled: true, masjids: [], degraded: true });
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(s.outcomes).toEqual([{ outcome: "denied_budget", units: 0 }]);
+    await stop();
+  });
+
+  it("a refused spend serves the stale Google cell only, with no resident union", async () => {
+    const repo = fakeRepo();
+    // Saturated cell that cannot vouch for the caller: stale, not usable.
+    await repo.put(gridKey(BAGHDAD.lat, BAGHDAD.lon), {
+      masjids: [GOOGLE],
+      resultCount: MAX_RESULTS,
+      maxDistKm: 0.3,
+    });
+    await start({
+      apiKey: "key",
+      cacheRepo: repo,
+      resident: denseResident(),
+      governor: fakeGovernor(false).governor,
+    });
+
+    const body = await (await fetch(url("google"))).json();
+    // Exactly the Google cell: none of the three resident masjids leak in.
+    expect(body).toEqual({ enabled: true, masjids: [servedFor(BAGHDAD, GOOGLE)], degraded: true });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("upstream failure, or a required governor that is missing, serves [] degraded", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    mockSearch.mockResolvedValueOnce(null);
+    expect(await (await fetch(url("google"))).json()).toEqual({
+      enabled: true,
+      masjids: [],
+      degraded: true,
+    });
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    await stop();
+
+    mockSearch.mockReset();
+    await start({ apiKey: "key", resident: denseResident(), requireGovernor: true });
+    expect(await (await fetch(url("google"))).json()).toEqual({
+      enabled: true,
+      masjids: [],
+      degraded: true,
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("keeps the Iraq geofence and the kill switch", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    const out = await fetch(
+      `${base}/api/places/masjids?lat=${NEW_YORK.lat}&lon=${NEW_YORK.lon}&source=google`,
+    );
+    expect(await out.json()).toEqual({ enabled: false, masjids: [] });
+    await stop();
+
+    await start({ apiKey: "key", resident: denseResident(), isEnabled: async () => false });
+    expect(await (await fetch(url("google"))).json()).toEqual({ enabled: false, masjids: [] });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("rejects any other source value with the existing 400", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    for (const bad of ["bogus", "Google", "resident", ""]) {
+      const res = await fetch(url(bad));
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("Invalid query parameters");
+      expect(Array.isArray(body.issues)).toBe(true);
+    }
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("absent source is today's behaviour: the dense resident answer, no Google call", async () => {
+    const s = fakeStats();
+    await start({ apiKey: "key", resident: denseResident(), stats: s.recorder });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url())).json();
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(body.degraded).toBeUndefined();
+    expect(body.masjids.map((m: Masjid) => m.name)).toEqual(RESIDENT_NAMES);
+    expect(s.outcomes).toEqual([{ outcome: "resident", units: 0 }]);
+    await stop();
+  });
+});
+
 describe("POST /api/places/masjids/contribute", () => {
   let server: Server;
   let base: string;

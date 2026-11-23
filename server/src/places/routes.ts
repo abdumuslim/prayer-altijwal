@@ -120,6 +120,7 @@ function outcomeOf(result: MasjidLookup, spender: Spender | null): PlacesOutcome
  *   { enabled: false, masjids: [] }                    — no key configured
  *   { enabled: true,  masjids: ServedMasjid[], embedKey? }
  *   { enabled: true,  masjids: [...], degraded: true } — best free answer only
+ * Optional `source=google`: the same shapes, built from Google results alone.
  *
  * GET /api/places/travel — REAL walk/drive minutes for ONE masjid, spent only
  * when the user expands a row.
@@ -182,7 +183,7 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       res.status(400).json({ error: "Invalid query parameters", issues: parsed.error.issues });
       return;
     }
-    const { lat, lon } = parsed.data;
+    const { lat, lon, source } = parsed.data;
     // Iraq-only geofence (owner decision 2026-08-26, docs/QIBLA_MASJID_SPEC.md).
     // The resident dataset is Iraq-only, so a non-Iraq coordinate can never be
     // answered here: return the same feature-disabled shape and stop before any
@@ -204,7 +205,10 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
     }
 
     const s = await open(req);
-    const result = await masjids.lookup(lat, lon, spender(UNITS_PER_MASJID_SEARCH, s));
+    // `source=google` (the watch app): Google's own names, no resident union.
+    const result = await masjids.lookup(lat, lon, spender(UNITS_PER_MASJID_SEARCH, s), {
+      googleOnly: source === "google",
+    });
 
     if (deps.stats) {
       const day = s?.day ?? ptDayKey();

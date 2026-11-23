@@ -369,6 +369,16 @@ throws):
 > answers first where it is dense. See §6d below — it is authoritative where it disagrees with the
 > bullets above.
 
+**Google-only list (`&source=google`, 2026-11-23, for the watch app).** `source` is optional and
+`google` is its only accepted value (anything else is the usual 400). Absent, the list is the
+merged resident + Google answer exactly as §6d describes. With `source=google` the list is ranked
+from Google results alone: the resident index is not read, `mergeMasjids` does not run, and the
+"resident is dense" short-cut is skipped, so a cell with nothing cached goes on to the governed
+live search. The cache tiers, geofence, kill switch, governor, breaker, telemetry and response shape
+are unchanged (`places_cache` is already purely Google, and nothing new is stored). When spend is
+refused or Google fails, the fallback is the stale Google cell if one exists, else
+`{ masjids: [], degraded: true }`; resident entries never appear in this mode.
+
 ### 6d. Quota architecture (ADR-014, 2026-07-25) — AUTHORITATIVE
 
 **Why it changed.** The walk/drive times, not the masjid search, were setting the ceiling: each cache
