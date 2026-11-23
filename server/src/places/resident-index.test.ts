@@ -115,4 +115,48 @@ describe("ResidentIndex", () => {
       expect(idx.size).toBe(ROWS.length + 1);
     });
   });
+
+  describe("nearestCommunity", () => {
+    const community: Masjid[] = [
+      { id: "usr:2", name: "ثاني", lat: 33.304, lon: 44.42, address: null },
+      { id: "usr:1", name: "أول", lat: 33.3002, lon: 44.4201, address: null },
+      { id: "usr:9", name: "بعيد", lat: 30.5, lon: 47.8, address: null },
+    ];
+
+    it("returns only community rows, never the bundled base rows", () => {
+      const idx = ResidentIndex.fromRows(ROWS);
+      expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 5, 10)).toEqual([]);
+      idx.setCommunity(community);
+      const ids = idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 5, 10).map((m) => m.id);
+      expect(ids).toEqual(["usr:1", "usr:2"]);
+      // The same search over everything still sees the base rows.
+      expect(idx.nearest(KARRADA.lat, KARRADA.lon, 5, 20).some((m) => m.id.startsWith("osm:"))).toBe(
+        true,
+      );
+    });
+
+    it("honours the radius and the limit", () => {
+      const idx = ResidentIndex.fromRows([]);
+      idx.setCommunity(community);
+      expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 0.1, 10)).toEqual([]);
+      expect(idx.nearestCommunity(KARRADA.lat, KARRADA.lon, 5, 1).map((m) => m.id)).toEqual(["usr:1"]);
+    });
+
+    it("finds rows across a latitude band boundary and follows a refresh", () => {
+      const idx = ResidentIndex.fromRows([]);
+      idx.setCommunity([
+        { id: "usr:3", name: "شمال", lat: 34.001, lon: 44, address: null },
+        { id: "usr:4", name: "جنوب", lat: 33.999, lon: 44, address: null },
+      ]);
+      expect(idx.nearestCommunity(34.0, 44, 5, 10)).toHaveLength(2);
+      idx.setCommunity([]);
+      expect(idx.nearestCommunity(34.0, 44, 5, 10)).toEqual([]);
+    });
+
+    it("never throws on a nonsense position", () => {
+      const idx = ResidentIndex.fromRows([]);
+      idx.setCommunity(community);
+      expect(idx.nearestCommunity(Number.NaN, 44, 5, 5)).toEqual([]);
+    });
+  });
 });

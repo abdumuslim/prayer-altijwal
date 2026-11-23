@@ -965,6 +965,137 @@ describe("GET /api/places/masjids?source=google (Google-only list)", () => {
     expect(s.cells.map((c) => c.cellKey)).toEqual([key, key]);
     await stop();
   });
+
+  describe("approved community masjids", () => {
+    const community = (id: string, name: string, dLat: number): Masjid => ({
+      id,
+      name,
+      lat: BAGHDAD.lat + dLat,
+      lon: BAGHDAD.lon,
+      address: null,
+    });
+    /** One bundled base row, then the approved community layer on top. */
+    const residentWith = (...rows: Masjid[]): ResidentIndex => {
+      const idx = ResidentIndex.fromRows([
+        { n: "جامع المنطقة", lat: BAGHDAD.lat + 0.0005, lon: BAGHDAD.lon + 0.002, oid: "n1" },
+      ]);
+      idx.setCommunity(rows);
+      return idx;
+    };
+    const names = (body: { masjids: Masjid[] }): string[] => body.masjids.map((m) => m.name);
+
+    it("lists a community masjid Google missed, ranked by distance with the Google ones", async () => {
+      const nearer = community("usr:1", "جامع دلال الكبيسي", -0.001); // ~110 m south
+      const farther = community("usr:2", "مسجد الأمل", 0.004); // ~440 m north
+      await start({ apiKey: "key", resident: residentWith(farther, nearer) });
+      mockSearch.mockResolvedValue([GOOGLE]); // ~220 m north
+
+      const body = await (await fetch(url("google"))).json();
+      expect(body).toEqual({
+        enabled: true,
+        masjids: [
+          servedFor(BAGHDAD, nearer),
+          servedFor(BAGHDAD, GOOGLE),
+          servedFor(BAGHDAD, farther),
+        ],
+        source: "google",
+        fetchedAt: expect.any(String),
+      });
+      await stop();
+    });
+
+    it("never lists a bundled base row, with or without community rows", async () => {
+      const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
+      await start({ apiKey: "key", resident: residentWith(own) });
+      mockSearch.mockResolvedValue([GOOGLE]);
+      const withOne = await (await fetch(url("google"))).json();
+      expect(names(withOne)).toEqual([own.name, GOOGLE.name]);
+      await stop();
+
+      await start({ apiKey: "key", resident: residentWith() });
+      const none = await (await fetch(url("google"))).json();
+      expect(names(none)).toEqual([GOOGLE.name]);
+      await stop();
+    });
+
+    it("does not double a community masjid that Google also lists", async () => {
+      // Same building ~20 m apart, spelled differently; the community name wins
+      // and Google's place id is adopted (the Maps link is more exact with it).
+      const same = community("usr:1", "جامع دلال الكبيسي", 0.002 + 0.0002);
+      await start({ apiKey: "key", resident: residentWith(same) });
+      mockSearch.mockResolvedValue([GOOGLE]);
+
+      const body = await (await fetch(url("google"))).json();
+      expect(body.masjids).toHaveLength(1);
+      expect(body.masjids[0].name).toBe(same.name);
+      expect(body.masjids[0].id).toBe(GOOGLE.id);
+      await stop();
+    });
+
+    it("leaves out a community masjid beyond the 5 km radius", async () => {
+      const inside = community("usr:1", "قريب", 0.04); // ~4.4 km
+      const outside = community("usr:2", "بعيد", 0.06); // ~6.7 km
+      await start({ apiKey: "key", resident: residentWith(inside, outside) });
+      mockSearch.mockResolvedValue([GOOGLE]);
+
+      const body = await (await fetch(url("google"))).json();
+      expect(names(body)).toEqual([GOOGLE.name, "قريب"]);
+      await stop();
+    });
+
+    it("keeps the same number returned: the nearest ten of Google and community together", async () => {
+      const many = Array.from({ length: 12 }, (_, i) =>
+        community(`usr:${i}`, `مسجد المجتمع ${i}`, -0.0015 * (i + 1)), // 170 m apart going south
+      );
+      await start({ apiKey: "key", resident: residentWith(...many) });
+      mockSearch.mockResolvedValue([GOOGLE]); // ~220 m north: between the first two
+
+      const body = await (await fetch(url("google"))).json();
+      expect(body.masjids).toHaveLength(10);
+      expect(names(body)).toEqual([
+        many[0]!.name,
+        GOOGLE.name,
+        ...many.slice(1, 9).map((m) => m.name),
+      ]);
+      await stop();
+    });
+
+    it("lists a nearby community masjid when Google returns nothing, and when spend is refused", async () => {
+      const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
+      await start({ apiKey: "key", resident: residentWith(own) });
+      mockSearch.mockResolvedValue([]);
+      const empty = await (await fetch(url("google"))).json();
+      expect(names(empty)).toEqual([own.name]);
+      expect(empty.source).toBe("google");
+      expect(empty.degraded).toBeUndefined();
+      await stop();
+
+      await start({
+        apiKey: "key",
+        resident: residentWith(own),
+        governor: fakeGovernor(false).governor,
+      });
+      const degraded = await (await fetch(url("google"))).json();
+      expect(degraded).toEqual({
+        enabled: true,
+        masjids: [servedFor(BAGHDAD, own)],
+        degraded: true,
+        source: "google",
+      });
+      await stop();
+    });
+
+    it("leaves the default reply as it was: base and community rows, no Google-only fields", async () => {
+      const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
+      await start({ apiKey: "key", resident: residentWith(own) });
+      mockSearch.mockResolvedValue([GOOGLE]);
+
+      const body = await (await fetch(url())).json();
+      expect(Object.keys(body).sort()).toEqual(["enabled", "masjids"]);
+      expect(names(body)).toEqual([own.name, "جامع المنطقة", GOOGLE.name]);
+      await stop();
+    });
+  });
 });
 
 describe("masjid service: Google-only cache namespace", () => {
