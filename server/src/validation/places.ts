@@ -1,9 +1,14 @@
 import { z } from "zod";
 
-/** Query schema for GET /api/places/masjids. Coerces numeric query strings. */
+/**
+ * Query schema for GET /api/places/masjids. Coerces numeric query strings.
+ * `source=google` (the only accepted value) asks for a Google-only list; absent
+ * keeps the merged resident + Google list.
+ */
 export const PlacesMasjidsQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lon: z.coerce.number().min(-180).max(180),
+  source: z.literal("google").optional(),
 });
 
 export type PlacesMasjidsQueryInput = z.infer<typeof PlacesMasjidsQuery>;

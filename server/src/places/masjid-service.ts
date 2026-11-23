@@ -36,6 +36,12 @@ export interface MasjidLookup {
   degraded: boolean;
   /** Cell this lookup resolved against — recorded as anonymous demand data. */
   cellKey: string;
+  /**
+   * Google-only mode: when Google returned the cell the list was built from (the
+   * watch counts its 30-day offline limit from it). Absent in the default mode,
+   * and when no Google cell was served.
+   */
+  fetchedAt?: Date;
 }
 
 export interface MasjidServiceDeps {
@@ -46,12 +52,27 @@ export interface MasjidServiceDeps {
   resident?: ResidentIndex | undefined;
 }
 
+export interface MasjidLookupOptions {
+  /**
+   * Serve Google results only: no resident union, no merge, and no "resident is
+   * dense" short-cut. Reads the shared cell first (Google data already paid for),
+   * then its own `g:` cell; writes ONLY the `g:` cell, so this traffic can never
+   * leave the default path an unusable shared cell to re-buy (see lookup).
+   */
+  googleOnly?: boolean | undefined;
+}
+
 export interface MasjidService {
   /**
    * `spend` is passed PER CALL because it is bound to the requesting client's
    * budget, while the service (and its memory cache) is shared by everyone.
    */
-  lookup(lat: number, lon: number, spend: () => Promise<boolean>): Promise<MasjidLookup>;
+  lookup(
+    lat: number,
+    lon: number,
+    spend: () => Promise<boolean>,
+    opts?: MasjidLookupOptions,
+  ): Promise<MasjidLookup>;
   memSize(): number;
 }
 
@@ -64,6 +85,16 @@ function coverageOf(centre: { lat: number; lon: number }, masjids: Masjid[]): Ce
   }
   return { resultCount: masjids.length, maxDistKm };
 }
+
+/** Namespace prefix of the cells Google-only lookups write (memory and places_cache). */
+const GOOGLE_ONLY_PREFIX = "g:";
+
+/**
+ * In Google-only mode a cell fetched this recently is served even when
+ * `cellIsUsable` refuses it: a re-search is anchored at the same cell centre and
+ * would return the same set, so spending again cannot widen it.
+ */
+const GOOGLE_ONLY_GRACE_MS = 24 * 60 * 60 * 1000;
 
 /** How far around the user the resident index is consulted. */
 const RESIDENT_RADIUS_KM = 5;
@@ -102,15 +133,22 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
    *
    * Google results are merged in at SERVE time and never written into the
    * resident dataset — places_cache stays purely Google so its 30-day retention
-   * means what it says.
+   * means what it says. In Google-only mode the resident data is not read at all.
    */
-  const build = (lat: number, lon: number, google: Masjid[]): ServedMasjid[] => {
+  const build = (
+    lat: number,
+    lon: number,
+    google: Masjid[],
+    googleOnly: boolean,
+  ): ServedMasjid[] => {
+    if (googleOnly) return rank(lat, lon, google);
     const local = deps.resident?.nearest(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
     return rank(lat, lon, mergeMasjids(local, google));
   };
 
   return {
-    async lookup(lat, lon, spend) {
+    async lookup(lat, lon, spend, opts) {
+      const googleOnly = opts?.googleOnly === true;
       const key = gridKey(lat, lon);
       const centre = cellCentre(key);
       if (!centre) {
@@ -120,60 +158,70 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
       }
       const fromCentreKm = haversineKm(lat, lon, centre.lat, centre.lon);
 
+      // The default path reads and writes only the shared grid key. Google-only
+      // reads the shared key first, then its own namespace, and writes only its
+      // own namespace: a Google-only purchase in a dense-resident cell must never
+      // become a shared cell the default path finds unusable and re-buys.
+      const ownKey = googleOnly ? GOOGLE_ONLY_PREFIX + key : key;
+      const readKeys = googleOnly ? [key, ownKey] : [key];
+      const servable = (cell: CachedCell): boolean =>
+        cellIsUsable(cell, fromCentreKm) ||
+        (googleOnly && Date.now() - cell.fetchedAt.getTime() < GOOGLE_ONLY_GRACE_MS);
+      const served = (
+        cell: CachedCell | null,
+        source: MasjidSource,
+        degraded: boolean,
+      ): MasjidLookup => {
+        const result: MasjidLookup = {
+          masjids: build(lat, lon, cell?.masjids ?? [], googleOnly),
+          source,
+          degraded,
+          cellKey: key,
+        };
+        if (googleOnly && cell) result.fetchedAt = cell.fetchedAt;
+        return result;
+      };
+
       // Best free answer we have seen, usable or not — the degraded fallback.
+      // Of several, the most recently fetched.
       let stale: CachedCell | null = null;
+      const noteStale = (cell: CachedCell): void => {
+        if (!stale || cell.fetchedAt.getTime() > stale.fetchedAt.getTime()) stale = cell;
+      };
 
       // Cache first, so quality we have ALREADY paid for is never thrown away
       // in favour of a free-but-thinner answer.
-      const hit = mem.get(key);
-      if (hit) {
-        if (cellIsUsable(hit, fromCentreKm)) {
-          return {
-            masjids: build(lat, lon, hit.masjids),
-            source: "cache_mem",
-            degraded: false,
-            cellKey: key,
-          };
-        }
-        stale = hit;
+      for (const k of readKeys) {
+        const hit = mem.get(k);
+        if (!hit) continue;
+        if (servable(hit)) return served(hit, "cache_mem", false);
+        noteStale(hit);
       }
 
       if (deps.cacheRepo) {
-        const row = await deps.cacheRepo.get(key);
-        if (row) {
-          mem.set(key, row);
-          if (cellIsUsable(row, fromCentreKm)) {
-            return {
-              masjids: build(lat, lon, row.masjids),
-              source: "cache_db",
-              degraded: false,
-              cellKey: key,
-            };
-          }
-          stale = row;
+        for (const k of readKeys) {
+          const row = await deps.cacheRepo.get(k);
+          if (!row) continue;
+          mem.set(k, row);
+          if (servable(row)) return served(row, "cache_db", false);
+          noteStale(row);
         }
       }
 
       // Nothing cached — but where the resident data is genuinely dense, it is
       // already a good answer, and buying one would add little. This is what
-      // makes Google's share shrink as the community fills Iraq in.
-      if (!stale && deps.resident?.isDenseAt(lat, lon)) {
+      // makes Google's share shrink as the community fills Iraq in. A Google-only
+      // caller has asked for Google's data, so it goes on to the live search.
+      if (!googleOnly && !stale && deps.resident?.isDenseAt(lat, lon)) {
         return {
-          masjids: build(lat, lon, []),
+          masjids: build(lat, lon, [], false),
           source: "resident",
           degraded: false,
           cellKey: key,
         };
       }
 
-      if (!(await spend())) {
-        return {
-          masjids: build(lat, lon, stale?.masjids ?? []),
-          source: "degraded",
-          degraded: true,
-          cellKey: key,
-        };
-      }
+      if (!(await spend())) return served(stale, "degraded", true);
 
       // Anchored at the CELL CENTRE, not the caller — that is what makes the
       // resulting entry reusable by everyone else in the cell.
@@ -181,20 +229,15 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
       if (found === null) {
         // Upstream failure (already logged) — fall back to whatever is free, and
         // do NOT cache the failure so the next request retries.
-        return {
-          masjids: build(lat, lon, stale?.masjids ?? []),
-          source: "degraded",
-          degraded: true,
-          cellKey: key,
-        };
+        return served(stale, "degraded", true);
       }
 
       const coverage = coverageOf(centre, found);
       const cell: CachedCell = { masjids: found, ...coverage, fetchedAt: new Date() };
-      mem.set(key, cell);
-      void deps.cacheRepo?.put(key, { masjids: found, ...coverage });
+      mem.set(ownKey, cell);
+      void deps.cacheRepo?.put(ownKey, { masjids: found, ...coverage });
 
-      return { masjids: build(lat, lon, found), source: "live", degraded: false, cellKey: key };
+      return served(cell, "live", false);
     },
 
     memSize: () => mem.size,

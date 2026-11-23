@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { cellCentre, cellIsUsable, gridKey, MAX_RESULTS, TtlLruCache } from "./cache.js";
 import { createPlacesRouter } from "./routes.js";
+import { createMasjidService } from "./masjid-service.js";
 import { searchNearbyMasjids, type Masjid } from "./google-places.js";
 import { fetchTravelMinutes } from "./google-routes.js";
 import { estimateTravel } from "./travel-estimate.js";
@@ -26,6 +27,7 @@ const mockSearch = vi.mocked(searchNearbyMasjids);
 const mockTravel = vi.mocked(fetchTravelMinutes);
 
 const BAGHDAD = { lat: 33.3152, lon: 44.3661 };
+const DAY_MS = 24 * 60 * 60 * 1000;
 /** New York: comfortably outside the Iraq bbox, for the geofence tests. */
 const NEW_YORK = { lat: 40.7128, lon: -74.006 };
 const MASJID: Masjid = {
@@ -681,6 +683,409 @@ describe("spend governor + telemetry", () => {
     const res = await fetch(masjidUrl());
     expect((await res.json()).masjids).toHaveLength(1);
     await stop();
+  });
+});
+
+describe("GET /api/places/masjids?source=google (Google-only list)", () => {
+  let server: Server;
+  let base: string;
+
+  async function start(deps: Parameters<typeof createPlacesRouter>[0]): Promise<void> {
+    const app = express();
+    app.use(createPlacesRouter(deps));
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        const { port } = server.address() as AddressInfo;
+        base = `http://127.0.0.1:${port}`;
+        resolve();
+      });
+    });
+  }
+  async function stop(): Promise<void> {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+
+  const url = (source?: string): string =>
+    `${base}/api/places/masjids?lat=${BAGHDAD.lat}&lon=${BAGHDAD.lon}` +
+    (source === undefined ? "" : `&source=${encodeURIComponent(source)}`);
+
+  /** Google's record of a masjid a few hundred metres from the caller. */
+  const GOOGLE: Masjid = {
+    id: "ChIJ-dalal",
+    name: "جامع الحاجة دلال الكبيسي",
+    lat: BAGHDAD.lat + 0.002,
+    lon: BAGHDAD.lon,
+    address: "بغداد",
+  };
+
+  /** Three resident masjids within a kilometre: isDenseAt(BAGHDAD) is true. */
+  const denseResident = (): ResidentIndex =>
+    ResidentIndex.fromRows([
+      { n: "جامع الرحمن", lat: BAGHDAD.lat + 0.001, lon: BAGHDAD.lon, oid: "n1" },
+      { n: "مسجد الهدى", lat: BAGHDAD.lat + 0.003, lon: BAGHDAD.lon, oid: "n2" },
+      { n: "جامع بلال", lat: BAGHDAD.lat + 0.006, lon: BAGHDAD.lon, oid: "n3" },
+    ]);
+  const RESIDENT_NAMES = ["جامع الرحمن", "مسجد الهدى", "جامع بلال"];
+
+  beforeEach(() => {
+    mockSearch.mockReset();
+    mockTravel.mockReset();
+  });
+
+  it("serves Google's name where the default list keeps the resident one", async () => {
+    // Same building in both sources under different names.
+    const resident = ResidentIndex.fromRows([
+      { n: "مصلى", lat: GOOGLE.lat, lon: GOOGLE.lon, oid: "w1" },
+    ]);
+    await start({ apiKey: "key", resident });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const def = await (await fetch(url())).json();
+    expect(def.masjids.map((m: Masjid) => m.name)).toEqual(["مصلى"]);
+
+    // Same process, same cell: now answered from the memory cell, Google only.
+    const goog = await (await fetch(url("google"))).json();
+    expect(goog).toEqual({
+      enabled: true,
+      masjids: [servedFor(BAGHDAD, GOOGLE)],
+      source: "google",
+      fetchedAt: expect.any(String),
+    });
+    expect(goog.masjids[0].id).toBe("ChIJ-dalal");
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+
+    // A Google-only memory hit does not alter the merged list. (Isolation on
+    // dense resident data is pinned by the "g:" namespace tests below.)
+    const def2 = await (await fetch(url())).json();
+    expect(def2).toEqual(def);
+    await stop();
+  });
+
+  it("skips the dense-resident short-cut: nothing cached means a live search", async () => {
+    const s = fakeStats();
+    const g = fakeGovernor(true);
+    await start({ apiKey: "key", resident: denseResident(), governor: g.governor, stats: s.recorder });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url("google"))).json();
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(g.spendCount()).toBe(1);
+    expect(body).toEqual({
+      enabled: true,
+      masjids: [servedFor(BAGHDAD, GOOGLE)],
+      source: "google",
+      fetchedAt: expect.any(String),
+    });
+    expect(s.outcomes).toEqual([{ outcome: "live", units: 1 }]);
+    expect(s.outcomes.map((o) => o.outcome)).not.toContain("resident");
+    await stop();
+  });
+
+  it("a refused spend with no cache serves [] degraded, never resident entries", async () => {
+    const s = fakeStats();
+    await start({
+      apiKey: "key",
+      resident: denseResident(),
+      governor: fakeGovernor(false).governor,
+      stats: s.recorder,
+    });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url("google"))).json();
+    // Empty list: source is still said, fetchedAt is omitted.
+    expect(body).toEqual({ enabled: true, masjids: [], degraded: true, source: "google" });
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(s.outcomes).toEqual([{ outcome: "denied_budget", units: 0 }]);
+    await stop();
+  });
+
+  it("a refused spend serves the stale Google cell only, with no resident union", async () => {
+    const repo = fakeRepo();
+    // Saturated cell that cannot vouch for the caller and is past the 24 h
+    // Google-only grace: stale, not usable, so the lookup asks to spend.
+    const fetchedAt = new Date(Date.now() - 2 * DAY_MS);
+    repo.rows.set(gridKey(BAGHDAD.lat, BAGHDAD.lon), {
+      masjids: [GOOGLE],
+      resultCount: MAX_RESULTS,
+      maxDistKm: 0.3,
+      fetchedAt,
+    });
+    await start({
+      apiKey: "key",
+      cacheRepo: repo,
+      resident: denseResident(),
+      governor: fakeGovernor(false).governor,
+    });
+
+    const body = await (await fetch(url("google"))).json();
+    // Exactly the Google cell: none of the three resident masjids leak in.
+    expect(body).toEqual({
+      enabled: true,
+      masjids: [servedFor(BAGHDAD, GOOGLE)],
+      degraded: true,
+      source: "google",
+      fetchedAt: fetchedAt.toISOString(),
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("upstream failure, or a required governor that is missing, serves [] degraded", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    mockSearch.mockResolvedValueOnce(null);
+    expect(await (await fetch(url("google"))).json()).toEqual({
+      enabled: true,
+      masjids: [],
+      degraded: true,
+      source: "google",
+    });
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    await stop();
+
+    mockSearch.mockReset();
+    await start({ apiKey: "key", resident: denseResident(), requireGovernor: true });
+    expect(await (await fetch(url("google"))).json()).toEqual({
+      enabled: true,
+      masjids: [],
+      degraded: true,
+      source: "google",
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("keeps the Iraq geofence and the kill switch", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    const out = await fetch(
+      `${base}/api/places/masjids?lat=${NEW_YORK.lat}&lon=${NEW_YORK.lon}&source=google`,
+    );
+    expect(await out.json()).toEqual({ enabled: false, masjids: [] });
+    await stop();
+
+    await start({ apiKey: "key", resident: denseResident(), isEnabled: async () => false });
+    expect(await (await fetch(url("google"))).json()).toEqual({ enabled: false, masjids: [] });
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("rejects any other source value with the existing 400", async () => {
+    await start({ apiKey: "key", resident: denseResident() });
+    for (const bad of ["bogus", "Google", "resident", ""]) {
+      const res = await fetch(url(bad));
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("Invalid query parameters");
+      expect(Array.isArray(body.issues)).toBe(true);
+    }
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+  });
+
+  it("absent source is today's behaviour: the dense resident answer, no Google call", async () => {
+    const s = fakeStats();
+    await start({ apiKey: "key", resident: denseResident(), stats: s.recorder });
+    mockSearch.mockResolvedValue([GOOGLE]);
+
+    const body = await (await fetch(url())).json();
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(body.degraded).toBeUndefined();
+    expect(body.masjids.map((m: Masjid) => m.name)).toEqual(RESIDENT_NAMES);
+    expect(s.outcomes).toEqual([{ outcome: "resident", units: 0 }]);
+    await stop();
+  });
+
+  it("a Google-only reply carries source and the cached cell's fetchedAt; a live one, about now", async () => {
+    const repo = fakeRepo();
+    const fetchedAt = new Date(Date.now() - 3 * DAY_MS);
+    // Unsaturated, so usable: served from Postgres with its own time.
+    repo.rows.set(gridKey(BAGHDAD.lat, BAGHDAD.lon), {
+      masjids: [GOOGLE],
+      resultCount: 1,
+      maxDistKm: 0.2,
+      fetchedAt,
+    });
+    await start({ apiKey: "key", cacheRepo: repo });
+    const cached = await (await fetch(url("google"))).json();
+    expect(cached.source).toBe("google");
+    expect(cached.fetchedAt).toBe(fetchedAt.toISOString());
+    expect(mockSearch).not.toHaveBeenCalled();
+    await stop();
+
+    await start({ apiKey: "key" });
+    mockSearch.mockResolvedValue([GOOGLE]);
+    const before = Date.now();
+    const live = await (await fetch(url("google"))).json();
+    const after = Date.now();
+    expect(live.source).toBe("google");
+    expect(live.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    const t = Date.parse(live.fetchedAt);
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(after);
+    await stop();
+  });
+
+  it("a default reply carries neither source nor fetchedAt", async () => {
+    await start({ apiKey: "key" });
+    mockSearch.mockResolvedValue([GOOGLE]);
+    const live = await (await fetch(url())).json();
+    expect(live).toEqual({ enabled: true, masjids: [servedFor(BAGHDAD, GOOGLE)] });
+    const cached = await (await fetch(url())).json();
+    expect(cached).toEqual(live);
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    await stop();
+  });
+
+  it("writes only its own g: cell, so a default request after it is still the free resident answer", async () => {
+    const s = fakeStats();
+    const g = fakeGovernor(true);
+    const repo = fakeRepo();
+    await start({
+      apiKey: "key",
+      resident: denseResident(),
+      cacheRepo: repo,
+      governor: g.governor,
+      stats: s.recorder,
+    });
+    mockSearch.mockResolvedValue([GOOGLE]);
+    const key = gridKey(BAGHDAD.lat, BAGHDAD.lon);
+
+    // Google-only FIRST, on dense resident data with nothing cached.
+    await fetch(url("google"));
+    expect(g.spendCount()).toBe(1);
+    expect([...repo.rows.keys()]).toEqual([`g:${key}`]);
+
+    // The default path never sees that cell: dense short-cut, nothing spent.
+    const body = await (await fetch(url())).json();
+    expect(body.masjids.map((m: Masjid) => m.name)).toEqual(RESIDENT_NAMES);
+    expect(g.spendCount()).toBe(1);
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(s.outcomes.map((o) => o.outcome)).toEqual(["live", "resident"]);
+    expect(repo.rows.has(key)).toBe(false);
+    // Demand is still recorded against the plain grid key.
+    expect(s.cells.map((c) => c.cellKey)).toEqual([key, key]);
+    await stop();
+  });
+});
+
+describe("masjid service: Google-only cache namespace", () => {
+  /** 20 Google results packed within ~0.6 km of the cell centre (dense Baghdad). */
+  const centre = cellCentre(gridKey(BAGHDAD.lat, BAGHDAD.lon))!;
+  const saturated: Masjid[] = Array.from({ length: MAX_RESULTS }, (_, i) => ({
+    id: `g${i}`,
+    name: `جامع ${i}`,
+    lat: centre.lat + 0.0005 * (i % 10),
+    lon: centre.lon + 0.0005 * Math.floor(i / 10),
+    address: "بغداد",
+  }));
+  const denseResident = (): ResidentIndex =>
+    ResidentIndex.fromRows([
+      { n: "r1", lat: BAGHDAD.lat + 0.001, lon: BAGHDAD.lon, oid: "n1" },
+      { n: "r2", lat: BAGHDAD.lat + 0.003, lon: BAGHDAD.lon, oid: "n2" },
+      { n: "r3", lat: BAGHDAD.lat + 0.006, lon: BAGHDAD.lon, oid: "n3" },
+    ]);
+
+  function counter() {
+    let n = 0;
+    return {
+      spend: async () => {
+        n++;
+        return true;
+      },
+      count: () => n,
+    };
+  }
+
+  beforeEach(() => {
+    mockSearch.mockReset();
+    mockSearch.mockResolvedValue(saturated);
+  });
+
+  it("precondition: the saturated cell cannot vouch for a BAGHDAD caller", () => {
+    const fromCentre = haversineKm(BAGHDAD.lat, BAGHDAD.lon, centre.lat, centre.lon);
+    let maxDistKm = 0;
+    for (const m of saturated) {
+      maxDistKm = Math.max(maxDistKm, haversineKm(centre.lat, centre.lon, m.lat, m.lon));
+    }
+    expect(cellIsUsable({ resultCount: MAX_RESULTS, maxDistKm }, fromCentre)).toBe(false);
+  });
+
+  it("default, default, google, google, default, default spends 0, 0, 1, 1, 1, 1", async () => {
+    const repo = fakeRepo();
+    const svc = createMasjidService({ apiKey: "k", resident: denseResident(), cacheRepo: repo });
+    const c = counter();
+    const spends: number[] = [];
+    const sources: string[] = [];
+    for (const googleOnly of [false, false, true, true, false, false]) {
+      const r = await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly });
+      spends.push(c.count());
+      sources.push(r.source);
+      if (googleOnly) expect(r.masjids.every((m) => m.id.startsWith("g"))).toBe(true);
+    }
+    expect(spends).toEqual([0, 0, 1, 1, 1, 1]);
+    expect(sources).toEqual(["resident", "resident", "live", "cache_mem", "resident", "resident"]);
+    expect([...repo.rows.keys()]).toEqual([`g:${gridKey(BAGHDAD.lat, BAGHDAD.lon)}`]);
+  });
+
+  it("two Google-only requests the saturated cell cannot vouch for spend once in total", async () => {
+    const svc = createMasjidService({ apiKey: "k" });
+    const c = counter();
+    const a = await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true });
+    const b = await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true });
+    expect(a.source).toBe("live");
+    expect(b.source).toBe("cache_mem");
+    expect(b.masjids).toEqual(a.masjids);
+    expect(b.cellKey).toBe(gridKey(BAGHDAD.lat, BAGHDAD.lon));
+    expect(c.count()).toBe(1);
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the shared cell first: a fresh saturated shared row is reused without spending", async () => {
+    const repo = fakeRepo();
+    await repo.put(gridKey(BAGHDAD.lat, BAGHDAD.lon), {
+      masjids: saturated,
+      resultCount: MAX_RESULTS,
+      maxDistKm: 0.6,
+    });
+    const svc = createMasjidService({ apiKey: "k", cacheRepo: repo });
+    const c = counter();
+    const r = await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true });
+    expect(r.source).toBe("cache_db");
+    expect(c.count()).toBe(0);
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(repo.rows.size).toBe(1);
+  });
+
+  it("an unusable g: cell under 24 h old is served from Postgres; past 24 h it spends again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const t0 = new Date("2026-11-23T08:00:00Z").getTime();
+      vi.setSystemTime(t0);
+      const repo = fakeRepo();
+      const svc = createMasjidService({ apiKey: "k", cacheRepo: repo });
+      const c = counter();
+
+      expect((await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true })).source).toBe(
+        "live",
+      );
+      expect(c.count()).toBe(1);
+
+      // Memory tier expired (1 h), Postgres g: row is 23 h old: still no spend.
+      vi.setSystemTime(t0 + 23 * 60 * 60 * 1000);
+      expect((await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true })).source).toBe(
+        "cache_db",
+      );
+      expect(c.count()).toBe(1);
+
+      // Past 24 h and still unusable: spend and search again.
+      vi.setSystemTime(t0 + 25 * 60 * 60 * 1000);
+      expect((await svc.lookup(BAGHDAD.lat, BAGHDAD.lon, c.spend, { googleOnly: true })).source).toBe(
+        "live",
+      );
+      expect(c.count()).toBe(2);
+      expect(mockSearch).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
