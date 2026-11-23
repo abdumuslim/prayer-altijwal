@@ -54,8 +54,8 @@ export interface MasjidServiceDeps {
 
 export interface MasjidLookupOptions {
   /**
-   * Serve Google results only: no resident union, no merge, and no "resident is
-   * dense" short-cut. Reads the shared cell first (Google data already paid for),
+   * Serve Google results plus the approved community masjids near the user (never
+   * the bundled OSM base), and no "resident is dense" short-cut. Reads the shared cell first (Google data already paid for),
    * then its own `g:` cell; writes ONLY the `g:` cell, so this traffic can never
    * leave the default path an unusable shared cell to re-buy (see lookup).
    */
@@ -133,7 +133,10 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
    *
    * Google results are merged in at SERVE time and never written into the
    * resident dataset — places_cache stays purely Google so its 30-day retention
-   * means what it says. In Google-only mode the resident data is not read at all.
+   * means what it says. In Google-only mode only the approved community masjids
+   * are read (never the bundled OSM base): they cover real masjids Google files
+   * under another category. They are added at serve time too, so they never reach
+   * the g: cache cells.
    */
   const build = (
     lat: number,
@@ -141,7 +144,11 @@ export function createMasjidService(deps: MasjidServiceDeps): MasjidService {
     google: Masjid[],
     googleOnly: boolean,
   ): ServedMasjid[] => {
-    if (googleOnly) return rank(lat, lon, google);
+    if (googleOnly) {
+      const added =
+        deps.resident?.nearestCommunity(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
+      return rank(lat, lon, mergeMasjids(added, google));
+    }
     const local = deps.resident?.nearest(lat, lon, RESIDENT_RADIUS_KM, MASJIDS_RETURNED * 2) ?? [];
     return rank(lat, lon, mergeMasjids(local, google));
   };
