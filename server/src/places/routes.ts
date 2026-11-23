@@ -222,9 +222,20 @@ export function createPlacesRouter(deps: PlacesRouterDeps): Router {
       masjids: ServedMasjid[];
       embedKey?: string;
       degraded?: true;
+      source?: "google";
+      fetchedAt?: string;
     } = { enabled: true, masjids: result.masjids };
     if (deps.embedKey) body.embedKey = deps.embedKey;
     if (result.degraded) body.degraded = true;
+    // Google-only replies say so, and when Google returned the list: the watch
+    // keeps an offline copy only of a `source: "google"` list and counts the
+    // 30-day Google limit from `fetchedAt`. Default replies carry neither.
+    if (source === "google") {
+      body.source = "google";
+      if (result.masjids.length > 0 && result.fetchedAt) {
+        body.fetchedAt = result.fetchedAt.toISOString();
+      }
+    }
     res.json(body);
   });
 

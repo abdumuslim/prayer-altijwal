@@ -374,10 +374,19 @@ throws):
 merged resident + Google answer exactly as §6d describes. With `source=google` the list is ranked
 from Google results alone: the resident index is not read, `mergeMasjids` does not run, and the
 "resident is dense" short-cut is skipped, so a cell with nothing cached goes on to the governed
-live search. The cache tiers, geofence, kill switch, governor, breaker, telemetry and response shape
-are unchanged (`places_cache` is already purely Google, and nothing new is stored). When spend is
-refused or Google fails, the fallback is the stale Google cell if one exists, else
-`{ masjids: [], degraded: true }`; resident entries never appear in this mode.
+live search. The geofence, kill switch, governor, breaker and telemetry are unchanged. It reads the
+shared cell first (Google data already paid for is reused), then its own cell, and writes ONLY its
+own namespace (memory and `places_cache.cell_key` = `"g:" + cell`), so Google-only traffic never
+leaves the default path a shared cell to re-buy. Those `g:` rows are still pure Google content under
+the same 30-day read filter and prune. A cached cell under 24 hours old is served even when
+`cellIsUsable` refuses it, because a re-search anchored at the same cell centre would return the
+same set. Note the cost: watch traffic buys dense cells the default path answers free from resident
+data, so the ADR-014 dense-resident saving does not apply to it. When spend is refused or Google
+fails, the fallback is the stale Google cell if one exists, else `{ masjids: [], degraded: true }`;
+resident entries never appear in this mode. The reply adds `source: "google"` and, when the list is
+not empty, `fetchedAt` (ISO 8601: when Google returned the served cell, or now for a live search).
+The watch keeps an offline copy only of a `source: "google"` list and counts the 30-day Google limit
+from `fetchedAt`. Default replies carry neither field.
 
 ### 6d. Quota architecture (ADR-014, 2026-07-25) — AUTHORITATIVE
 
