@@ -38,6 +38,8 @@ const KM_PER_DEG_LAT = 111;
  */
 export class ResidentIndex {
   private bands = new Map<number, Masjid[]>();
+  /** The same band index over the community rows alone. */
+  private communityBands = new Map<number, Masjid[]>();
   private base: Masjid[] = [];
   private community: Masjid[] = [];
 
@@ -96,13 +98,19 @@ export class ResidentIndex {
   }
 
   private reindex(): void {
-    this.bands = new Map();
-    for (const m of [...this.base, ...this.community]) {
+    this.bands = ResidentIndex.bucket([...this.base, ...this.community]);
+    this.communityBands = ResidentIndex.bucket(this.community);
+  }
+
+  private static bucket(rows: Masjid[]): Map<number, Masjid[]> {
+    const bands = new Map<number, Masjid[]>();
+    for (const m of rows) {
       const band = Math.floor(m.lat / BAND_DEG);
-      const bucket = this.bands.get(band);
+      const bucket = bands.get(band);
       if (bucket) bucket.push(m);
-      else this.bands.set(band, [m]);
+      else bands.set(band, [m]);
     }
+    return bands;
   }
 
   get size(): number {
@@ -111,7 +119,25 @@ export class ResidentIndex {
 
   /** Nearest masjids within `radiusKm`, closest first. */
   nearest(lat: number, lon: number, radiusKm: number, limit: number): Masjid[] {
-    if (this.size === 0) return [];
+    return this.search(this.bands, lat, lon, radiusKm, limit);
+  }
+
+  /**
+   * Like `nearest`, but only the approved community rows, never the bundled OSM
+   * base. The Google-only list adds these to Google's results.
+   */
+  nearestCommunity(lat: number, lon: number, radiusKm: number, limit: number): Masjid[] {
+    return this.search(this.communityBands, lat, lon, radiusKm, limit);
+  }
+
+  private search(
+    bands: Map<number, Masjid[]>,
+    lat: number,
+    lon: number,
+    radiusKm: number,
+    limit: number,
+  ): Masjid[] {
+    if (bands.size === 0) return [];
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
 
     const span = Math.max(1, Math.ceil(radiusKm / KM_PER_DEG_LAT));
@@ -119,7 +145,7 @@ export class ResidentIndex {
 
     const scored: Array<{ m: Masjid; km: number }> = [];
     for (let b = centreBand - span; b <= centreBand + span; b++) {
-      const bucket = this.bands.get(b);
+      const bucket = bands.get(b);
       if (!bucket) continue;
       for (const m of bucket) {
         const km = haversineKm(lat, lon, m.lat, m.lon);

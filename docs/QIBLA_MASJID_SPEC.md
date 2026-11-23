@@ -372,19 +372,26 @@ throws):
 **Google-only list (`&source=google`, 2026-11-23, for the watch app).** `source` is optional and
 `google` is its only accepted value (anything else is the usual 400). Absent, the list is the
 merged resident + Google answer exactly as §6d describes. With `source=google` the list is ranked
-from Google results alone: the resident index is not read, `mergeMasjids` does not run, and the
-"resident is dense" short-cut is skipped, so a cell with nothing cached goes on to the governed
-live search. The geofence, kill switch, governor, breaker and telemetry are unchanged. It reads the
+from Google results plus the approved community masjids within 5 km (never the bundled OSM base;
+they cover masjids Google files under another category), merged with `mergeMasjids` so none is
+doubled, and the "resident is dense" short-cut is skipped, so a cell with nothing cached goes on
+to the governed live search. The geofence, kill switch, governor, breaker and telemetry are unchanged. It reads the
 shared cell first (Google data already paid for is reused), then its own cell, and writes ONLY its
 own namespace (memory and `places_cache.cell_key` = `"g:" + cell`), so Google-only traffic never
 leaves the default path a shared cell to re-buy. Those `g:` rows are still pure Google content under
 the same 30-day read filter and prune. A cached cell under 24 hours old is served even when
 `cellIsUsable` refuses it, because a re-search anchored at the same cell centre would return the
 same set. Note the cost: watch traffic buys dense cells the default path answers free from resident
-data, so the ADR-014 dense-resident saving does not apply to it. When spend is refused or Google
-fails, the fallback is the stale Google cell if one exists, else `{ masjids: [], degraded: true }`;
-resident entries never appear in this mode. The reply adds `source: "google"` and, when the list is
-not empty, `fetchedAt` (ISO 8601: when Google returned the served cell, or now for a live search).
+data, so the ADR-014 dense-resident saving does not apply to it. Community masjids join the list only
+when a Google cell is served (live, cached or stale, including a Google cell that exists but is
+empty). When spend is refused or Google fails, the fallback is the stale Google cell if one exists
+(plus the nearby community masjids), else exactly `{ masjids: [], degraded: true }` with no community
+rows: the watch reads an empty list as "use my saved list", and a community-only reply would
+overwrite that saved offline list. With no community masjid near, the Google list is returned as
+Google gave it, with no deduplication among Google's own places. Bundled OSM entries never appear in
+this mode. The reply adds `source: "google"` and, when the list is not
+empty (which implies a Google cell was served), `fetchedAt` (ISO 8601: when Google returned the
+served cell, or now for a live search); it is omitted for an empty list.
 The watch keeps an offline copy only of a `source: "google"` list and counts the 30-day Google limit
 from `fetchedAt`. Default replies carry neither field.
 
