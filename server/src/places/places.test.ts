@@ -1060,7 +1060,7 @@ describe("GET /api/places/masjids?source=google (Google-only list)", () => {
       await stop();
     });
 
-    it("lists a nearby community masjid when Google returns nothing, and when spend is refused", async () => {
+    it("lists a nearby community masjid when Google returns an empty cell", async () => {
       const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
       await start({ apiKey: "key", resident: residentWith(own) });
       mockSearch.mockResolvedValue([]);
@@ -1068,20 +1068,92 @@ describe("GET /api/places/masjids?source=google (Google-only list)", () => {
       expect(names(empty)).toEqual([own.name]);
       expect(empty.source).toBe("google");
       expect(empty.degraded).toBeUndefined();
+      expect(empty.fetchedAt).toEqual(expect.any(String));
       await stop();
+    });
 
+    // The watch reads an empty list as "use my saved list"; a community-only
+    // reply would overwrite that saved offline list. So with NO Google cell
+    // (live, cached or stale) the degraded reply stays exactly [].
+    describe("with no Google cell the degraded reply stays empty", () => {
+      const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
+      const EMPTY = { enabled: true, masjids: [], degraded: true, source: "google" };
+
+      it("when spend is refused", async () => {
+        await start({
+          apiKey: "key",
+          resident: residentWith(own),
+          governor: fakeGovernor(false).governor,
+        });
+        expect(await (await fetch(url("google"))).json()).toEqual(EMPTY);
+        expect(mockSearch).not.toHaveBeenCalled();
+        await stop();
+      });
+
+      it("when Google fails", async () => {
+        await start({ apiKey: "key", resident: residentWith(own) });
+        mockSearch.mockResolvedValueOnce(null);
+        expect(await (await fetch(url("google"))).json()).toEqual(EMPTY);
+        await stop();
+      });
+
+      it("when the governor is required but missing", async () => {
+        await start({ apiKey: "key", resident: residentWith(own), requireGovernor: true });
+        expect(await (await fetch(url("google"))).json()).toEqual(EMPTY);
+        expect(mockSearch).not.toHaveBeenCalled();
+        await stop();
+      });
+
+      it("when the burst breaker is open", async () => {
+        await start({ apiKey: "key", resident: residentWith(own) });
+        mockSearch.mockResolvedValue([]);
+        for (let i = 0; i < 30; i++) {
+          await fetch(`${base}/api/places/masjids?lat=${(29 + i * 0.02).toFixed(4)}&lon=44&source=google`);
+        }
+        expect(await (await fetch(url("google"))).json()).toEqual(EMPTY);
+        await stop();
+      });
+    });
+
+    it("a stale Google cell on a refused spend still gets the community rows", async () => {
+      const own = community("usr:1", "جامع دلال الكبيسي", -0.001);
+      const repo = fakeRepo();
+      const fetchedAt = new Date(Date.now() - 2 * DAY_MS);
+      repo.rows.set(gridKey(BAGHDAD.lat, BAGHDAD.lon), {
+        masjids: [GOOGLE],
+        resultCount: MAX_RESULTS,
+        maxDistKm: 0.3,
+        fetchedAt,
+      });
       await start({
         apiKey: "key",
+        cacheRepo: repo,
         resident: residentWith(own),
         governor: fakeGovernor(false).governor,
       });
-      const degraded = await (await fetch(url("google"))).json();
-      expect(degraded).toEqual({
+      const body = await (await fetch(url("google"))).json();
+      expect(body).toEqual({
         enabled: true,
-        masjids: [servedFor(BAGHDAD, own)],
+        masjids: [servedFor(BAGHDAD, own), servedFor(BAGHDAD, GOOGLE)],
         degraded: true,
         source: "google",
+        fetchedAt: fetchedAt.toISOString(),
       });
+      await stop();
+    });
+
+    it("with no community row near, Google places within 40 m of each other both survive", async () => {
+      const twin: Masjid = {
+        id: "ChIJ-twin",
+        name: "مسجد آخر",
+        lat: GOOGLE.lat + 0.0002, // ~22 m from GOOGLE
+        lon: GOOGLE.lon,
+        address: "بغداد",
+      };
+      await start({ apiKey: "key", resident: residentWith() });
+      mockSearch.mockResolvedValue([GOOGLE, twin]);
+      const body = await (await fetch(url("google"))).json();
+      expect(body.masjids.map((m: Masjid) => m.id)).toEqual([GOOGLE.id, twin.id]);
       await stop();
     });
 
